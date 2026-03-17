@@ -17,7 +17,8 @@ return function (ContainerConfigurator $container): void {
     $services->alias(TenantContext::class, 'tenancy.context');
 
     $services->set('tenancy.bootstrapper_chain', BootstrapperChain::class)
-        ->public(false);
+        ->public(false)
+        ->args([service('event_dispatcher')]);
     $services->alias(BootstrapperChain::class, 'tenancy.bootstrapper_chain');
 
     $services->set(TenantContextOrchestrator::class)
