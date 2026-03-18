@@ -71,14 +71,14 @@ Plans:
   2. The `landlord` entity manager always reads from the central Tenant registry and is unaffected by tenant switches
   3. `TenantConnection::switchTenant()` changes connection parameters in DBAL 4 via the `wrapperClass` mechanism without calling deprecated APIs
   4. On tenant context clear, the tenant entity manager is reset (`resetManager()`) so no Tenant A entity is returned during a Tenant B request
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 03-01: TenantDriverInterface and DatabaseDriver skeleton
-- [ ] 03-02: TenantConnection (DBAL wrapperClass subclass with switchTenant())
-- [ ] 03-03: Landlord/tenant dual EntityManager configuration and DI wiring
-- [ ] 03-04: EntityManager reset on TenantContextCleared event
-- [ ] 03-05: Integration tests — cross-tenant query isolation and identity map teardown
+- [ ] 03-01-PLAN.md — TenantDriverInterface and DatabaseSwitchBootstrapper (boot/clear delegation)
+- [ ] 03-02-PLAN.md — TenantConnection (DBAL 4 wrapperClass subclass with switchTenant/reset via reflection)
+- [ ] 03-03-PLAN.md — Bundle config (tenancy.database.enabled), conditional DI wiring, DoctrineTenantProvider rewiring to landlord EM
+- [ ] 03-04-PLAN.md — EntityManagerResetListener (resetManager('tenant') on TenantContextCleared)
+- [ ] 03-05-PLAN.md — Integration tests: cross-tenant query isolation and identity map teardown with dual-EM DoctrineTestKernel
 
 ### Phase 4: Shared-DB Driver
 **Goal**: All Doctrine queries for entities marked #[TenantAware] are automatically scoped to the active tenant's ID via a SQL filter, and querying without an active tenant throws TenantMissingException
