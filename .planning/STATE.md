@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-03-18T21:47:01.223Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-03-18T21:56:50.134Z"
 last_activity: "2026-03-18 - Completed 02-04: ConsoleResolver for CLI tenant resolution via --tenant option"
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 90
 ---
 
@@ -59,6 +59,7 @@ Progress: [█████████░] 90%
 | Phase 02-tenant-resolution P02 | 2 | 1 task (TDD) | 3 files |
 | Phase 02-tenant-resolution P03 | 4 | 1 tasks | 5 files |
 | Phase 02-tenant-resolution P04 | 2 | 1 tasks | 3 files |
+| Phase 02-tenant-resolution P05 | 7 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ Recent decisions affecting current work:
 - [Phase 02-tenant-resolution P02]: HostResolver takes last subdomain segment before app_domain suffix as slug (api.acme.app.com -> acme); TenantNotFoundException caught (null), TenantInactiveException bubbles; priority 30
 - [Phase 02-tenant-resolution]: HeaderResolver (priority 20) reads X-Tenant-ID header; QueryParamResolver (priority 10) reads _tenant query param — both catch TenantNotFoundException, let TenantInactiveException bubble
 - [Phase 02-tenant-resolution]: ConsoleResolver operates independently from HTTP resolver chain — listens on ConsoleCommandEvent, not tagged as tenancy.resolver, orchestrates context directly without TenantContextOrchestrator
+- [Phase 02-05]: NullTenantProvider and ReplaceTenancyProviderPass extracted to tests/Integration/Support/ so compiler pass classes are PSR-4 autoloaded and available across multiple test files
+- [Phase 02-05]: StubResolver (real TenantResolverInterface implementation) used in unit tests instead of mocking ResolverChain (final class)
+- [Phase 02-05]: MakeResolverChainPublicPass targets tenancy.resolver_chain definition ID + alias to expose private ResolverChain for test container inspection
 
 ### Pending Todos
 
@@ -111,6 +115,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:47:01.219Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-03-18T21:56:50.131Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None

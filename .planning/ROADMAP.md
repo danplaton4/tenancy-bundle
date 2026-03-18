@@ -13,7 +13,7 @@ This bundle is built in eight sequential phases derived from the dependency grap
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Foundation** - TenantContext, lifecycle events, bootstrapper interface, Tenant entity, and kernel event wiring (completed 2026-03-18)
-- [ ] **Phase 2: Tenant Resolution** - All four resolvers, resolver chain, and kernel.request orchestrator
+- [x] **Phase 2: Tenant Resolution** - All four resolvers, resolver chain, and kernel.request orchestrator (completed 2026-03-18)
 - [ ] **Phase 3: Database-Per-Tenant Driver** - DBAL wrapperClass connection switching with two named entity managers
 - [ ] **Phase 4: Shared-DB Driver** - Doctrine SQL filter, #[TenantAware] attribute, and strict mode
 - [ ] **Phase 5: Infrastructure Bootstrappers** - Doctrine bootstrapper (identity map safety) and Cache bootstrapper (namespace isolation)
@@ -53,7 +53,7 @@ Plans:
   3. A request with `?_tenant=<slug>` resolves to the correct tenant via QueryParamResolver
   4. Running `bin/console any:command --tenant=<id>` resolves to the correct tenant via ConsoleResolver (fires on ConsoleCommandEvent, not kernel.request)
   5. A custom class implementing `TenantResolverInterface` and tagged with a DI priority attribute is discovered and inserted at the correct position in the resolution chain
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — TenantResolverInterface, ResolverChain, TenantProviderInterface, exceptions, and ResolverChainPass
@@ -185,7 +185,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Foundation | 5/5 | Complete   | 2026-03-18 |
-| 2. Tenant Resolution | 4/5 | In Progress|  |
+| 2. Tenant Resolution | 5/5 | Complete   | 2026-03-18 |
 | 3. Database-Per-Tenant Driver | 0/5 | Not started | - |
 | 4. Shared-DB Driver | 0/4 | Not started | - |
 | 5. Infrastructure Bootstrappers | 0/3 | Not started | - |
