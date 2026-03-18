@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-03-18T21:42:23.840Z"
-last_activity: "2026-03-18 - Completed 02-03: HeaderResolver (X-Tenant-ID) and QueryParamResolver (_tenant) with unit tests"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-18T21:47:01.223Z"
+last_activity: "2026-03-18 - Completed 02-04: ConsoleResolver for CLI tenant resolution via --tenant option"
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
-  percent: 11
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 2 of 9 (Tenant Resolution) — IN PROGRESS
-Plan: 3 of 5 in current phase
-Status: In progress — HeaderResolver and QueryParamResolver complete, DomainResolver next
-Last activity: 2026-03-18 - Completed 02-03: HeaderResolver (X-Tenant-ID) and QueryParamResolver (_tenant) with unit tests
+Plan: 4 of 5 in current phase
+Status: In progress — ConsoleResolver complete, final plan (02-05) next
+Last activity: 2026-03-18 - Completed 02-04: ConsoleResolver for CLI tenant resolution via --tenant option
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [████████░░] 80%
 | Phase 02-tenant-resolution P01 | 12 | 2 tasks | 17 files |
 | Phase 02-tenant-resolution P02 | 2 | 1 task (TDD) | 3 files |
 | Phase 02-tenant-resolution P03 | 4 | 1 tasks | 5 files |
+| Phase 02-tenant-resolution P04 | 2 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,7 @@ Recent decisions affecting current work:
 - [Phase 02-tenant-resolution]: symfony/cache and symfony/console added to hard require — directly used by bundle classes
 - [Phase 02-tenant-resolution P02]: HostResolver takes last subdomain segment before app_domain suffix as slug (api.acme.app.com -> acme); TenantNotFoundException caught (null), TenantInactiveException bubbles; priority 30
 - [Phase 02-tenant-resolution]: HeaderResolver (priority 20) reads X-Tenant-ID header; QueryParamResolver (priority 10) reads _tenant query param — both catch TenantNotFoundException, let TenantInactiveException bubble
+- [Phase 02-tenant-resolution]: ConsoleResolver operates independently from HTTP resolver chain — listens on ConsoleCommandEvent, not tagged as tenancy.resolver, orchestrates context directly without TenantContextOrchestrator
 
 ### Pending Todos
 
@@ -109,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:42:23.836Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-03-18T21:47:01.219Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
