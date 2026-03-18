@@ -11,7 +11,7 @@
 - [x] **CORE-02**: Bundle fires `TenantResolved`, `TenantBootstrapped`, and `TenantContextCleared` Symfony events at each lifecycle stage
 - [x] **CORE-03**: Bundle provides `TenantBootstrapperInterface`; a compiler pass auto-tags implementations so users register bootstrappers via DI config only
 - [x] **CORE-04**: Bundle ships a `Tenant` Doctrine entity in the landlord DB with slug, domain, connection config, and status fields
-- [ ] **CORE-05**: Tenant resolution fires at `kernel.request` priority 20 — after the router (32) and before the security firewall (8) — preventing controller constructors from receiving un-tenanted service instances
+- [x] **CORE-05**: Tenant resolution fires at `kernel.request` priority 20 — after the router (32) and before the security firewall (8) — preventing controller constructors from receiving un-tenanted service instances
 
 ### Tenant Resolution
 
@@ -106,7 +106,7 @@
 | CORE-02 | Phase 1 | Complete |
 | CORE-03 | Phase 1 | Complete |
 | CORE-04 | Phase 1 | Complete |
-| CORE-05 | Phase 1 | Pending |
+| CORE-05 | Phase 1 | Complete |
 | RESV-01 | Phase 2 | Pending |
 | RESV-02 | Phase 2 | Pending |
 | RESV-03 | Phase 2 | Pending |

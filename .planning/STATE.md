@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-03-18T06:31:57.481Z"
-last_activity: 2026-03-17 — Roadmap created from requirements and research
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-03-18T06:39:00.000Z"
+last_activity: 2026-03-18 — Completed Phase 1 Plan 5 (TenantContextOrchestrator + integration tests)
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 0
+  completed_plans: 5
+  percent: 11
 ---
 
 # Project State
@@ -25,36 +25,36 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 1 of 9 (Core Foundation)
-Plan: 0 of 5 in current phase
-Status: Ready to plan
-Last activity: 2026-03-17 — Roadmap created from requirements and research
+Phase: 1 of 9 (Core Foundation) — COMPLETE
+Plan: 5 of 5 in current phase
+Status: Phase 1 complete — ready for Phase 2
+Last activity: 2026-03-18 — Completed Plan 05 (TenantContextOrchestrator + integration tests)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 11%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: — min
-- Total execution time: 0 hours
+- Total plans completed: 5
+- Average duration: ~5 min
+- Total execution time: ~0.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-core-foundation | 5 | ~25 min | ~5 min |
 
 **Recent Trend:**
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: P01(4min), P02(2min), P03(2min), P04(1min), P05(6min)
+- Trend: stable
 
 *Updated after each plan completion*
 | Phase 01 P01 | 4 | 3 tasks | 11 files |
 | Phase 01-core-foundation P02 | 2 | 2 tasks | 6 files |
-| Phase 01-core-foundation P02 | 526007 | 2 tasks | 6 files |
-| Phase 01-core-foundation P04 | 1 | 2 tasks | 2 files |
 | Phase 01-core-foundation P03 | 2 | 3 tasks | 7 files |
+| Phase 01-core-foundation P04 | 1 | 2 tasks | 2 files |
+| Phase 01-core-foundation P05 | 6 | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +78,10 @@ Recent decisions affecting current work:
 - [Phase 01-core-foundation]: TenantBootstrapped updated from private readonly+getters to public readonly promoted properties to match PSR-14 plain object spec
 - [Phase 01-core-foundation]: TenantContextCleared implemented as empty final class body — signal-only, no constructor, no properties
 - [Phase 01-core-foundation]: BootstrapperChainTest uses willReturnCallback with reference capture to assert dispatched TenantBootstrapped payload and FQCN list
+- [Phase 01-core-foundation P05]: SpyBootstrapper pattern used for testing against final BootstrapperChain class (cannot be mocked/extended)
+- [Phase 01-core-foundation P05]: MakeBootstrapperChainPublicPass test compiler pass to expose private bundle services in integration tests without modifying production code
+- [Phase 01-core-foundation P05]: setUpBeforeClass/tearDownAfterClass for kernel lifecycle in integration tests avoids PHPUnit risky-test warnings from kernel error handler registration
+- [Phase 01-core-foundation P05]: TestKernel omits framework.router config — FrameworkBundle requires router.resource when router section present, not needed for DI integration tests
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T06:31:57.478Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-03-18T06:39:00.000Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None

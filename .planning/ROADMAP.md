@@ -12,7 +12,7 @@ This bundle is built in eight sequential phases derived from the dependency grap
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Foundation** - TenantContext, lifecycle events, bootstrapper interface, Tenant entity, and kernel event wiring
+- [x] **Phase 1: Core Foundation** - TenantContext, lifecycle events, bootstrapper interface, Tenant entity, and kernel event wiring (completed 2026-03-18)
 - [ ] **Phase 2: Tenant Resolution** - All four resolvers, resolver chain, and kernel.request orchestrator
 - [ ] **Phase 3: Database-Per-Tenant Driver** - DBAL wrapperClass connection switching with two named entity managers
 - [ ] **Phase 4: Shared-DB Driver** - Doctrine SQL filter, #[TenantAware] attribute, and strict mode
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A service tagged `tenancy.bootstrapper` is automatically discovered by the compiler pass and added to the bootstrapper chain without manual wiring
   4. The `Tenant` entity class correctly defines all fields (slug PK, domain, connection_config, name, is_active, timestamps) and implements `TenantInterface` — runtime DB persistence verified in Phase 3 when the landlord EntityManager is configured
   5. The `TenantContextOrchestrator` kernel.request listener is registered at priority 20 — after the router (32) and before the Security firewall (8)
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Bundle skeleton: composer.json, PHPUnit config, TenancyBundle (AbstractBundle), BootstrapperChainPass, services.php
@@ -184,7 +184,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Foundation | 4/5 | In Progress|  |
+| 1. Core Foundation | 5/5 | Complete   | 2026-03-18 |
 | 2. Tenant Resolution | 0/5 | Not started | - |
 | 3. Database-Per-Tenant Driver | 0/5 | Not started | - |
 | 4. Shared-DB Driver | 0/4 | Not started | - |
