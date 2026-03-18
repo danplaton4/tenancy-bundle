@@ -53,7 +53,7 @@ Plans:
   3. A request with `?_tenant=<slug>` resolves to the correct tenant via QueryParamResolver
   4. Running `bin/console any:command --tenant=<id>` resolves to the correct tenant via ConsoleResolver (fires on ConsoleCommandEvent, not kernel.request)
   5. A custom class implementing `TenantResolverInterface` and tagged with a DI priority attribute is discovered and inserted at the correct position in the resolution chain
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 
 Plans:
 - [ ] 02-01-PLAN.md — TenantResolverInterface, ResolverChain, TenantProviderInterface, exceptions, and ResolverChainPass
@@ -185,7 +185,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Foundation | 5/5 | Complete   | 2026-03-18 |
-| 2. Tenant Resolution | 1/5 | In Progress|  |
+| 2. Tenant Resolution | 2/5 | In Progress|  |
 | 3. Database-Per-Tenant Driver | 0/5 | Not started | - |
 | 4. Shared-DB Driver | 0/4 | Not started | - |
 | 5. Infrastructure Bootstrappers | 0/3 | Not started | - |

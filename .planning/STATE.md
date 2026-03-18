@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 02-01-PLAN.md
+stopped_at: Completed 02-02-PLAN.md
 last_updated: "2026-03-18T21:34:20.255Z"
 last_activity: "2026-03-18 - Completed quick task 260318-tj1: Add local Docker Compose development environment with configurable PHP version"
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 1 — Core Foundation
+**Current focus:** Phase 2 — Tenant Resolution
 
 ## Current Position
 
-Phase: 1 of 9 (Core Foundation) — COMPLETE
-Plan: 5 of 5 in current phase
-Status: Phase 1 complete — ready for Phase 2
-Last activity: 2026-03-18 - Completed quick task 260318-tj1: Add local Docker Compose development environment with configurable PHP version
+Phase: 2 of 9 (Tenant Resolution) — IN PROGRESS
+Plan: 2 of 5 in current phase
+Status: In progress — HostResolver complete, HeaderResolver next
+Last activity: 2026-03-18 - Completed 02-02: HostResolver with subdomain extraction and unit tests
 
 Progress: [█░░░░░░░░░] 11%
 
@@ -56,6 +56,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 01-core-foundation P04 | 1 | 2 tasks | 2 files |
 | Phase 01-core-foundation P05 | 6 | 4 tasks | 6 files |
 | Phase 02-tenant-resolution P01 | 12 | 2 tasks | 17 files |
+| Phase 02-tenant-resolution P02 | 2 | 1 task (TDD) | 3 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,7 @@ Recent decisions affecting current work:
 - [Phase 02-tenant-resolution]: ResolverChain::resolve() returns array{tenant, resolvedBy} (not value object) — simpler for callers at this stage
 - [Phase 02-tenant-resolution]: DoctrineTenantProvider uses cache-then-check pattern: caches all tenants including inactive, checks is_active after cache retrieval to prevent DB hammering
 - [Phase 02-tenant-resolution]: symfony/cache and symfony/console added to hard require — directly used by bundle classes
+- [Phase 02-tenant-resolution P02]: HostResolver takes last subdomain segment before app_domain suffix as slug (api.acme.app.com -> acme); TenantNotFoundException caught (null), TenantInactiveException bubbles; priority 30
 
 ### Pending Todos
 
@@ -105,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:34:20.251Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-03-18T21:37:20Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
