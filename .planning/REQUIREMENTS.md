@@ -16,8 +16,8 @@
 ### Tenant Resolution
 
 - [x] **RESV-01**: `HostResolver` identifies the active tenant from subdomain (`tenant.app.com`) or full custom domain (`tenant.com`) by querying the landlord DB
-- [ ] **RESV-02**: `HeaderResolver` identifies the active tenant from the `X-Tenant-ID` HTTP request header (API-first: mobile apps, SPAs)
-- [ ] **RESV-03**: `QueryParamResolver` identifies the active tenant from the `?_tenant=` query parameter (debugging, previews)
+- [x] **RESV-02**: `HeaderResolver` identifies the active tenant from the `X-Tenant-ID` HTTP request header (API-first: mobile apps, SPAs)
+- [x] **RESV-03**: `QueryParamResolver` identifies the active tenant from the `?_tenant=` query parameter (debugging, previews)
 - [ ] **RESV-04**: `ConsoleResolver` identifies the active tenant from the `--tenant=ID` CLI option, firing on `ConsoleCommandEvent` (not `kernel.request`)
 - [x] **RESV-05**: Resolver chain is configurable: developers register custom resolvers implementing `TenantResolverInterface`; execution order is controlled by DI tag priority
 
@@ -108,8 +108,8 @@
 | CORE-04 | Phase 1 | Complete |
 | CORE-05 | Phase 1 | Complete |
 | RESV-01 | Phase 2 | Complete |
-| RESV-02 | Phase 2 | Pending |
-| RESV-03 | Phase 2 | Pending |
+| RESV-02 | Phase 2 | Complete |
+| RESV-03 | Phase 2 | Complete |
 | RESV-04 | Phase 2 | Pending |
 | RESV-05 | Phase 2 | Complete |
 | ISOL-01 | Phase 3 | Pending |

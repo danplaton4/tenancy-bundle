@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-03-18T21:34:20.255Z"
-last_activity: "2026-03-18 - Completed quick task 260318-tj1: Add local Docker Compose development environment with configurable PHP version"
+status: executing
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-03-18T21:42:23.840Z"
+last_activity: "2026-03-18 - Completed 02-03: HeaderResolver (X-Tenant-ID) and QueryParamResolver (_tenant) with unit tests"
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 8
   percent: 11
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 2 of 9 (Tenant Resolution) — IN PROGRESS
-Plan: 2 of 5 in current phase
-Status: In progress — HostResolver complete, HeaderResolver next
-Last activity: 2026-03-18 - Completed 02-02: HostResolver with subdomain extraction and unit tests
+Plan: 3 of 5 in current phase
+Status: In progress — HeaderResolver and QueryParamResolver complete, DomainResolver next
+Last activity: 2026-03-18 - Completed 02-03: HeaderResolver (X-Tenant-ID) and QueryParamResolver (_tenant) with unit tests
 
-Progress: [█░░░░░░░░░] 11%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 01-core-foundation P05 | 6 | 4 tasks | 6 files |
 | Phase 02-tenant-resolution P01 | 12 | 2 tasks | 17 files |
 | Phase 02-tenant-resolution P02 | 2 | 1 task (TDD) | 3 files |
+| Phase 02-tenant-resolution P03 | 4 | 1 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 02-tenant-resolution]: DoctrineTenantProvider uses cache-then-check pattern: caches all tenants including inactive, checks is_active after cache retrieval to prevent DB hammering
 - [Phase 02-tenant-resolution]: symfony/cache and symfony/console added to hard require — directly used by bundle classes
 - [Phase 02-tenant-resolution P02]: HostResolver takes last subdomain segment before app_domain suffix as slug (api.acme.app.com -> acme); TenantNotFoundException caught (null), TenantInactiveException bubbles; priority 30
+- [Phase 02-tenant-resolution]: HeaderResolver (priority 20) reads X-Tenant-ID header; QueryParamResolver (priority 10) reads _tenant query param — both catch TenantNotFoundException, let TenantInactiveException bubble
 
 ### Pending Todos
 
@@ -107,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:37:20Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-03-18T21:42:23.836Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
