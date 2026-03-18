@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
+use Tenancy\Bundle\Event\TenantBootstrapped;
 use Tenancy\Bundle\TenantInterface;
 
 final class BootstrapperChainTest extends TestCase
@@ -77,5 +78,49 @@ final class BootstrapperChainTest extends TestCase
         $this->chain->clear();
 
         $this->assertSame(['B', 'A'], $callOrder);
+    }
+
+    public function testBootDispatchesTenantBootstrappedEvent(): void
+    {
+        $bootstrapperA = $this->createMock(TenantBootstrapperInterface::class);
+        $bootstrapperB = $this->createMock(TenantBootstrapperInterface::class);
+
+        $expectedFqcns = [$bootstrapperA::class, $bootstrapperB::class];
+
+        $dispatchedEvent = null;
+        $this->eventDispatcher
+            ->expects($this->once())
+            ->method('dispatch')
+            ->willReturnCallback(function (object $event) use (&$dispatchedEvent): object {
+                $dispatchedEvent = $event;
+
+                return $event;
+            });
+
+        $this->chain->addBootstrapper($bootstrapperA);
+        $this->chain->addBootstrapper($bootstrapperB);
+        $this->chain->boot($this->tenant);
+
+        $this->assertInstanceOf(TenantBootstrapped::class, $dispatchedEvent);
+        $this->assertSame($this->tenant, $dispatchedEvent->tenant);
+        $this->assertSame($expectedFqcns, $dispatchedEvent->bootstrappers);
+    }
+
+    public function testBootWithNoBootstrappersStillDispatchesEvent(): void
+    {
+        $dispatchedEvent = null;
+        $this->eventDispatcher
+            ->expects($this->once())
+            ->method('dispatch')
+            ->willReturnCallback(function (object $event) use (&$dispatchedEvent): object {
+                $dispatchedEvent = $event;
+
+                return $event;
+            });
+
+        $this->chain->boot($this->tenant);
+
+        $this->assertInstanceOf(TenantBootstrapped::class, $dispatchedEvent);
+        $this->assertSame([], $dispatchedEvent->bootstrappers);
     }
 }
