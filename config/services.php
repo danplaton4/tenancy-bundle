@@ -8,6 +8,7 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
+use Tenancy\Bundle\Resolver\HostResolver;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -28,6 +29,13 @@ return function (ContainerConfigurator $container): void {
     $services->set('tenancy.resolver_chain', ResolverChain::class)
         ->public(false);
     $services->alias(ResolverChain::class, 'tenancy.resolver_chain');
+
+    $services->set(HostResolver::class)
+        ->args([
+            service('tenancy.provider'),
+            param('tenancy.host.app_domain'),
+        ])
+        ->tag('tenancy.resolver', ['priority' => 30]);
 
     $services->set('tenancy.provider', DoctrineTenantProvider::class)
         ->args([
