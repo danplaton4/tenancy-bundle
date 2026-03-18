@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle;
 
+use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
@@ -12,7 +13,7 @@ use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 
 class TenancyBundle extends AbstractBundle
 {
-    public function configure(\Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator $definition): void
+    public function configure(DefinitionConfigurator $definition): void
     {
         $definition->rootNode()
             ->children()
