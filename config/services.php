@@ -11,6 +11,7 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
 use Tenancy\Bundle\Resolver\QueryParamResolver;
+use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -54,6 +55,15 @@ return function (ContainerConfigurator $container): void {
             param('tenancy.tenant_entity_class'),
         ]);
     $services->alias(TenantProviderInterface::class, 'tenancy.provider');
+
+    $services->set(ConsoleResolver::class)
+        ->autoconfigure(true)
+        ->args([
+            service('tenancy.provider'),
+            service('tenancy.context'),
+            service('tenancy.bootstrapper_chain'),
+            service('event_dispatcher'),
+        ]);
 
     $services->set(TenantContextOrchestrator::class)
         ->autoconfigure(true)
