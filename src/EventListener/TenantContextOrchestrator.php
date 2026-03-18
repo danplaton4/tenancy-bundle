@@ -12,6 +12,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Event\TenantContextCleared;
+use Tenancy\Bundle\Event\TenantResolved;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
 #[AsEventListener(event: KernelEvents::REQUEST, method: 'onKernelRequest', priority: TenantContextOrchestrator::PRIORITY)]
@@ -35,8 +36,13 @@ final class TenantContextOrchestrator
             return;
         }
 
-        // Phase 2 will inject ResolverChain here to resolve tenant from request.
-        // Once resolved: $this->tenantContext->setTenant($tenant); $this->bootstrapperChain->boot($tenant); dispatch TenantResolved event.
+        $result = $this->resolverChain->resolve($event->getRequest());
+
+        $this->tenantContext->setTenant($result['tenant']);
+        $this->bootstrapperChain->boot($result['tenant']);
+        $this->eventDispatcher->dispatch(
+            new TenantResolved($result['tenant'], $event->getRequest(), $result['resolvedBy'])
+        );
     }
 
     public function onKernelTerminate(TerminateEvent $event): void
