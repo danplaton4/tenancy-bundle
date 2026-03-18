@@ -8,7 +8,9 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
+use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
+use Tenancy\Bundle\Resolver\QueryParamResolver;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -36,6 +38,14 @@ return function (ContainerConfigurator $container): void {
             param('tenancy.host.app_domain'),
         ])
         ->tag('tenancy.resolver', ['priority' => 30]);
+
+    $services->set(HeaderResolver::class)
+        ->args([service('tenancy.provider')])
+        ->tag('tenancy.resolver', ['priority' => 20]);
+
+    $services->set(QueryParamResolver::class)
+        ->args([service('tenancy.provider')])
+        ->tag('tenancy.resolver', ['priority' => 10]);
 
     $services->set('tenancy.provider', DoctrineTenantProvider::class)
         ->args([
