@@ -12,6 +12,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Event\TenantContextCleared;
+use Tenancy\Bundle\Resolver\ResolverChain;
 
 #[AsEventListener(event: KernelEvents::REQUEST, method: 'onKernelRequest', priority: TenantContextOrchestrator::PRIORITY)]
 #[AsEventListener(event: KernelEvents::TERMINATE, method: 'onKernelTerminate')]
@@ -24,6 +25,7 @@ final class TenantContextOrchestrator
         private readonly TenantContext $tenantContext,
         private readonly BootstrapperChain $bootstrapperChain,
         private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly ResolverChain $resolverChain,
     ) {
     }
 

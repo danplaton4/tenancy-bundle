@@ -17,6 +17,7 @@ use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Event\TenantContextCleared;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
+use Tenancy\Bundle\Resolver\ResolverChain;
 use Tenancy\Bundle\TenantInterface;
 
 /**
@@ -71,6 +72,7 @@ final class TenantContextOrchestratorTest extends TestCase
             $this->tenantContext,
             $this->bootstrapperChain,
             $this->orchestratorDispatcher,
+            new ResolverChain(),
         );
     }
 

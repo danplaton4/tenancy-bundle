@@ -10,6 +10,8 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
+use Tenancy\Bundle\Resolver\TenantResolverInterface;
 
 class TenancyBundle extends AbstractBundle
 {
@@ -22,6 +24,16 @@ class TenancyBundle extends AbstractBundle
                 ->scalarNode('landlord_connection')->defaultValue('default')->end()
                 ->scalarNode('tenant_entity_class')->defaultValue('Tenancy\\Bundle\\Entity\\Tenant')->end()
                 ->scalarNode('cache_prefix_separator')->defaultValue(':')->end()
+                ->arrayNode('resolvers')
+                    ->scalarPrototype()->end()
+                    ->defaultValue(['host', 'header', 'query_param', 'console'])
+                ->end()
+                ->arrayNode('host')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('app_domain')->defaultNull()->end()
+                    ->end()
+                ->end()
             ->end()
         ;
     }
@@ -33,17 +45,23 @@ class TenancyBundle extends AbstractBundle
         $builder->registerForAutoconfiguration(TenantBootstrapperInterface::class)
             ->addTag('tenancy.bootstrapper');
 
+        $builder->registerForAutoconfiguration(TenantResolverInterface::class)
+            ->addTag('tenancy.resolver');
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
             ->set('tenancy.landlord_connection', $config['landlord_connection'])
-            ->set('tenancy.tenant_entity_class', $config['tenant_entity_class']);
+            ->set('tenancy.tenant_entity_class', $config['tenant_entity_class'])
+            ->set('tenancy.host.app_domain', $config['host']['app_domain'])
+            ->set('tenancy.resolvers', $config['resolvers']);
     }
 
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
         $container->addCompilerPass(new BootstrapperChainPass());
+        $container->addCompilerPass(new ResolverChainPass());
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
