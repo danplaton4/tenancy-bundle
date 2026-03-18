@@ -53,14 +53,14 @@ Plans:
   3. A request with `?_tenant=<slug>` resolves to the correct tenant via QueryParamResolver
   4. Running `bin/console any:command --tenant=<id>` resolves to the correct tenant via ConsoleResolver (fires on ConsoleCommandEvent, not kernel.request)
   5. A custom class implementing `TenantResolverInterface` and tagged with a DI priority attribute is discovered and inserted at the correct position in the resolution chain
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 02-01: TenantResolverInterface, ResolverChain, and ResolverChainPass
-- [ ] 02-02: HostResolver (subdomain and full custom domain)
-- [ ] 02-03: HeaderResolver and QueryParamResolver
-- [ ] 02-04: ConsoleResolver (ConsoleCommandEvent listener)
-- [ ] 02-05: TenantContextOrchestrator wired to ResolverChain and integration tests covering all four resolvers
+- [ ] 02-01-PLAN.md — TenantResolverInterface, ResolverChain, TenantProviderInterface, exceptions, and ResolverChainPass
+- [ ] 02-02-PLAN.md — HostResolver (subdomain extraction from Host header)
+- [ ] 02-03-PLAN.md — HeaderResolver and QueryParamResolver
+- [ ] 02-04-PLAN.md — ConsoleResolver (ConsoleCommandEvent listener with --tenant option)
+- [ ] 02-05-PLAN.md — TenantContextOrchestrator wired to ResolverChain and integration tests
 
 ### Phase 3: Database-Per-Tenant Driver
 **Goal**: An active tenant's database connection is switched at runtime without rebuilding the container, and two named entity managers (landlord and tenant) are available and correctly scoped
