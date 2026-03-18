@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-03-18T06:46:07.721Z"
-last_activity: 2026-03-18 — Completed Plan 05 (TenantContextOrchestrator + integration tests)
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-18T21:34:20.255Z"
+last_activity: "2026-03-18 - Completed quick task 260318-tj1: Add local Docker Compose development environment with configurable PHP version"
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 10
+  completed_plans: 6
   percent: 11
 ---
 
@@ -55,6 +55,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 01-core-foundation P03 | 2 | 3 tasks | 7 files |
 | Phase 01-core-foundation P04 | 1 | 2 tasks | 2 files |
 | Phase 01-core-foundation P05 | 6 | 4 tasks | 6 files |
+| Phase 02-tenant-resolution P01 | 12 | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Recent decisions affecting current work:
 - [Phase 01-core-foundation P05]: MakeBootstrapperChainPublicPass test compiler pass to expose private bundle services in integration tests without modifying production code
 - [Phase 01-core-foundation P05]: setUpBeforeClass/tearDownAfterClass for kernel lifecycle in integration tests avoids PHPUnit risky-test warnings from kernel error handler registration
 - [Phase 01-core-foundation P05]: TestKernel omits framework.router config — FrameworkBundle requires router.resource when router section present, not needed for DI integration tests
+- [Phase 02-tenant-resolution]: ResolverChain::resolve() returns array{tenant, resolvedBy} (not value object) — simpler for callers at this stage
+- [Phase 02-tenant-resolution]: DoctrineTenantProvider uses cache-then-check pattern: caches all tenants including inactive, checks is_active after cache retrieval to prevent DB hammering
+- [Phase 02-tenant-resolution]: symfony/cache and symfony/console added to hard require — directly used by bundle classes
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T06:39:00.000Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-03-18T21:34:20.251Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None
