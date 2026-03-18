@@ -9,10 +9,12 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
 use Tenancy\Bundle\TenancyBundle;
+use Tenancy\Bundle\Tests\Integration\Support\ReplaceTenancyProviderPass;
 
 /**
  * Minimal Symfony kernel for integration tests.
  * Registers FrameworkBundle + TenancyBundle with minimal configuration.
+ * Replaces tenancy.provider with a NullTenantProvider to avoid Doctrine EM dependency.
  */
 class TestKernel extends Kernel
 {
@@ -27,6 +29,14 @@ class TestKernel extends Kernel
             new FrameworkBundle(),
             new TenancyBundle(),
         ];
+    }
+
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+        // Replace real tenancy.provider (needs Doctrine EM + cache) with NullTenantProvider.
+        // All DI-wiring integration tests pass without a real database connection.
+        $container->addCompilerPass(new ReplaceTenancyProviderPass());
     }
 
     public function registerContainerConfiguration(LoaderInterface $loader): void

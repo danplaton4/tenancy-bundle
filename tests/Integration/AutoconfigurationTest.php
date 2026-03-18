@@ -15,6 +15,7 @@ use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\TenancyBundle;
 use Tenancy\Bundle\TenantInterface;
+use Tenancy\Bundle\Tests\Integration\Support\ReplaceTenancyProviderPass;
 
 /**
  * Dummy bootstrapper for autoconfiguration testing.
@@ -81,6 +82,7 @@ final class SingleBootstrapperKernel extends Kernel
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
+        $container->addCompilerPass(new ReplaceTenancyProviderPass());
         $container->addCompilerPass(new MakeBootstrapperChainPublicPass());
     }
 
@@ -129,6 +131,7 @@ final class TwoBootstrappersKernel extends Kernel
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
+        $container->addCompilerPass(new ReplaceTenancyProviderPass());
         $container->addCompilerPass(new MakeBootstrapperChainPublicPass());
     }
 
