@@ -13,6 +13,7 @@ use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
 use Tenancy\Bundle\Resolver\QueryParamResolver;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
+use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -78,4 +79,11 @@ return function (ContainerConfigurator $container): void {
     $services->set('tenancy.doctrine_bootstrapper', DoctrineBootstrapper::class)
         ->args([service('doctrine.orm.default_entity_manager')])
         ->tag('tenancy.bootstrapper', ['priority' => -10]);
+
+    $services->set('tenancy.cache_adapter', TenantAwareCacheAdapter::class)
+        ->decorate('cache.app')
+        ->args([
+            service('.inner'),
+            service('tenancy.context'),
+        ]);
 };
