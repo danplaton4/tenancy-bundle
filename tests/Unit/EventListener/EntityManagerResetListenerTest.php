@@ -23,23 +23,23 @@ final class EntityManagerResetListenerTest extends TestCase
         $this->listener = new EntityManagerResetListener($this->managerRegistry);
     }
 
-    public function testInvokeResetsTenantEntityManager(): void
+    public function testInvokeResetsDefaultEntityManager(): void
     {
         $this->managerRegistry
             ->expects($this->once())
             ->method('resetManager')
-            ->with('tenant');
+            ->with(null);
 
         ($this->listener)(new TenantContextCleared());
     }
 
     public function testDoesNotResetLandlordManager(): void
     {
-        // Expect resetManager called exactly once with 'tenant' — never with 'landlord' or null.
+        // Expect resetManager called exactly once with null (default EM) — never with 'landlord' or 'tenant'.
         $this->managerRegistry
             ->expects($this->once())
             ->method('resetManager')
-            ->with('tenant');
+            ->with(null);
 
         ($this->listener)(new TenantContextCleared());
     }
