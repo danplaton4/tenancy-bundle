@@ -25,9 +25,9 @@
 
 - [x] **ISOL-01**: Database-per-tenant driver switches the DBAL connection at runtime using DBAL 4's `wrapperClass` pattern (`TenantConnection::switchTenant()`) without rebuilding the container
 - [x] **ISOL-02**: Database-per-tenant driver configures two named entity managers: `landlord` (static, reads central Tenant registry) and `tenant` (runtime-switched to active tenant DB)
-- [ ] **ISOL-03**: Shared-DB driver registers a Doctrine SQL Filter (`TenantAwareFilter`) that appends `tenant_id = :id` to every query for entities marked `#[TenantAware]`
-- [ ] **ISOL-04**: `#[TenantAware]` PHP attribute marks Doctrine entities for automatic SQL filter scoping in shared-DB mode
-- [ ] **ISOL-05**: `strict_mode` config option (default: `true`) throws `TenantMissingException` when a `#[TenantAware]` entity is queried with no active tenant context, instead of returning all rows
+- [x] **ISOL-03**: Shared-DB driver registers a Doctrine SQL Filter (`TenantAwareFilter`) that appends `tenant_id = :id` to every query for entities marked `#[TenantAware]`
+- [x] **ISOL-04**: `#[TenantAware]` PHP attribute marks Doctrine entities for automatic SQL filter scoping in shared-DB mode
+- [x] **ISOL-05**: `strict_mode` config option (default: `true`) throws `TenantMissingException` when a `#[TenantAware]` entity is queried with no active tenant context, instead of returning all rows
 
 ### Bootstrappers
 
@@ -114,9 +114,9 @@
 | RESV-05 | Phase 2 | Complete |
 | ISOL-01 | Phase 3 | Complete |
 | ISOL-02 | Phase 3 | Complete |
-| ISOL-03 | Phase 4 | Pending |
-| ISOL-04 | Phase 4 | Pending |
-| ISOL-05 | Phase 4 | Pending |
+| ISOL-03 | Phase 4 | Complete |
+| ISOL-04 | Phase 4 | Complete |
+| ISOL-05 | Phase 4 | Complete |
 | BOOT-01 | Phase 5 | Pending |
 | BOOT-02 | Phase 5 | Pending |
 | MSG-01 | Phase 6 | Pending |

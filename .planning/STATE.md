@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-03-19T06:48:50.292Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-19T08:12:44.659Z"
 progress:
   total_phases: 9
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 19
+  completed_plans: 17
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 03 — database-per-tenant-driver
+**Current focus:** Phase 04 — shared-db-driver
 
 ## Current Position
 
-Phase: 03 (database-per-tenant-driver) — EXECUTING
-Plan: 1 of 1
+Phase: 04 (shared-db-driver) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Plan: 1 of 1
 | Phase 03-database-per-tenant-driver P04 | 3 | 1 tasks (TDD) | 2 files |
 | Phase 03-database-per-tenant-driver P05 | 4 | 2 tasks | 5 files |
 | Phase 03-database-per-tenant-driver P06 | 3 | 1 tasks | 2 files |
+| Phase 04-shared-db-driver P01 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Recent decisions affecting current work:
 - [Phase 03-05]: DoctrineBundle 2.x wraps EMs in lazy proxies — resetManager freshness proven via UoW spl_object_id not proxy object_id
 - [Phase 03-05]: setUpBeforeClass deletes shared landlord DB file before kernel boot to prevent table-exists errors on re-runs
 - [Phase 03-database-per-tenant-driver]: prependExtension reads getExtensionConfig('tenancy') raw arrays and branches on database.enabled: landlord EM mappings when true, orm.mappings when false/absent
+- [Phase 04-shared-db-driver]: TenantAwareFilter uses setter injection (setTenantContext) not constructor injection — SQLFilter has a final constructor taking EntityManagerInterface only
+- [Phase 04-shared-db-driver]: TenantMissingException does NOT implement HttpExceptionInterface — propagates from Doctrine internals, not HTTP layer; differs from TenantNotFoundException
+- [Phase 04-shared-db-driver]: TenantAwareFilter null guard: tenantContext === null returns '' silently — prevents crashes in console commands before SharedDriver::boot()
 
 ### Pending Todos
 
@@ -125,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:45:20.814Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-03-19T08:12:44.656Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
