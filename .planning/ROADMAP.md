@@ -71,15 +71,15 @@ Plans:
   2. The `landlord` entity manager always reads from the central Tenant registry and is unaffected by tenant switches
   3. `TenantConnection::switchTenant()` changes connection parameters in DBAL 4 via the `wrapperClass` mechanism without calling deprecated APIs
   4. On tenant context clear, the tenant entity manager is reset (`resetManager()`) so no Tenant A entity is returned during a Tenant B request
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans executed
 
 Plans:
-- [ ] 03-01-PLAN.md — TenantDriverInterface and DatabaseSwitchBootstrapper (boot/clear delegation)
-- [ ] 03-02-PLAN.md — TenantConnection (DBAL 4 wrapperClass subclass with switchTenant/reset via reflection)
-- [ ] 03-03-PLAN.md — Bundle config (tenancy.database.enabled), conditional DI wiring, DoctrineTenantProvider rewiring to landlord EM
-- [ ] 03-04-PLAN.md — EntityManagerResetListener (resetManager('tenant') on TenantContextCleared)
-- [ ] 03-05-PLAN.md — Integration tests: cross-tenant query isolation and identity map teardown with dual-EM DoctrineTestKernel
-- [ ] 03-06-PLAN.md — Gap closure: conditional prependExtension targeting landlord EM mappings when database.enabled is true
+- [x] 03-01-PLAN.md — TenantDriverInterface and DatabaseSwitchBootstrapper (boot/clear delegation)
+- [x] 03-02-PLAN.md — TenantConnection (DBAL 4 wrapperClass subclass with switchTenant/reset via reflection)
+- [x] 03-03-PLAN.md — Bundle config (tenancy.database.enabled), conditional DI wiring, DoctrineTenantProvider rewiring to landlord EM
+- [x] 03-04-PLAN.md — EntityManagerResetListener (resetManager('tenant') on TenantContextCleared)
+- [x] 03-05-PLAN.md — Integration tests: cross-tenant query isolation and identity map teardown with dual-EM DoctrineTestKernel
+- [x] 03-06-PLAN.md — Gap closure: conditional prependExtension targeting landlord EM mappings when database.enabled is true
 
 ### Phase 4: Shared-DB Driver
 **Goal**: All Doctrine queries for entities marked #[TenantAware] are automatically scoped to the active tenant's ID via a SQL filter, and querying without an active tenant throws TenantMissingException
@@ -122,13 +122,11 @@ Plans:
   2. A worker processing a stamped message boots the correct tenant context (all bootstrappers run) before the handler is invoked
   3. After the handler completes — including when the handler throws an exception — the tenant context is cleared via a `try/finally` block, leaving the worker in a clean state for the next message
   4. Two messages with different `TenantStamp` identifiers processed sequentially in the same worker process load the correct tenant for each and do not share any context
-**Plans**: TBD
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 06-01: TenantStamp (StampInterface implementation with serialization)
-- [ ] 06-02: Sending middleware (auto-attach TenantStamp when context is active)
-- [ ] 06-03: Worker-side middleware (boot from stamp, try/finally teardown)
-- [ ] 06-04: Integration tests — stamp injection, context restoration, teardown on exception, two-message sequential isolation
+- [ ] 06-01-PLAN.md — TenantStamp + TenantSendingMiddleware + TenantWorkerMiddleware with unit tests, composer.json suggest entry
+- [ ] 06-02-PLAN.md — DI wiring (services.php + prependExtension bus enrollment) and integration tests with MessengerTestKernel
 
 ### Phase 7: CLI Commands
 **Goal**: Operators can run Doctrine migrations for all tenants from a single command and can execute any Symfony console command scoped to a specific tenant
@@ -182,14 +180,14 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Core Foundation | 5/5 | Complete   | 2026-03-18 |
-| 2. Tenant Resolution | 5/5 | Complete   | 2026-03-18 |
-| 3. Database-Per-Tenant Driver | 5/6 | In Progress|  |
-| 4. Shared-DB Driver | 3/3 | Complete   | 2026-03-19 |
-| 5. Infrastructure Bootstrappers | 3/3 | Complete   | 2026-03-19 |
-| 6. Messenger Integration | 0/4 | Not started | - |
-| 7. CLI Commands | 0/3 | Not started | - |
-| 8. Developer Experience | 0/2 | Not started | - |
-| 9. OSS Hardening | 0/5 | Not started | - |
+| Phase                           | Plans Complete | Status      | Completed  |
+|---------------------------------|----------------|-------------|------------|
+| 1. Core Foundation              | 5/5            | Complete    | 2026-03-18 |
+| 2. Tenant Resolution            | 5/5            | Complete    | 2026-03-18 |
+| 3. Database-Per-Tenant Driver   | 6/6            | Complete    | 2026-03-19 |
+| 4. Shared-DB Driver             | 3/3            | Complete    | 2026-03-19 |
+| 5. Infrastructure Bootstrappers | 3/3            | Complete    | 2026-03-19 |
+| 6. Messenger Integration        | 1/2 | In Progress|  |
+| 7. CLI Commands                 | 0/3            | Not started | -          |
+| 8. Developer Experience         | 0/2            | Not started | -          |
+| 9. OSS Hardening                | 0/5            | Not started | -          |
