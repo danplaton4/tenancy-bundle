@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Core Foundation** - TenantContext, lifecycle events, bootstrapper interface, Tenant entity, and kernel event wiring (completed 2026-03-18)
 - [x] **Phase 2: Tenant Resolution** - All four resolvers, resolver chain, and kernel.request orchestrator (completed 2026-03-18)
 - [ ] **Phase 3: Database-Per-Tenant Driver** - DBAL wrapperClass connection switching with two named entity managers
-- [ ] **Phase 4: Shared-DB Driver** - Doctrine SQL filter, #[TenantAware] attribute, and strict mode
+- [x] **Phase 4: Shared-DB Driver** - Doctrine SQL filter, #[TenantAware] attribute, and strict mode (completed 2026-03-19)
 - [ ] **Phase 5: Infrastructure Bootstrappers** - Doctrine bootstrapper (identity map safety) and Cache bootstrapper (namespace isolation)
 - [ ] **Phase 6: Messenger Integration** - TenantStamp, sending middleware, and worker-side teardown middleware
 - [ ] **Phase 7: CLI Commands** - tenancy:migrate and tenancy:run console commands
@@ -90,7 +90,7 @@ Plans:
   2. Switching tenant context changes the SQL filter's `tenant_id` parameter so queries return the new tenant's rows
   3. Querying a `#[TenantAware]` entity with no active tenant in strict mode (default: `true`) throws `TenantMissingException` rather than returning all rows
   4. An entity without `#[TenantAware]` is unaffected by the SQL filter and returns full result sets regardless of tenant context
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 04-01-PLAN.md — TenantAware attribute, TenantMissingException, TenantAwareFilter + unit tests
@@ -187,7 +187,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Core Foundation | 5/5 | Complete   | 2026-03-18 |
 | 2. Tenant Resolution | 5/5 | Complete   | 2026-03-18 |
 | 3. Database-Per-Tenant Driver | 5/6 | In Progress|  |
-| 4. Shared-DB Driver | 2/3 | In Progress|  |
+| 4. Shared-DB Driver | 3/3 | Complete   | 2026-03-19 |
 | 5. Infrastructure Bootstrappers | 0/3 | Not started | - |
 | 6. Messenger Integration | 0/4 | Not started | - |
 | 7. CLI Commands | 0/3 | Not started | - |

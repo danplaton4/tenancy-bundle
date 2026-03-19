@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-19T08:20:21.333Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-03-19T08:25:02.622Z"
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # Project State
@@ -64,6 +64,7 @@ Plan: 2 of 3
 | Phase 03-database-per-tenant-driver P06 | 3 | 1 tasks | 2 files |
 | Phase 04-shared-db-driver P01 | 3 | 2 tasks | 6 files |
 | Phase 04-shared-db-driver P02 | 8 | 2 tasks | 3 files |
+| Phase 04-shared-db-driver P03 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,8 @@ Recent decisions affecting current work:
 - [Phase 04-shared-db-driver]: FilterSpy extends SQLFilter (not standalone) to satisfy PHPUnit 11 return-type enforcement on FilterCollection::getFilter() — mock EM passed to final SQLFilter constructor
 - [Phase 04-shared-db-driver]: SharedDriver::clear() is a documented no-op — TenantContext::clear() runs in BootstrapperChain; filter reads hasTenant() live at query time
 - [Phase 04-shared-db-driver]: TenancyBundle validate() block placed after children end() — rejects shared_db + database.enabled at container compile time with a clear error message
+- [Phase 04-shared-db-driver]: TestTenantProduct uses explicit #[ORM\Column(name: 'tenant_id')] to avoid camelCase-to-underscore naming ambiguity with SQLite
+- [Phase 04-shared-db-driver]: Strict mode test injects TenantContext directly into filter via setTenantContext (no SharedDriver::boot needed) — cleaner isolation for no-tenant scenario
 
 ### Pending Todos
 
@@ -133,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T08:20:21.329Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-03-19T08:25:02.619Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
