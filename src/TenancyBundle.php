@@ -7,11 +7,16 @@ namespace Tenancy\Bundle;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
+use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
+
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 class TenancyBundle extends AbstractBundle
 {
@@ -19,23 +24,28 @@ class TenancyBundle extends AbstractBundle
     {
         $definition->rootNode()
             ->children()
-                ->scalarNode('driver')->defaultValue('database_per_tenant')->end()
-                ->booleanNode('strict_mode')->defaultTrue()->end()
-                ->scalarNode('landlord_connection')->defaultValue('default')->end()
-                ->scalarNode('tenant_entity_class')->defaultValue('Tenancy\\Bundle\\Entity\\Tenant')->end()
-                ->scalarNode('cache_prefix_separator')->defaultValue(':')->end()
-                ->arrayNode('resolvers')
-                    ->scalarPrototype()->end()
-                    ->defaultValue(['host', 'header', 'query_param', 'console'])
-                ->end()
-                ->arrayNode('host')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->scalarNode('app_domain')->defaultNull()->end()
-                    ->end()
-                ->end()
+            ->scalarNode('driver')->defaultValue('database_per_tenant')->end()
+            ->booleanNode('strict_mode')->defaultTrue()->end()
+            ->scalarNode('landlord_connection')->defaultValue('default')->end()
+            ->scalarNode('tenant_entity_class')->defaultValue('Tenancy\\Bundle\\Entity\\Tenant')->end()
+            ->scalarNode('cache_prefix_separator')->defaultValue(':')->end()
+            ->arrayNode('database')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->booleanNode('enabled')->defaultFalse()->end()
             ->end()
-        ;
+            ->end()
+            ->arrayNode('resolvers')
+            ->scalarPrototype()->end()
+            ->defaultValue(['host', 'header', 'query_param', 'console'])
+            ->end()
+            ->arrayNode('host')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->scalarNode('app_domain')->defaultNull()->end()
+            ->end()
+            ->end()
+            ->end();
     }
 
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
@@ -55,6 +65,24 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.tenant_entity_class', $config['tenant_entity_class'])
             ->set('tenancy.host.app_domain', $config['host']['app_domain'])
             ->set('tenancy.resolvers', $config['resolvers']);
+
+        if ($config['database']['enabled'] ?? false) {
+            $container->parameters()->set('tenancy.database.enabled', true);
+
+            $services = $container->services();
+
+            $services->set('tenancy.database_switch_bootstrapper', DatabaseSwitchBootstrapper::class)
+                ->args([service('doctrine.dbal.tenant_connection')])
+                ->tag('tenancy.bootstrapper');
+
+            $services->set(EntityManagerResetListener::class)
+                ->autoconfigure(true)
+                ->args([service('doctrine')]);
+
+            // Rewire DoctrineTenantProvider to landlord EM (services.php is already imported above)
+            $builder->getDefinition('tenancy.provider')
+                ->setArgument(0, new Reference('doctrine.orm.landlord_entity_manager'));
+        }
     }
 
     public function build(ContainerBuilder $container): void
@@ -72,7 +100,7 @@ class TenancyBundle extends AbstractBundle
                     'TenancyBundle' => [
                         'is_bundle' => false,
                         'type' => 'attribute',
-                        'dir' => __DIR__.'/Entity',
+                        'dir' => __DIR__ . '/Entity',
                         'prefix' => 'Tenancy\\Bundle\\Entity',
                         'alias' => 'TenancyBundle',
                     ],
