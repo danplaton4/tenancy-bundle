@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-03-19T06:18:16Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-03-19T06:26:51.017Z"
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 15
 ---
 
 # Project State
@@ -60,6 +60,7 @@ Plan: 4 of 5
 | Phase 03-database-per-tenant-driver P01 | 3 | 1 tasks | 5 files |
 | Phase 03-database-per-tenant-driver P03 | 5 | 1 tasks | 1 files |
 | Phase 03-database-per-tenant-driver P04 | 3 | 1 tasks (TDD) | 2 files |
+| Phase 03-database-per-tenant-driver P05 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,8 @@ Recent decisions affecting current work:
 - [Phase 03-database-per-tenant-driver]: TenantDriverInterface is a marker interface (no additional methods) — distinguishes isolation drivers from general bootstrappers in BootstrapperChain
 - [Phase 03-database-per-tenant-driver]: database.enabled defaults false — opt-in flag preserves Phase 2 single-EM behavior; conditional services registered in loadExtension() not services.php; prependExtension reads getExtensionConfig() to pick correct EM mapping target
 - [Phase 03-04]: resetManager('tenant') used not clear() — resetManager closes and recreates the EM to prevent identity map pollution across tenant switches; landlord EM never touched
+- [Phase 03-05]: DoctrineBundle 2.x wraps EMs in lazy proxies — resetManager freshness proven via UoW spl_object_id not proxy object_id
+- [Phase 03-05]: setUpBeforeClass deletes shared landlord DB file before kernel boot to prevent table-exists errors on re-runs
 
 ### Pending Todos
 
@@ -120,6 +123,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:16:35.239Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-03-19T06:26:51.013Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
