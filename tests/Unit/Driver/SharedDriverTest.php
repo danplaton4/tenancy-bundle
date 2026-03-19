@@ -5,14 +5,41 @@ declare(strict_types=1);
 namespace Tenancy\Bundle\Tests\Unit\Driver;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Query\Filter\SQLFilter;
 use Doctrine\ORM\Query\FilterCollection;
 use PHPUnit\Framework\TestCase;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\Driver\TenantDriverInterface;
-use Tenancy\Bundle\Filter\TenantAwareFilter;
 use Tenancy\Bundle\TenantInterface;
+
+/**
+ * Spy that extends SQLFilter so it satisfies FilterCollection::getFilter()'s return type.
+ *
+ * TenantAwareFilter is final — PHPUnit cannot mock it.
+ * This spy extends the abstract SQLFilter base class, passing a mock EM to the
+ * final constructor, then records setTenantContext() call arguments for assertions.
+ */
+final class FilterSpy extends SQLFilter
+{
+    public ?TenantContext $capturedContext = null;
+    public ?bool $capturedStrictMode      = null;
+    public int $callCount                  = 0;
+
+    public function addFilterConstraint(ClassMetadata $targetEntity, string $targetTableAlias): string
+    {
+        return '';
+    }
+
+    public function setTenantContext(TenantContext $context, bool $strictMode): void
+    {
+        $this->capturedContext    = $context;
+        $this->capturedStrictMode = $strictMode;
+        ++$this->callCount;
+    }
+}
 
 final class SharedDriverTest extends TestCase
 {
@@ -21,6 +48,7 @@ final class SharedDriverTest extends TestCase
     private TenantContext $tenantContext;
     private TenantInterface $tenant;
     private SharedDriver $driver;
+    private FilterSpy $filterSpy;
 
     protected function setUp(): void
     {
@@ -29,9 +57,18 @@ final class SharedDriverTest extends TestCase
         $this->tenantContext    = new TenantContext();
         $this->tenant           = $this->createMock(TenantInterface::class);
 
+        // FilterSpy extends SQLFilter — its constructor requires an EntityManagerInterface.
+        // We pass the mock EM so the parent constructor is satisfied.
+        $this->filterSpy = new FilterSpy($this->em);
+
         $this->em
             ->method('getFilters')
             ->willReturn($this->filterCollection);
+
+        $this->filterCollection
+            ->method('getFilter')
+            ->with('tenancy_aware')
+            ->willReturn($this->filterSpy);
 
         $this->driver = new SharedDriver($this->em, $this->tenantContext, true);
     }
@@ -42,19 +79,9 @@ final class SharedDriverTest extends TestCase
      */
     public function testBootCallsSetTenantContextOnFilter(): void
     {
-        $filter = $this->createMock(TenantAwareFilter::class);
-
-        $this->filterCollection
-            ->expects($this->once())
-            ->method('getFilter')
-            ->with('tenancy_aware')
-            ->willReturn($filter);
-
-        $filter
-            ->expects($this->once())
-            ->method('setTenantContext');
-
         $this->driver->boot($this->tenant);
+
+        $this->assertSame(1, $this->filterSpy->callCount, 'setTenantContext should be called exactly once');
     }
 
     /**
@@ -62,21 +89,18 @@ final class SharedDriverTest extends TestCase
      */
     public function testBootPassesTenantContextAndStrictModeToFilter(): void
     {
-        $filter = $this->createMock(TenantAwareFilter::class);
+        $em               = $this->createMock(EntityManagerInterface::class);
+        $filterCollection = $this->createMock(FilterCollection::class);
+        $spy              = new FilterSpy($em);
 
-        $this->filterCollection
-            ->method('getFilter')
-            ->with('tenancy_aware')
-            ->willReturn($filter);
+        $em->method('getFilters')->willReturn($filterCollection);
+        $filterCollection->method('getFilter')->with('tenancy_aware')->willReturn($spy);
 
-        $driver = new SharedDriver($this->em, $this->tenantContext, false);
-
-        $filter
-            ->expects($this->once())
-            ->method('setTenantContext')
-            ->with($this->tenantContext, false);
-
+        $driver = new SharedDriver($em, $this->tenantContext, false);
         $driver->boot($this->tenant);
+
+        $this->assertSame($this->tenantContext, $spy->capturedContext);
+        $this->assertFalse($spy->capturedStrictMode);
     }
 
     /**
@@ -88,14 +112,10 @@ final class SharedDriverTest extends TestCase
             ->expects($this->never())
             ->method('getFilters');
 
-        $this->filterCollection
-            ->expects($this->never())
-            ->method('getFilter');
-
         // Should not throw
         $this->driver->clear();
 
-        $this->assertTrue(true); // explicit assertion to avoid risky-test
+        $this->assertSame(0, $this->filterSpy->callCount, 'clear() must not call setTenantContext');
     }
 
     /**
