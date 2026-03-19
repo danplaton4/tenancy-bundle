@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-19T20:41:14.940Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-19T21:05:01.548Z"
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 # Project State
@@ -69,6 +69,7 @@ Plan: 1 of 2
 | Phase 05 P02 | 3 | 2 tasks | 3 files |
 | Phase 05 P03 | 3 | 2 tasks | 4 files |
 | Phase 06-messenger-integration P01 | 2 | 2 tasks | 8 files |
+| Phase 06-messenger-integration P02 | 20 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,8 @@ Recent decisions affecting current work:
 - [Phase 05-P03]: CacheBootstrapperIntegrationTest uses env=cache_test to isolate cache dir and DB file from DoctrineBootstrapperIntegrationTest (env=test)
 - [Phase 06-messenger-integration]: TenantWorkerMiddleware does NOT dispatch TenantResolved — tenant is restored not resolved; avoids HTTP listeners firing in worker context
 - [Phase 06-messenger-integration]: symfony/messenger added to require-dev and suggest, NOT require — optional integration; class_exists guard in Plan 02 prevents crashes
+- [Phase 06-messenger-integration]: MessengerMiddlewarePass compiler pass (not prependExtensionConfig) for bus enrollment: messenger.buses.*.middleware uses performNoDeepMerging() so prepended config is overwritten; direct parameter modification is the correct approach
+- [Phase 06-messenger-integration]: interface_exists() instead of class_exists() for MessageBusInterface guard: MessageBusInterface is an interface, class_exists() returns false for interfaces — caused silent skip of all Messenger wiring
 
 ### Pending Todos
 
@@ -150,6 +153,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T20:41:14.936Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-03-19T21:05:01.545Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
