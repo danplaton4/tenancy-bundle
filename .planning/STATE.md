@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-19T18:55:58.986Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-19T19:15:00.000Z"
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 05 (infrastructure-bootstrappers) — EXECUTING
-Plan: 2 of 3
+Phase: 05 (infrastructure-bootstrappers) — COMPLETE
+Plan: 3 of 3 (all plans complete)
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Plan: 2 of 3
 | Phase 04-shared-db-driver P03 | 8 | 2 tasks | 4 files |
 | Phase 05 P01 | 2 | 2 tasks | 6 files |
 | Phase 05 P02 | 3 | 2 tasks | 3 files |
+| Phase 05 P03 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,9 @@ Recent decisions affecting current work:
 - [Phase 05]: TenantAwareCacheAdapter.$inner is NOT readonly — withSubNamespace() clones with mutated inner; final class + private visibility enforce encapsulation
 - [Phase 05]: pool() reads TenantContext live on every cache operation — never cache withSubNamespace() result to prevent stale tenant context
 - [Phase 05]: PHPUnit 11 intersection mock static return type: use createMockForIntersectionOfInterfaces + willReturnSelf() for interfaces with withSubNamespace(): static
+- [Phase 05-P03]: BootstrapperTestKernel uses shared_db driver (single EM) — DoctrineBootstrapper targets default EM, correct in both driver modes
+- [Phase 05-P03]: BootstrapperTestKernel environment-aware SQLite path (tenancy_bootstrapper_{env}.db) prevents DB collision between Doctrine and cache kernel instances
+- [Phase 05-P03]: CacheBootstrapperIntegrationTest uses env=cache_test to isolate cache dir and DB file from DoctrineBootstrapperIntegrationTest (env=test)
 
 ### Pending Todos
 

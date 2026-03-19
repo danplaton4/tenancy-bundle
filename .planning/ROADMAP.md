@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Tenant Resolution** - All four resolvers, resolver chain, and kernel.request orchestrator (completed 2026-03-18)
 - [ ] **Phase 3: Database-Per-Tenant Driver** - DBAL wrapperClass connection switching with two named entity managers
 - [x] **Phase 4: Shared-DB Driver** - Doctrine SQL filter, #[TenantAware] attribute, and strict mode (completed 2026-03-19)
-- [ ] **Phase 5: Infrastructure Bootstrappers** - Doctrine bootstrapper (identity map safety) and Cache bootstrapper (namespace isolation)
+- [x] **Phase 5: Infrastructure Bootstrappers** - Doctrine bootstrapper (identity map safety) and Cache bootstrapper (namespace isolation) (completed 2026-03-19)
 - [ ] **Phase 6: Messenger Integration** - TenantStamp, sending middleware, and worker-side teardown middleware
 - [ ] **Phase 7: CLI Commands** - tenancy:migrate and tenancy:run console commands
 - [ ] **Phase 8: Developer Experience** - InteractsWithTenancy PHPUnit trait
@@ -106,7 +106,7 @@ Plans:
   2. Cache keys written under Tenant A's context are not readable under Tenant B's context — verified by writing a key as Tenant A, switching to Tenant B, and confirming cache miss
   3. Clearing Tenant A's cache namespace does not invalidate any cache entries for Tenant B
   4. `EntityManagerResetListener` calls `resetManager()` (no argument) so it works in both `database_per_tenant` and `shared_db` driver modes
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — DoctrineBootstrapper (EM::clear on boot/clear), EntityManagerResetListener fix (resetManager() no-arg), DI wiring
@@ -188,7 +188,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 2. Tenant Resolution | 5/5 | Complete   | 2026-03-18 |
 | 3. Database-Per-Tenant Driver | 5/6 | In Progress|  |
 | 4. Shared-DB Driver | 3/3 | Complete   | 2026-03-19 |
-| 5. Infrastructure Bootstrappers | 2/3 | In Progress|  |
+| 5. Infrastructure Bootstrappers | 3/3 | Complete   | 2026-03-19 |
 | 6. Messenger Integration | 0/4 | Not started | - |
 | 7. CLI Commands | 0/3 | Not started | - |
 | 8. Developer Experience | 0/2 | Not started | - |
