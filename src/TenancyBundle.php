@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tenancy\Bundle;
 
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
@@ -12,6 +13,7 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
@@ -115,6 +117,10 @@ class TenancyBundle extends AbstractBundle
         parent::build($container);
         $container->addCompilerPass(new BootstrapperChainPass());
         $container->addCompilerPass(new ResolverChainPass());
+        if (interface_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
+            // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
+            $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
+        }
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
@@ -171,37 +177,5 @@ class TenancyBundle extends AbstractBundle
             ]);
         }
 
-        // Messenger middleware auto-enrollment — zero config
-        if (class_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
-            $messengerConfigs = $builder->getExtensionConfig('framework');
-            $buses            = [];
-            foreach ($messengerConfigs as $config) {
-                foreach ($config['messenger']['buses'] ?? [] as $busName => $busConfig) {
-                    $buses[$busName] = true;
-                }
-            }
-
-            // Cover the default bus when no explicit buses section exists
-            if (empty($buses)) {
-                $buses['messenger.bus.default'] = true;
-            }
-
-            $middlewareToInject = [
-                ['id' => 'tenancy.messenger.sending_middleware'],
-                ['id' => 'tenancy.messenger.worker_middleware'],
-            ];
-
-            foreach (array_keys($buses) as $busName) {
-                $builder->prependExtensionConfig('framework', [
-                    'messenger' => [
-                        'buses' => [
-                            $busName => [
-                                'middleware' => $middlewareToInject,
-                            ],
-                        ],
-                    ],
-                ]);
-            }
-        }
     }
 }

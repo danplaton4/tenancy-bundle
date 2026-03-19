@@ -89,7 +89,7 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.context'),
         ]);
 
-    if (class_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
+    if (interface_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
         $services->set('tenancy.messenger.sending_middleware', TenantSendingMiddleware::class)
             ->args([service('tenancy.context')]);
 
