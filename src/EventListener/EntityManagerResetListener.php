@@ -18,6 +18,6 @@ final class EntityManagerResetListener
 
     public function __invoke(TenantContextCleared $event): void
     {
-        $this->managerRegistry->resetManager('tenant');
+        $this->managerRegistry->resetManager();
     }
 }
