@@ -90,13 +90,12 @@ Plans:
   2. Switching tenant context changes the SQL filter's `tenant_id` parameter so queries return the new tenant's rows
   3. Querying a `#[TenantAware]` entity with no active tenant in strict mode (default: `true`) throws `TenantMissingException` rather than returning all rows
   4. An entity without `#[TenantAware]` is unaffected by the SQL filter and returns full result sets regardless of tenant context
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: #[TenantAware] PHP attribute
-- [ ] 04-02: TenantAwareFilter (Doctrine SQL filter implementing addFilterConstraint)
-- [ ] 04-03: SharedDriver and strict mode (TenantMissingException)
-- [ ] 04-04: Integration tests — filter scoping, strict mode throw, and attribute-less entity unaffected
+- [ ] 04-01-PLAN.md — TenantAware attribute, TenantMissingException, TenantAwareFilter + unit tests
+- [ ] 04-02-PLAN.md — SharedDriver + TenancyBundle config wiring (shared_db driver, filter registration)
+- [ ] 04-03-PLAN.md — Integration tests: SharedDbTestKernel, filter scoping, strict mode, attribute-less entity
 
 ### Phase 5: Infrastructure Bootstrappers
 **Goal**: When a tenant is resolved, the Doctrine identity map is safe from cross-tenant pollution and the cache pool is isolated to the active tenant's namespace
