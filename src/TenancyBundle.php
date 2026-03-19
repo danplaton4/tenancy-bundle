@@ -170,5 +170,38 @@ class TenancyBundle extends AbstractBundle
                 ],
             ]);
         }
+
+        // Messenger middleware auto-enrollment — zero config
+        if (class_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
+            $messengerConfigs = $builder->getExtensionConfig('framework');
+            $buses            = [];
+            foreach ($messengerConfigs as $config) {
+                foreach ($config['messenger']['buses'] ?? [] as $busName => $busConfig) {
+                    $buses[$busName] = true;
+                }
+            }
+
+            // Cover the default bus when no explicit buses section exists
+            if (empty($buses)) {
+                $buses['messenger.bus.default'] = true;
+            }
+
+            $middlewareToInject = [
+                ['id' => 'tenancy.messenger.sending_middleware'],
+                ['id' => 'tenancy.messenger.worker_middleware'],
+            ];
+
+            foreach (array_keys($buses) as $busName) {
+                $builder->prependExtensionConfig('framework', [
+                    'messenger' => [
+                        'buses' => [
+                            $busName => [
+                                'middleware' => $middlewareToInject,
+                            ],
+                        ],
+                    ],
+                ]);
+            }
+        }
     }
 }

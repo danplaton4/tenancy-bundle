@@ -14,6 +14,8 @@ use Tenancy\Bundle\Resolver\HostResolver;
 use Tenancy\Bundle\Resolver\QueryParamResolver;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
+use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
+use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -86,4 +88,17 @@ return function (ContainerConfigurator $container): void {
             service('.inner'),
             service('tenancy.context'),
         ]);
+
+    if (class_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
+        $services->set('tenancy.messenger.sending_middleware', TenantSendingMiddleware::class)
+            ->args([service('tenancy.context')]);
+
+        $services->set('tenancy.messenger.worker_middleware', TenantWorkerMiddleware::class)
+            ->args([
+                service('tenancy.context'),
+                service('tenancy.bootstrapper_chain'),
+                service('tenancy.provider'),
+                service('event_dispatcher'),
+            ]);
+    }
 };
