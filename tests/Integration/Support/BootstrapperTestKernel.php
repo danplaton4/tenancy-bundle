@@ -49,7 +49,9 @@ class BootstrapperTestKernel extends Kernel
 
     public function registerContainerConfiguration(LoaderInterface $loader): void
     {
-        $loader->load(function (ContainerBuilder $container): void {
+        $dbPath = sys_get_temp_dir() . '/tenancy_bootstrapper_' . $this->environment . '.db';
+
+        $loader->load(function (ContainerBuilder $container) use ($dbPath): void {
             $container->loadFromExtension('framework', [
                 'secret'                => 'test',
                 'test'                  => true,
@@ -69,7 +71,7 @@ class BootstrapperTestKernel extends Kernel
                     'connections'        => [
                         'default' => [
                             'driver' => 'pdo_sqlite',
-                            'path'   => sys_get_temp_dir() . '/tenancy_bootstrapper_test.db',
+                            'path'   => $dbPath,
                         ],
                     ],
                 ],
