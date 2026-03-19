@@ -17,7 +17,7 @@ use Doctrine\DBAL\Driver;
  *
  * @see \Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper
  */
-final class TenantConnection extends Connection
+final class TenantConnection extends Connection implements TenantConnectionInterface
 {
     private readonly array $originalParams;
 
