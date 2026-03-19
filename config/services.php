@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
+use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
@@ -73,4 +74,8 @@ return function (ContainerConfigurator $container): void {
             service('event_dispatcher'),
             service('tenancy.resolver_chain'),
         ]);
+
+    $services->set('tenancy.doctrine_bootstrapper', DoctrineBootstrapper::class)
+        ->args([service('doctrine.orm.default_entity_manager')])
+        ->tag('tenancy.bootstrapper', ['priority' => -10]);
 };

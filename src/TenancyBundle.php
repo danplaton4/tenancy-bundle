@@ -77,6 +77,12 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.host.app_domain', $config['host']['app_domain'])
             ->set('tenancy.resolvers', $config['resolvers']);
 
+        // Always-on: EntityManagerResetListener (works in both driver modes after resetManager() fix)
+        $services = $container->services();
+        $services->set(EntityManagerResetListener::class)
+            ->autoconfigure(true)
+            ->args([service('doctrine')]);
+
         if ($config['database']['enabled'] ?? false) {
             $container->parameters()->set('tenancy.database.enabled', true);
 
@@ -85,10 +91,6 @@ class TenancyBundle extends AbstractBundle
             $services->set('tenancy.database_switch_bootstrapper', DatabaseSwitchBootstrapper::class)
                 ->args([service('doctrine.dbal.tenant_connection')])
                 ->tag('tenancy.bootstrapper');
-
-            $services->set(EntityManagerResetListener::class)
-                ->autoconfigure(true)
-                ->args([service('doctrine')]);
 
             // Rewire DoctrineTenantProvider to landlord EM (services.php is already imported above)
             $builder->getDefinition('tenancy.provider')
