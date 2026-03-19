@@ -94,18 +94,39 @@ class TenancyBundle extends AbstractBundle
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
     {
-        $builder->prependExtensionConfig('doctrine', [
-            'orm' => [
-                'mappings' => [
-                    'TenancyBundle' => [
-                        'is_bundle' => false,
-                        'type' => 'attribute',
-                        'dir' => __DIR__ . '/Entity',
-                        'prefix' => 'Tenancy\\Bundle\\Entity',
-                        'alias' => 'TenancyBundle',
+        $mapping = [
+            'TenancyBundle' => [
+                'is_bundle' => false,
+                'type' => 'attribute',
+                'dir' => __DIR__ . '/Entity',
+                'prefix' => 'Tenancy\\Bundle\\Entity',
+                'alias' => 'TenancyBundle',
+            ],
+        ];
+
+        $databaseEnabled = false;
+        foreach ($builder->getExtensionConfig('tenancy') as $config) {
+            if (isset($config['database']['enabled'])) {
+                $databaseEnabled = $config['database']['enabled'];
+            }
+        }
+
+        if ($databaseEnabled) {
+            $builder->prependExtensionConfig('doctrine', [
+                'orm' => [
+                    'entity_managers' => [
+                        'landlord' => [
+                            'mappings' => $mapping,
+                        ],
                     ],
                 ],
-            ],
-        ]);
+            ]);
+        } else {
+            $builder->prependExtensionConfig('doctrine', [
+                'orm' => [
+                    'mappings' => $mapping,
+                ],
+            ]);
+        }
     }
 }
