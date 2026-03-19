@@ -23,7 +23,7 @@
 
 ### Database Isolation
 
-- [ ] **ISOL-01**: Database-per-tenant driver switches the DBAL connection at runtime using DBAL 4's `wrapperClass` pattern (`TenantConnection::switchTenant()`) without rebuilding the container
+- [x] **ISOL-01**: Database-per-tenant driver switches the DBAL connection at runtime using DBAL 4's `wrapperClass` pattern (`TenantConnection::switchTenant()`) without rebuilding the container
 - [ ] **ISOL-02**: Database-per-tenant driver configures two named entity managers: `landlord` (static, reads central Tenant registry) and `tenant` (runtime-switched to active tenant DB)
 - [ ] **ISOL-03**: Shared-DB driver registers a Doctrine SQL Filter (`TenantAwareFilter`) that appends `tenant_id = :id` to every query for entities marked `#[TenantAware]`
 - [ ] **ISOL-04**: `#[TenantAware]` PHP attribute marks Doctrine entities for automatic SQL filter scoping in shared-DB mode
@@ -112,7 +112,7 @@
 | RESV-03 | Phase 2 | Complete |
 | RESV-04 | Phase 2 | Complete |
 | RESV-05 | Phase 2 | Complete |
-| ISOL-01 | Phase 3 | Pending |
+| ISOL-01 | Phase 3 | Complete |
 | ISOL-02 | Phase 3 | Pending |
 | ISOL-03 | Phase 4 | Pending |
 | ISOL-04 | Phase 4 | Pending |
