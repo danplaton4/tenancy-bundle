@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-19T08:12:44.659Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-19T08:20:21.333Z"
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -63,6 +63,7 @@ Plan: 2 of 3
 | Phase 03-database-per-tenant-driver P05 | 4 | 2 tasks | 5 files |
 | Phase 03-database-per-tenant-driver P06 | 3 | 1 tasks | 2 files |
 | Phase 04-shared-db-driver P01 | 3 | 2 tasks | 6 files |
+| Phase 04-shared-db-driver P02 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Recent decisions affecting current work:
 - [Phase 04-shared-db-driver]: TenantAwareFilter uses setter injection (setTenantContext) not constructor injection — SQLFilter has a final constructor taking EntityManagerInterface only
 - [Phase 04-shared-db-driver]: TenantMissingException does NOT implement HttpExceptionInterface — propagates from Doctrine internals, not HTTP layer; differs from TenantNotFoundException
 - [Phase 04-shared-db-driver]: TenantAwareFilter null guard: tenantContext === null returns '' silently — prevents crashes in console commands before SharedDriver::boot()
+- [Phase 04-shared-db-driver]: FilterSpy extends SQLFilter (not standalone) to satisfy PHPUnit 11 return-type enforcement on FilterCollection::getFilter() — mock EM passed to final SQLFilter constructor
+- [Phase 04-shared-db-driver]: SharedDriver::clear() is a documented no-op — TenantContext::clear() runs in BootstrapperChain; filter reads hasTenant() live at query time
+- [Phase 04-shared-db-driver]: TenancyBundle validate() block placed after children end() — rejects shared_db + database.enabled at container compile time with a clear error message
 
 ### Pending Todos
 
@@ -129,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T08:12:44.656Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-03-19T08:20:21.329Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
