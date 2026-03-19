@@ -105,13 +105,13 @@ Plans:
   1. After a tenant switch, `EntityManager::clear()` has been called so no previously loaded entity from another tenant is returned from the identity map
   2. Cache keys written under Tenant A's context are not readable under Tenant B's context — verified by writing a key as Tenant A, switching to Tenant B, and confirming cache miss
   3. Clearing Tenant A's cache namespace does not invalidate any cache entries for Tenant B
-  4. The Doctrine bootstrapper enables the SQL filter and injects the correct `tenant_id` parameter on every `TenantResolved` event
-**Plans**: TBD
+  4. `EntityManagerResetListener` calls `resetManager()` (no argument) so it works in both `database_per_tenant` and `shared_db` driver modes
+**Plans:** 3 plans
 
 Plans:
-- [ ] 05-01: DoctrineBootstrapper (SQL filter enable/inject tenant_id, EntityManager::clear on switch)
-- [ ] 05-02: CacheBootstrapper (adapter-level namespace isolation, not key-prefix)
-- [ ] 05-03: Integration tests — identity map pollution prevention and cache namespace isolation
+- [ ] 05-01-PLAN.md — DoctrineBootstrapper (EM::clear on boot/clear), EntityManagerResetListener fix (resetManager() no-arg), DI wiring
+- [ ] 05-02-PLAN.md — TenantAwareCacheAdapter (withSubNamespace decorator for cache.app), DI wiring
+- [ ] 05-03-PLAN.md — Integration tests: identity map isolation and cache namespace isolation with BootstrapperTestKernel
 
 ### Phase 6: Messenger Integration
 **Goal**: Tenant context is preserved across process boundaries — dispatched messages carry the active tenant, and worker handlers run with the correct tenant context restored and guaranteed torn down
