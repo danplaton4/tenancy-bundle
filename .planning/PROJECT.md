@@ -12,6 +12,11 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 ### Validated
 
+**Infrastructure Bootstrappers (Phase 05 — 2026-03-19)**
+- [x] `DoctrineBootstrapper`: calls `EntityManager::clear()` on `boot()` and `clear()` — prevents cross-tenant identity map pollution (BOOT-01, Validated in Phase 05)
+- [x] `TenantAwareCacheAdapter`: decorates `cache.app` with `withSubNamespace(slug)` per cache operation — adapter-level namespace isolation, not key-prefix (BOOT-02, Validated in Phase 05)
+- [x] `EntityManagerResetListener` bug fixed: `resetManager('tenant')` → `resetManager()` — now works correctly in both `database_per_tenant` and `shared_db` modes
+
 **Shared-DB Isolation (Phase 04 — 2026-03-19)**
 - [x] Shared-database driver: Doctrine SQL Filter auto-enabled for entities marked `#[TenantAware]` (Validated in Phase 04: shared-db-driver)
 - [x] `#[TenantAware]` attribute: marks Doctrine entities for automatic tenant scoping (ISOL-03)
@@ -123,4 +128,4 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 | Resource sharing: both sync and async, configurable per resource | Sync is safe for small fleets; async is necessary for 100+ tenants | — Pending |
 
 ---
-*Last updated: 2026-03-19 — Phase 04 complete (shared-db-driver)*
+*Last updated: 2026-03-19 — Phase 05 complete (infrastructure-bootstrappers)*
