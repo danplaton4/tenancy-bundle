@@ -12,7 +12,30 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 ### Validated
 
-(None yet — ship to validate)
+**Shared-DB Isolation (Phase 04 — 2026-03-19)**
+- [x] Shared-database driver: Doctrine SQL Filter auto-enabled for entities marked `#[TenantAware]` (Validated in Phase 04: shared-db-driver)
+- [x] `#[TenantAware]` attribute: marks Doctrine entities for automatic tenant scoping (ISOL-03)
+- [x] `TenantAwareFilter`: Doctrine SQL filter with 4-branch logic — scoped query, empty for non-aware, strict throw, permissive passthrough (ISOL-04)
+- [x] `SharedDriver`: bootstrapper that injects `TenantContext` into `TenantAwareFilter` on `boot()` (ISOL-05)
+- [x] Bundle wiring: compile-time guard blocking `shared_db + database.enabled`, conditional service registration, `prependExtension` Doctrine filter registration (ISOL-05)
+
+**Database Isolation (Phase 03 — 2026-03-19)**
+- [x] Database-per-tenant driver: swap DBAL connection parameters at runtime per tenant (Validated in Phase 03: database-per-tenant-driver)
+- [x] `TenantConnection` DBAL wrapperClass subclass switches DB connection via reflection on private `$params` at runtime (ISOL-01)
+- [x] `DatabaseSwitchBootstrapper` plugs into `BootstrapperChain` to trigger connection switch per tenant request (ISOL-01)
+- [x] `EntityManagerResetListener` resets tenant EM on `TenantContextCleared` to prevent identity map pollution (ISOL-02)
+- [x] Dual-EM DI wiring: `tenancy.database.enabled` flag, landlord EM for `DoctrineTenantProvider`, tenant EM for app queries (ISOL-02)
+- [x] `prependExtension` conditionally targets `entity_managers.landlord.mappings` when `database.enabled=true` (ISOL-02)
+
+**Core Foundation (Phase 01)**
+- [x] Event-driven bootstrapping: `TenantResolved`, `TenantBootstrapped`, `TenantContextCleared` events
+- [x] `BootstrapperChain` with compiler pass autoconfiguration and priority ordering
+- [x] `TenantContext` stateful holder, `TenantContextOrchestratorListener` lifecycle management
+
+**Tenant Resolution (Phase 02)**
+- [x] `HostResolver`: subdomain and custom domain resolution
+- [x] `HeaderResolver`: `X-Tenant-ID` header resolution
+- [x] Pluggable resolver chain with configurable priority
 
 ### Active
 
@@ -100,4 +123,4 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 | Resource sharing: both sync and async, configurable per resource | Sync is safe for small fleets; async is necessary for 100+ tenants | — Pending |
 
 ---
-*Last updated: 2026-03-17 after initialization*
+*Last updated: 2026-03-19 — Phase 04 complete (shared-db-driver)*
