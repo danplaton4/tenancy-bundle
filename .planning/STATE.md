@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-19T06:12:19.049Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-03-19T06:16:35.242Z"
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -58,6 +58,7 @@ Plan: 2 of 5
 | Phase 02-tenant-resolution P05 | 7 | 2 tasks | 7 files |
 | Phase 03-database-per-tenant-driver P02 | 2 | 1 tasks | 2 files |
 | Phase 03-database-per-tenant-driver P01 | 3 | 1 tasks | 5 files |
+| Phase 03-database-per-tenant-driver P03 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,7 @@ Recent decisions affecting current work:
 - [Phase 03-database-per-tenant-driver]: TenantConnection uses ReflectionProperty on Connection::class 'params' (DBAL 4 private field) — switchTenant() merges tenant config over originalParams captured at constructor time, both methods call close() to force lazy reconnect
 - [Phase 03-database-per-tenant-driver]: TenantConnectionInterface extracted alongside final TenantConnection — PHPUnit 11 ClassIsFinalException requires interface for mocking; DatabaseSwitchBootstrapper type-hints interface, not concrete class
 - [Phase 03-database-per-tenant-driver]: TenantDriverInterface is a marker interface (no additional methods) — distinguishes isolation drivers from general bootstrappers in BootstrapperChain
+- [Phase 03-database-per-tenant-driver]: database.enabled defaults false — opt-in flag preserves Phase 2 single-EM behavior; conditional services registered in loadExtension() not services.php; prependExtension reads getExtensionConfig() to pick correct EM mapping target
 
 ### Pending Todos
 
@@ -116,6 +118,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:12:19.046Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-03-19T06:16:35.239Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
