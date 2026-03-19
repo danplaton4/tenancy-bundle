@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-19T06:16:35.242Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-03-19T06:18:16Z"
 progress:
   total_phases: 9
   completed_phases: 2
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 03 (database-per-tenant-driver) — EXECUTING
-Plan: 2 of 5
+Plan: 4 of 5
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Plan: 2 of 5
 | Phase 03-database-per-tenant-driver P02 | 2 | 1 tasks | 2 files |
 | Phase 03-database-per-tenant-driver P01 | 3 | 1 tasks | 5 files |
 | Phase 03-database-per-tenant-driver P03 | 5 | 1 tasks | 1 files |
+| Phase 03-database-per-tenant-driver P04 | 3 | 1 tasks (TDD) | 2 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,7 @@ Recent decisions affecting current work:
 - [Phase 03-database-per-tenant-driver]: TenantConnectionInterface extracted alongside final TenantConnection — PHPUnit 11 ClassIsFinalException requires interface for mocking; DatabaseSwitchBootstrapper type-hints interface, not concrete class
 - [Phase 03-database-per-tenant-driver]: TenantDriverInterface is a marker interface (no additional methods) — distinguishes isolation drivers from general bootstrappers in BootstrapperChain
 - [Phase 03-database-per-tenant-driver]: database.enabled defaults false — opt-in flag preserves Phase 2 single-EM behavior; conditional services registered in loadExtension() not services.php; prependExtension reads getExtensionConfig() to pick correct EM mapping target
+- [Phase 03-04]: resetManager('tenant') used not clear() — resetManager closes and recreates the EM to prevent identity map pollution across tenant switches; landlord EM never touched
 
 ### Pending Todos
 
