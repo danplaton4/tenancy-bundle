@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-19T08:30:10.698Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-19T18:54:41.432Z"
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 22
+  completed_plans: 20
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 04 — shared-db-driver
+**Current focus:** Phase 05 — infrastructure-bootstrappers
 
 ## Current Position
 
-Phase: 04 (shared-db-driver) — COMPLETE
-Plan: 3 of 3 (all plans complete)
+Phase: 05 (infrastructure-bootstrappers) — EXECUTING
+Plan: 1 of 3
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Plan: 3 of 3 (all plans complete)
 | Phase 04-shared-db-driver P01 | 3 | 2 tasks | 6 files |
 | Phase 04-shared-db-driver P02 | 8 | 2 tasks | 3 files |
 | Phase 04-shared-db-driver P03 | 8 | 2 tasks | 4 files |
+| Phase 05 P01 | 2 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,8 @@ Recent decisions affecting current work:
 - [Phase 04-shared-db-driver]: TenancyBundle validate() block placed after children end() — rejects shared_db + database.enabled at container compile time with a clear error message
 - [Phase 04-shared-db-driver]: TestTenantProduct uses explicit #[ORM\Column(name: 'tenant_id')] to avoid camelCase-to-underscore naming ambiguity with SQLite
 - [Phase 04-shared-db-driver]: Strict mode test injects TenantContext directly into filter via setTenantContext (no SharedDriver::boot needed) — cleaner isolation for no-tenant scenario
+- [Phase 05]: DoctrineBootstrapper clears EM identity map in boot/clear; registered with priority -10 so it runs after drivers on boot, before on clear
+- [Phase 05]: EntityManagerResetListener: resetManager() called with no arg (null) not 'tenant' — works in both driver modes; moved to always-on DI registration outside database.enabled block
 
 ### Pending Todos
 
@@ -136,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T08:25:02.619Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-03-19T18:54:41.429Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

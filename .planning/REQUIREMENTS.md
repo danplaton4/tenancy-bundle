@@ -31,7 +31,7 @@
 
 ### Bootstrappers
 
-- [ ] **BOOT-01**: Doctrine bootstrapper enables the SQL filter and injects `tenant_id`, and calls `EntityManager::clear()` on every tenant context switch to prevent identity map pollution
+- [x] **BOOT-01**: Doctrine bootstrapper enables the SQL filter and injects `tenant_id`, and calls `EntityManager::clear()` on every tenant context switch to prevent identity map pollution
 - [ ] **BOOT-02**: Cache bootstrapper isolates tenant cache at the namespace level by decorating the `cache.app` pool with a per-tenant namespace (not a key-prefix hack)
 
 ### Messenger / Context Preservation
@@ -117,7 +117,7 @@
 | ISOL-03 | Phase 4 | Complete |
 | ISOL-04 | Phase 4 | Complete |
 | ISOL-05 | Phase 4 | Complete |
-| BOOT-01 | Phase 5 | Pending |
+| BOOT-01 | Phase 5 | Complete |
 | BOOT-02 | Phase 5 | Pending |
 | MSG-01 | Phase 6 | Pending |
 | MSG-02 | Phase 6 | Pending |
