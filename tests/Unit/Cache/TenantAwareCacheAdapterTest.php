@@ -34,22 +34,27 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->tenant->method('getSlug')->willReturn('acme');
     }
 
+    /**
+     * withSubNamespace() declares `static` return type, so PHPUnit mock enforces
+     * the return value is of the same mock class as $this->inner.
+     * We configure $inner->withSubNamespace('acme') to return $this->inner itself
+     * (acting as both the original pool and the scoped pool).
+     * Then we assert the final operation (getItem, clear, save) was called on $inner.
+     */
     public function testGetItemWithTenantDelegatesToScopedPool(): void
     {
         $this->tenantContext->setTenant($this->tenant);
 
-        /** @var (AdapterInterface&NamespacedPoolInterface)&MockObject $scopedPool */
-        $scopedPool = $this->createMockForIntersectionOfInterfaces([AdapterInterface::class, NamespacedPoolInterface::class]);
-
         $expectedItem = new CacheItem();
 
+        // inner acts as both the original and the scoped pool (static return type constraint)
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
             ->with('acme')
-            ->willReturn($scopedPool);
+            ->willReturnSelf();
 
-        $scopedPool
+        $this->inner
             ->expects($this->once())
             ->method('getItem')
             ->with('foo')
@@ -63,7 +68,7 @@ class TenantAwareCacheAdapterTest extends TestCase
 
     public function testGetItemWithNoTenantDelegatesToInnerDirectly(): void
     {
-        // No tenant set on context
+        // No tenant set on context — inner->withSubNamespace must never be called
 
         $expectedItem = new CacheItem();
 
@@ -87,16 +92,13 @@ class TenantAwareCacheAdapterTest extends TestCase
     {
         $this->tenantContext->setTenant($this->tenant);
 
-        /** @var (AdapterInterface&NamespacedPoolInterface)&MockObject $scopedPool */
-        $scopedPool = $this->createMockForIntersectionOfInterfaces([AdapterInterface::class, NamespacedPoolInterface::class]);
-
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
             ->with('acme')
-            ->willReturn($scopedPool);
+            ->willReturnSelf();
 
-        $scopedPool
+        $this->inner
             ->expects($this->once())
             ->method('clear')
             ->with('')
@@ -112,18 +114,15 @@ class TenantAwareCacheAdapterTest extends TestCase
     {
         $this->tenantContext->setTenant($this->tenant);
 
-        /** @var (AdapterInterface&NamespacedPoolInterface)&MockObject $scopedPool */
-        $scopedPool = $this->createMockForIntersectionOfInterfaces([AdapterInterface::class, NamespacedPoolInterface::class]);
-
         $item = new CacheItem();
 
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
             ->with('acme')
-            ->willReturn($scopedPool);
+            ->willReturnSelf();
 
-        $scopedPool
+        $this->inner
             ->expects($this->once())
             ->method('save')
             ->with($item)
@@ -137,15 +136,15 @@ class TenantAwareCacheAdapterTest extends TestCase
 
     public function testWithSubNamespaceReturnsCloneWithScopedInner(): void
     {
-        // No tenant — withSubNamespace on adapter itself scopes the inner pool
-        /** @var (AdapterInterface&NamespacedPoolInterface)&MockObject $scopedInner */
-        $scopedInner = $this->createMockForIntersectionOfInterfaces([AdapterInterface::class, NamespacedPoolInterface::class]);
+        // Calling withSubNamespace on the adapter returns a new adapter instance.
+        // The cloned adapter's inner is set to inner->withSubNamespace('extra').
+        // Since no tenant is active, getItem on the clone delegates to the scoped inner.
 
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
             ->with('extra')
-            ->willReturn($scopedInner);
+            ->willReturnSelf(); // static return type: returns $inner itself
 
         $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
         $cloned = $adapter->withSubNamespace('extra');
@@ -153,9 +152,9 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->assertNotSame($adapter, $cloned);
         $this->assertInstanceOf(TenantAwareCacheAdapter::class, $cloned);
 
-        // No tenant set, so pool() returns inner directly — but inner is now scopedInner
+        // No tenant set, pool() returns cloned inner (which is still $this->inner)
         $expectedItem = new CacheItem();
-        $scopedInner
+        $this->inner
             ->expects($this->once())
             ->method('getItem')
             ->with('bar')
