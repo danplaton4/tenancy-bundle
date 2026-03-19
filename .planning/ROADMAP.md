@@ -71,7 +71,7 @@ Plans:
   2. The `landlord` entity manager always reads from the central Tenant registry and is unaffected by tenant switches
   3. `TenantConnection::switchTenant()` changes connection parameters in DBAL 4 via the `wrapperClass` mechanism without calling deprecated APIs
   4. On tenant context clear, the tenant entity manager is reset (`resetManager()`) so no Tenant A entity is returned during a Tenant B request
-**Plans:** 4/5 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md — TenantDriverInterface and DatabaseSwitchBootstrapper (boot/clear delegation)
@@ -79,6 +79,7 @@ Plans:
 - [ ] 03-03-PLAN.md — Bundle config (tenancy.database.enabled), conditional DI wiring, DoctrineTenantProvider rewiring to landlord EM
 - [ ] 03-04-PLAN.md — EntityManagerResetListener (resetManager('tenant') on TenantContextCleared)
 - [ ] 03-05-PLAN.md — Integration tests: cross-tenant query isolation and identity map teardown with dual-EM DoctrineTestKernel
+- [ ] 03-06-PLAN.md — Gap closure: conditional prependExtension targeting landlord EM mappings when database.enabled is true
 
 ### Phase 4: Shared-DB Driver
 **Goal**: All Doctrine queries for entities marked #[TenantAware] are automatically scoped to the active tenant's ID via a SQL filter, and querying without an active tenant throws TenantMissingException
@@ -180,13 +181,13 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Foundation | 5/5 | Complete   | 2026-03-18 |
 | 2. Tenant Resolution | 5/5 | Complete   | 2026-03-18 |
-| 3. Database-Per-Tenant Driver | 4/5 | In Progress|  |
+| 3. Database-Per-Tenant Driver | 5/6 | In Progress|  |
 | 4. Shared-DB Driver | 0/4 | Not started | - |
 | 5. Infrastructure Bootstrappers | 0/3 | Not started | - |
 | 6. Messenger Integration | 0/4 | Not started | - |

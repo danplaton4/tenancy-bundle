@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-03-19T06:26:51.017Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-03-19T06:45:20.816Z"
 progress:
   total_phases: 9
   completed_phases: 3
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 16
+  completed_plans: 16
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 03 (database-per-tenant-driver) — EXECUTING
-Plan: 4 of 5
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Plan: 4 of 5
 | Phase 03-database-per-tenant-driver P03 | 5 | 1 tasks | 1 files |
 | Phase 03-database-per-tenant-driver P04 | 3 | 1 tasks (TDD) | 2 files |
 | Phase 03-database-per-tenant-driver P05 | 4 | 2 tasks | 5 files |
+| Phase 03-database-per-tenant-driver P06 | 3 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,7 @@ Recent decisions affecting current work:
 - [Phase 03-04]: resetManager('tenant') used not clear() — resetManager closes and recreates the EM to prevent identity map pollution across tenant switches; landlord EM never touched
 - [Phase 03-05]: DoctrineBundle 2.x wraps EMs in lazy proxies — resetManager freshness proven via UoW spl_object_id not proxy object_id
 - [Phase 03-05]: setUpBeforeClass deletes shared landlord DB file before kernel boot to prevent table-exists errors on re-runs
+- [Phase 03-database-per-tenant-driver]: prependExtension reads getExtensionConfig('tenancy') raw arrays and branches on database.enabled: landlord EM mappings when true, orm.mappings when false/absent
 
 ### Pending Todos
 
@@ -123,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:26:51.013Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-03-19T06:45:20.814Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
