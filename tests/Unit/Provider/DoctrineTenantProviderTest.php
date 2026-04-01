@@ -119,6 +119,43 @@ final class DoctrineTenantProviderTest extends TestCase
         $this->provider->findBySlug('my-slug');
     }
 
+    public function testFindAllReturnsAllTenantsWithoutCache(): void
+    {
+        $tenant1 = $this->createMock(TenantInterface::class);
+        $tenant2 = $this->createMock(TenantInterface::class);
+        $expected = [$tenant1, $tenant2];
+
+        $this->repository
+            ->expects($this->once())
+            ->method('findAll')
+            ->willReturn($expected);
+
+        // cache->get should NOT be called for findAll
+        $this->cache
+            ->expects($this->never())
+            ->method('get');
+
+        $result = $this->provider->findAll();
+
+        $this->assertSame($expected, $result);
+    }
+
+    public function testFindAllReturnsEmptyArrayWhenNoTenants(): void
+    {
+        $this->repository
+            ->expects($this->once())
+            ->method('findAll')
+            ->willReturn([]);
+
+        $this->cache
+            ->expects($this->never())
+            ->method('get');
+
+        $result = $this->provider->findAll();
+
+        $this->assertSame([], $result);
+    }
+
     public function testIsActiveCheckRunsAfterCacheRetrieval(): void
     {
         // Inactive tenants ARE cached; is_active check runs AFTER cache retrieval

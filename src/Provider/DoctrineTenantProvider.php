@@ -51,4 +51,20 @@ final class DoctrineTenantProvider implements TenantProviderInterface
 
         return $tenant;
     }
+
+    /**
+     * Returns all tenants (active and inactive). Bypasses cache intentionally —
+     * findAll() is an operator tool (migration commands), not a hot path.
+     *
+     * @return TenantInterface[]
+     */
+    public function findAll(): array
+    {
+        /** @var TenantInterface[] $tenants */
+        $tenants = $this->entityManager
+            ->getRepository($this->tenantEntityClass)
+            ->findAll();
+
+        return $tenants;
+    }
 }

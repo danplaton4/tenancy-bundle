@@ -15,4 +15,11 @@ interface TenantProviderInterface
      * @throws \Tenancy\Bundle\Exception\TenantInactiveException when the tenant exists but is not active
      */
     public function findBySlug(string $slug): TenantInterface;
+
+    /**
+     * Returns all tenants (active and inactive). Operator tools need visibility on all tenants.
+     *
+     * @return TenantInterface[]
+     */
+    public function findAll(): array;
 }
