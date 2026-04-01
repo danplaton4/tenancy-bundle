@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
+use Tenancy\Bundle\Command\TenantMigrateCommand;
+use Tenancy\Bundle\Command\TenantRunCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
@@ -88,6 +90,26 @@ return function (ContainerConfigurator $container): void {
             service('.inner'),
             service('tenancy.context'),
         ]);
+
+    if (class_exists(\Doctrine\Migrations\DependencyFactory::class)) {
+        $services->set('tenancy.command.migrate', TenantMigrateCommand::class)
+            ->args([
+                service('tenancy.provider'),
+                service('tenancy.bootstrapper_chain'),
+                service('tenancy.context'),
+                param('tenancy.driver'),
+                service('doctrine.dbal.tenant_connection'),
+                service('doctrine.migrations.configuration'),
+            ])
+            ->tag('console.command');
+    }
+
+    $services->set('tenancy.command.run', TenantRunCommand::class)
+        ->args([
+            service('tenancy.provider'),
+            param('kernel.project_dir'),
+        ])
+        ->tag('console.command');
 
     if (interface_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
         $services->set('tenancy.messenger.sending_middleware', TenantSendingMiddleware::class)
