@@ -18,4 +18,9 @@ final class NullTenantProvider implements TenantProviderInterface
     {
         throw new \RuntimeException('NullTenantProvider::findBySlug must not be called in DI integration tests.');
     }
+
+    public function findAll(): array
+    {
+        throw new \RuntimeException('NullTenantProvider::findAll must not be called in DI integration tests.');
+    }
 }
