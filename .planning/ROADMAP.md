@@ -136,12 +136,12 @@ Plans:
   1. `bin/console tenancy:migrate` runs Doctrine migrations for every tenant in the landlord DB sequentially and reports per-tenant success or failure without stopping on the first error
   2. `bin/console tenancy:run <tenantId> "app:some-command arg"` executes the inner command with full tenant context bootstrapped (database, cache) and clears context after completion
   3. `tenancy:migrate` accepts a `--tenant=<id>` filter to run migrations for a single tenant only
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 07-01: tenancy:migrate command (sequential, per-tenant success/failure reporting, --tenant filter)
-- [ ] 07-02: tenancy:run command (full bootstrapper chain, context clear after completion)
-- [ ] 07-03: Integration tests — migrate reports failure without halt, tenancy:run boots and tears down context
+- [ ] 07-01-PLAN.md — findAll() provider method, tenancy:migrate command, DI wiring with class_exists guard, unit tests
+- [ ] 07-02-PLAN.md — tenancy:run subprocess command, DI wiring, unit tests
+- [ ] 07-03-PLAN.md — Integration tests: CommandTestKernel, DI wiring verification for both commands
 
 ### Phase 8: Developer Experience
 **Goal**: Tests that use the bundle can initialize a clean tenant context in one method call, with automatic teardown between test methods
@@ -151,7 +151,7 @@ Plans:
   1. A test extending `KernelTestCase` that uses `InteractsWithTenancy` can call `$this->initializeTenant($id)` to boot the tenant context (database schema, bootstrappers) for that test method
   2. Tenant context is automatically cleared in `tearDown()` even when `setUp()` or the test method throws an exception
   3. Two test methods using different tenant IDs do not share any database state or cache entries
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
 - [ ] 08-01: InteractsWithTenancy trait (initializeTenant, clearTenant, tearDown wiring)
@@ -166,7 +166,7 @@ Plans:
   2. `composer require` with Flex auto-registers the bundle in `config/bundles.php` and creates a `config/packages/tenancy.yaml` stub with sensible defaults
   3. The README contains a 30-second quick-start (install, add `#[TenantAware]`, subdomain resolves) and a comparison table showing capabilities vs. RamyHakam/manual implementations
   4. GitHub Actions CI passes the full test suite, PHPStan at level 9, and php-cs-fixer on every combination of PHP 8.2/8.3/8.4 and Symfony 6.4/7.4
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
 - [ ] 09-01: composer.json (Packagist constraints, soft dependencies on doctrine/doctrine-bundle and doctrine/migrations-bundle, extra.symfony config)
