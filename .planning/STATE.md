@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-19T21:08:50.385Z"
+status: Ready to execute
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-04-01T21:41:33.636Z"
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 24
-  completed_plans: 24
+  total_plans: 27
+  completed_plans: 25
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 06 — messenger-integration
+**Current focus:** Phase 07 — cli-commands
 
 ## Current Position
 
-Phase: 06 (messenger-integration) — EXECUTING
-Plan: 1 of 2
+Phase: 07 (cli-commands) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Plan: 1 of 2
 | Phase 05 P03 | 3 | 2 tasks | 4 files |
 | Phase 06-messenger-integration P01 | 2 | 2 tasks | 8 files |
 | Phase 06-messenger-integration P02 | 20 | 2 tasks | 11 files |
+| Phase 07-cli-commands P02 | 2 | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,8 @@ Recent decisions affecting current work:
 - [Phase 06-messenger-integration]: symfony/messenger added to require-dev and suggest, NOT require — optional integration; class_exists guard in Plan 02 prevents crashes
 - [Phase 06-messenger-integration]: MessengerMiddlewarePass compiler pass (not prependExtensionConfig) for bus enrollment: messenger.buses.*.middleware uses performNoDeepMerging() so prepended config is overwritten; direct parameter modification is the correct approach
 - [Phase 06-messenger-integration]: interface_exists() instead of class_exists() for MessageBusInterface guard: MessageBusInterface is an interface, class_exists() returns false for interfaces — caused silent skip of all Messenger wiring
+- [Phase 07-cli-commands]: processFactory optional Closure injected as third constructor param in TenantRunCommand — enables unit testing without real subprocess spawning
+- [Phase 07-cli-commands]: symfony/process promoted from absent/dev to production require block (^6.4||^7.0) as tenancy:run is a core production feature
 
 ### Pending Todos
 
@@ -153,6 +156,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T21:05:01.545Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-04-01T21:41:33.631Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None

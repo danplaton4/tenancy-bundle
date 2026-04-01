@@ -136,11 +136,11 @@ Plans:
   1. `bin/console tenancy:migrate` runs Doctrine migrations for every tenant in the landlord DB sequentially and reports per-tenant success or failure without stopping on the first error
   2. `bin/console tenancy:run <tenantId> "app:some-command arg"` executes the inner command with full tenant context bootstrapped (database, cache) and clears context after completion
   3. `tenancy:migrate` accepts a `--tenant=<id>` filter to run migrations for a single tenant only
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 07-01-PLAN.md — findAll() provider method, tenancy:migrate command, DI wiring with class_exists guard, unit tests
-- [ ] 07-02-PLAN.md — tenancy:run subprocess command, DI wiring, unit tests
+- [x] 07-02-PLAN.md — tenancy:run subprocess command, DI wiring, unit tests
 - [ ] 07-03-PLAN.md — Integration tests: CommandTestKernel, DI wiring verification for both commands
 
 ### Phase 8: Developer Experience
@@ -188,6 +188,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Shared-DB Driver             | 3/3            | Complete    | 2026-03-19 |
 | 5. Infrastructure Bootstrappers | 3/3            | Complete    | 2026-03-19 |
 | 6. Messenger Integration        | 1/2 | In Progress|  |
-| 7. CLI Commands                 | 0/3            | Not started | -          |
+| 7. CLI Commands                 | 1/3 | In Progress|  |
 | 8. Developer Experience         | 0/2            | Not started | -          |
 | 9. OSS Hardening                | 0/5            | Not started | -          |

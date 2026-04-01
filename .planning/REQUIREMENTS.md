@@ -36,14 +36,14 @@
 
 ### Messenger / Context Preservation
 
-- [ ] **MSG-01**: `TenantStamp` is a custom Symfony Messenger stamp that carries the active tenant identifier across process boundaries
-- [ ] **MSG-02**: Sending middleware automatically attaches `TenantStamp` to every dispatched envelope when a tenant context is active
-- [ ] **MSG-03**: Worker-side middleware re-boots the tenant context from `TenantStamp` before the handler runs and clears it in a `try/finally` block — guaranteeing teardown even on handler exception
+- [x] **MSG-01**: `TenantStamp` is a custom Symfony Messenger stamp that carries the active tenant identifier across process boundaries
+- [x] **MSG-02**: Sending middleware automatically attaches `TenantStamp` to every dispatched envelope when a tenant context is active
+- [x] **MSG-03**: Worker-side middleware re-boots the tenant context from `TenantStamp` before the handler runs and clears it in a `try/finally` block — guaranteeing teardown even on handler exception
 
 ### CLI Commands
 
 - [ ] **CLI-01**: `tenancy:migrate` runs Doctrine migrations for every tenant sequentially, reporting per-tenant success/failure
-- [ ] **CLI-02**: `tenancy:run {tenantId} "command:name arg1"` wraps any Symfony console command with full tenant context bootstrapped
+- [x] **CLI-02**: `tenancy:run {tenantId} "command:name arg1"` wraps any Symfony console command with full tenant context bootstrapped
 
 ### Developer Experience / Testing
 
@@ -119,11 +119,11 @@
 | ISOL-05 | Phase 4 | Complete |
 | BOOT-01 | Phase 5 | Complete |
 | BOOT-02 | Phase 5 | Complete |
-| MSG-01 | Phase 6 | Pending |
-| MSG-02 | Phase 6 | Pending |
-| MSG-03 | Phase 6 | Pending |
+| MSG-01 | Phase 6 | Complete |
+| MSG-02 | Phase 6 | Complete |
+| MSG-03 | Phase 6 | Complete |
 | CLI-01 | Phase 7 | Pending |
-| CLI-02 | Phase 7 | Pending |
+| CLI-02 | Phase 7 | Complete |
 | DX-01 | Phase 8 | Pending |
 | OSS-01 | Phase 9 | Pending |
 | OSS-02 | Phase 9 | Pending |
