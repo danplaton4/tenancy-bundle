@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
+use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
@@ -45,4 +46,17 @@ return function (ContainerConfigurator $container): void {
             service('event_dispatcher'),
             service('tenancy.resolver_chain'),
         ]);
+
+    if (class_exists(\Doctrine\Migrations\DependencyFactory::class)) {
+        $services->set('tenancy.command.migrate', TenantMigrateCommand::class)
+            ->args([
+                service('tenancy.provider'),
+                service('tenancy.bootstrapper_chain'),
+                service('tenancy.context'),
+                param('tenancy.driver'),
+                service('doctrine.dbal.tenant_connection'),
+                service('doctrine.migrations.configuration'),
+            ])
+            ->tag('console.command');
+    }
 };
