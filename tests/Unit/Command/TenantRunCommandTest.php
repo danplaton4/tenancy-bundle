@@ -50,7 +50,8 @@ final class TenantRunCommandTest extends TestCase
         $tester->execute(['tenant' => 'acme', 'command_string' => 'app:some-command']);
 
         $this->assertNotNull($capturedCommand);
-        $this->assertStringContainsString('--tenant=acme', $capturedCommand);
+        // escapeshellarg wraps values in quotes on POSIX systems: --tenant='acme' or --tenant="acme"
+        $this->assertMatchesRegularExpression('/--tenant=[\'"]?acme[\'"]?/', $capturedCommand);
         $this->assertStringContainsString('app:some-command', $capturedCommand);
         $this->assertStringContainsString('/app/bin/console', $capturedCommand);
     }

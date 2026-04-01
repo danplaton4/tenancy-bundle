@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
+use Tenancy\Bundle\Command\TenantRunCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
@@ -45,4 +46,11 @@ return function (ContainerConfigurator $container): void {
             service('event_dispatcher'),
             service('tenancy.resolver_chain'),
         ]);
+
+    $services->set('tenancy.command.run', TenantRunCommand::class)
+        ->args([
+            service('tenancy.provider'),
+            param('kernel.project_dir'),
+        ])
+        ->tag('console.command');
 };
