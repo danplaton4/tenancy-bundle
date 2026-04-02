@@ -151,11 +151,11 @@ Plans:
   1. A test extending `KernelTestCase` that uses `InteractsWithTenancy` can call `$this->initializeTenant($id)` to boot the tenant context (database schema, bootstrappers) for that test method
   2. Tenant context is automatically cleared in `tearDown()` even when `setUp()` or the test method throws an exception
   3. Two test methods using different tenant IDs do not share any database state or cache entries
-**Plans:** 3 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] 08-01: InteractsWithTenancy trait (initializeTenant, clearTenant, tearDown wiring)
-- [ ] 08-02: Tests of the trait itself — tearDown on throw, two methods with different tenants are isolated
+- [ ] 08-01-PLAN.md — InteractsWithTenancy trait, TenancyTestKernel, MakeTenancyTestServicesPublicPass
+- [ ] 08-02-PLAN.md — Integration tests: initializeTenant, tearDown cleanup, two-tenant isolation, assertion helpers
 
 ### Phase 9: OSS Hardening
 **Goal**: The bundle is Packagist-ready, installs with zero manual configuration via Symfony Flex, and the CI matrix enforces quality on every supported PHP and Symfony version
