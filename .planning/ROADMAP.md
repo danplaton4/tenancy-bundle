@@ -154,7 +154,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — InteractsWithTenancy trait, TenancyTestKernel, MakeTenancyTestServicesPublicPass
+- [x] 08-01-PLAN.md — InteractsWithTenancy trait, TenancyTestKernel, MakeTenancyTestServicesPublicPass
 - [ ] 08-02-PLAN.md — Integration tests: initializeTenant, tearDown cleanup, two-tenant isolation, assertion helpers
 
 ### Phase 9: OSS Hardening
@@ -189,5 +189,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Infrastructure Bootstrappers | 3/3            | Complete    | 2026-03-19 |
 | 6. Messenger Integration        | 1/2 | In Progress|  |
 | 7. CLI Commands                 | 1/3 | In Progress|  |
-| 8. Developer Experience         | 0/2            | Not started | -          |
+| 8. Developer Experience         | 1/2            | In Progress | -          |
 | 9. OSS Hardening                | 0/5            | Not started | -          |
