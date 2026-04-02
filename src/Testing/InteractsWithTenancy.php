@@ -46,42 +46,57 @@ trait InteractsWithTenancy
      *
      * Sequence:
      *   1. Clear any prior tenant context and bootstrapper chain state.
-     *   2. Swap the tenant DBAL connection to a fresh :memory: SQLite database.
-     *   3. Reset the tenant EntityManager and create the schema.
-     *   4. Activate a synthetic Tenant entity in TenantContext.
-     *   5. Run all registered bootstrappers via BootstrapperChain::boot().
+     *   2. Build a synthetic Tenant entity whose connectionConfig points to :memory: SQLite.
+     *   3. Activate the synthetic tenant in TenantContext.
+     *   4. Run all registered bootstrappers via BootstrapperChain::boot().
+     *      DatabaseSwitchBootstrapper::boot() will call switchTenant() with the :memory: config,
+     *      leaving the connection configured for :memory: after the boot completes.
+     *   5. Reset the tenant EntityManager and create the schema on the (now :memory:) connection.
+     *
+     * The schema must be created AFTER chain->boot() because DatabaseSwitchBootstrapper::boot()
+     * calls TenantConnection::switchTenant() which calls close(). Creating a new :memory: SQLite
+     * connection after close() yields a fresh empty database — so schema creation must happen last.
+     *
+     * The 'path' => null key is set explicitly in the in-memory config so that array_merge() in
+     * TenantConnection::switchTenant() nulls out any pre-existing 'path' key from the original
+     * placeholder connection params. DBAL's SQLite driver checks isset($params['path']) first, so
+     * a non-null path would override the 'memory' flag.
      */
     protected function initializeTenant(string $slug): void
     {
         $container = static::getContainer();
 
-        // Step 1: Clear any prior tenant context
+        // Step 1: Clear any prior tenant context and bootstrapper chain state.
         /** @var TenantContext $tenantContext */
         $tenantContext = $container->get('tenancy.context');
         $tenantContext->clear();
 
-        // Also clear bootstrapper chain from prior tenant
         /** @var BootstrapperChain $chain */
         $chain = $container->get('tenancy.bootstrapper_chain');
         $chain->clear();
 
-        // Step 2: Swap tenant connection to fresh :memory: SQLite
-        /** @var TenantConnection $conn */
-        $conn = $container->get('doctrine.dbal.tenant_connection');
-        $conn->switchTenant(['driver' => 'pdo_sqlite', 'memory' => true]);
-
-        // Step 3: Reset tenant EM + create schema
-        $registry = $container->get('doctrine');
-        $em = $registry->resetManager('tenant');
-        $schemaTool = new SchemaTool($em);
-        $schemaTool->createSchema($em->getMetadataFactory()->getAllMetadata());
-
-        // Step 4: Activate synthetic tenant in context
+        // Step 2: Build a synthetic Tenant entity with in-memory SQLite connection config.
+        // DatabaseSwitchBootstrapper::boot() will call switchTenant() with these params,
+        // configuring the tenant DBAL connection for :memory: SQLite.
         $tenant = new Tenant($slug, $slug);
+        $tenant->setConnectionConfig(['driver' => 'pdo_sqlite', 'memory' => true, 'path' => null]);
+
+        // Step 3: Activate the synthetic tenant in context so bootstrappers and assertions work.
         $tenantContext->setTenant($tenant);
 
-        // Step 5: Run all registered bootstrappers
+        // Step 4: Run all registered bootstrappers.
+        // This causes DatabaseSwitchBootstrapper::boot() to call switchTenant() with the :memory:
+        // config, then close() the prior connection. After this, the DBAL connection is configured
+        // for a fresh :memory: SQLite (the actual PDO connection is opened on next query).
         $chain->boot($tenant);
+
+        // Step 5: Reset tenant EM + create schema on the :memory: connection.
+        // resetManager() is required after switchTenant() to get an EntityManager whose UnitOfWork
+        // is tied to the new connection (not the stale one from before the boot).
+        $registry = $container->get('doctrine');
+        $em       = $registry->resetManager('tenant');
+        $schemaTool = new SchemaTool($em);
+        $schemaTool->createSchema($em->getMetadataFactory()->getAllMetadata());
     }
 
     /**

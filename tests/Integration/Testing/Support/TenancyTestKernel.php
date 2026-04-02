@@ -83,6 +83,7 @@ class TenancyTestKernel extends Kernel
                     ],
                 ],
                 'orm' => [
+                    'enable_native_lazy_objects' => true,
                     'default_entity_manager' => 'landlord',
                     'entity_managers' => [
                         'landlord' => [

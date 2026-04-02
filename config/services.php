@@ -80,9 +80,11 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.resolver_chain'),
         ]);
 
-    $services->set('tenancy.doctrine_bootstrapper', DoctrineBootstrapper::class)
-        ->args([service('doctrine.orm.default_entity_manager')])
-        ->tag('tenancy.bootstrapper', ['priority' => -10]);
+    if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+        $services->set('tenancy.doctrine_bootstrapper', DoctrineBootstrapper::class)
+            ->args([service('doctrine.orm.entity_manager')])
+            ->tag('tenancy.bootstrapper', ['priority' => -10]);
+    }
 
     $services->set('tenancy.cache_adapter', TenantAwareCacheAdapter::class)
         ->decorate('cache.app')
@@ -99,7 +101,7 @@ return function (ContainerConfigurator $container): void {
                 service('tenancy.context'),
                 param('tenancy.driver'),
                 service('doctrine.dbal.tenant_connection'),
-                service('doctrine.migrations.configuration'),
+                service('doctrine.migrations.configuration')->nullOnInvalid(),
             ])
             ->tag('console.command');
     }

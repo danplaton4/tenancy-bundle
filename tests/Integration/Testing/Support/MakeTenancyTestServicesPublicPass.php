@@ -17,6 +17,7 @@ final class MakeTenancyTestServicesPublicPass implements CompilerPassInterface
     {
         $ids = [
             'tenancy.context',
+            \Tenancy\Bundle\Context\TenantContext::class,
             'tenancy.bootstrapper_chain',
             'doctrine.dbal.tenant_connection',
             'doctrine.orm.tenant_entity_manager',
