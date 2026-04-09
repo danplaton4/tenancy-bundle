@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 08
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-04-02T06:27:19.725Z"
+status: Ready to plan
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-04-02T06:53:14.342Z"
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 29
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 08 (developer-experience) — EXECUTING
-Plan: 1 of 2
+Phase: 9
+Plan: Not started
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Plan: 1 of 2
 | Phase 06-messenger-integration P01 | 2 | 2 tasks | 8 files |
 | Phase 06-messenger-integration P02 | 20 | 2 tasks | 11 files |
 | Phase 07-cli-commands P02 | 2 | 1 tasks | 4 files |
+| Phase 08 P02 | 14 | 1 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,8 @@ Recent decisions affecting current work:
 - [Phase 06-messenger-integration]: interface_exists() instead of class_exists() for MessageBusInterface guard: MessageBusInterface is an interface, class_exists() returns false for interfaces — caused silent skip of all Messenger wiring
 - [Phase 07-cli-commands]: processFactory optional Closure injected as third constructor param in TenantRunCommand — enables unit testing without real subprocess spawning
 - [Phase 07-cli-commands]: symfony/process promoted from absent/dev to production require block (^6.4||^7.0) as tenancy:run is a core production feature
+- [Phase 08-developer-experience]: Schema must be created AFTER chain->boot() so DatabaseSwitchBootstrapper does not destroy the :memory: SQLite DB
+- [Phase 08-developer-experience]: Synthetic tenant in initializeTenant() must carry {memory:true, path:null} connection config so DBAL SQLite driver uses :memory: (path:null bypasses isset check)
 
 ### Pending Todos
 
@@ -156,6 +159,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T21:41:33.631Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-04-02T06:48:24.831Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None

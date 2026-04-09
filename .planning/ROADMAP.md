@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Infrastructure Bootstrappers** - Doctrine bootstrapper (identity map safety) and Cache bootstrapper (namespace isolation) (completed 2026-03-19)
 - [ ] **Phase 6: Messenger Integration** - TenantStamp, sending middleware, and worker-side teardown middleware
 - [ ] **Phase 7: CLI Commands** - tenancy:migrate and tenancy:run console commands
-- [ ] **Phase 8: Developer Experience** - InteractsWithTenancy PHPUnit trait
+- [x] **Phase 8: Developer Experience** - InteractsWithTenancy PHPUnit trait (completed 2026-04-02)
 - [ ] **Phase 9: OSS Hardening** - composer.json, README, Flex recipe, and GitHub Actions CI matrix
 
 ## Phase Details
@@ -151,11 +151,11 @@ Plans:
   1. A test extending `KernelTestCase` that uses `InteractsWithTenancy` can call `$this->initializeTenant($id)` to boot the tenant context (database schema, bootstrappers) for that test method
   2. Tenant context is automatically cleared in `tearDown()` even when `setUp()` or the test method throws an exception
   3. Two test methods using different tenant IDs do not share any database state or cache entries
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 08-01-PLAN.md — InteractsWithTenancy trait, TenancyTestKernel, MakeTenancyTestServicesPublicPass
-- [ ] 08-02-PLAN.md — Integration tests: initializeTenant, tearDown cleanup, two-tenant isolation, assertion helpers
+- [x] 08-02-PLAN.md — Integration tests: initializeTenant, tearDown cleanup, two-tenant isolation, assertion helpers
 
 ### Phase 9: OSS Hardening
 **Goal**: The bundle is Packagist-ready, installs with zero manual configuration via Symfony Flex, and the CI matrix enforces quality on every supported PHP and Symfony version
@@ -189,5 +189,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Infrastructure Bootstrappers | 3/3            | Complete    | 2026-03-19 |
 | 6. Messenger Integration        | 1/2 | In Progress|  |
 | 7. CLI Commands                 | 1/3 | In Progress|  |
-| 8. Developer Experience         | 1/2            | In Progress | -          |
+| 8. Developer Experience         | 2/2 | Complete    | 2026-04-02 |
 | 9. OSS Hardening                | 0/5            | Not started | -          |
