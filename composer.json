@@ -1,8 +1,21 @@
 {
     "name": "danplaton4/tenancy-bundle",
-    "description": "Multi-tenant Symfony bundle — zero boilerplate, zero leaks.",
+    "description": "Multi-tenant Symfony bundle - zero boilerplate, zero leaks.",
     "type": "symfony-bundle",
     "license": "MIT",
+    "keywords": ["symfony", "multitenancy", "multi-tenant", "saas", "bundle", "doctrine", "tenancy"],
+    "authors": [
+        {
+            "name": "Dan Platon",
+            "homepage": "https://github.com/danplaton4",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/danplaton4/tenancy-bundle",
+    "support": {
+        "issues": "https://github.com/danplaton4/tenancy-bundle/issues",
+        "source": "https://github.com/danplaton4/tenancy-bundle"
+    },
     "minimum-stability": "stable",
     "require": {
         "php": "^8.2",
@@ -30,8 +43,7 @@
         "doctrine/doctrine-bundle": "Required for Doctrine integration (^2.13)",
         "doctrine/orm": "Required for Tenant entity (^3.3)",
         "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
-        "symfony/messenger": "Required for tenant context preservation across async message processing (^6.4||^7.0)",
-        "symfony/process": "Required for tenancy:run command (^6.4||^7.0)"
+        "symfony/messenger": "Required for tenant context preservation across async message processing (^6.4||^7.0)"
     },
     "autoload": {
         "psr-4": {
@@ -48,6 +60,9 @@
             "bundles": {
                 "Tenancy\\Bundle\\TenancyBundle": ["all"]
             }
+        },
+        "branch-alias": {
+            "dev-master": "1.0.x-dev"
         }
     },
     "config": {
