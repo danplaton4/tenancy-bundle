@@ -8,6 +8,7 @@ $finder = PhpCsFixer\Finder::create()
     ->notPath('bootstrap.php');
 
 return (new PhpCsFixer\Config())
+    ->setRiskyAllowed(true)
     ->setRules([
         '@Symfony' => true,
         '@Symfony:risky' => false,

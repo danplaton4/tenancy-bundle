@@ -81,7 +81,7 @@ jobs:
 
       - uses: ramsey/composer-install@v3
 
-      - run: vendor/bin/php-cs-fixer check --diff
+      - run: vendor/bin/php-cs-fixer check --diff --allow-risky=yes
 
   no-doctrine:
     runs-on: ubuntu-latest
