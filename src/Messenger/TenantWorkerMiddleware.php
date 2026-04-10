@@ -27,7 +27,7 @@ final class TenantWorkerMiddleware implements MiddlewareInterface
     {
         $stamp = $envelope->last(TenantStamp::class);
 
-        if ($stamp === null) {
+        if (null === $stamp) {
             return $stack->next()->handle($envelope, $stack);
         }
 

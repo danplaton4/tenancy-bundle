@@ -29,7 +29,7 @@ final class DoctrineTenantProvider implements TenantProviderInterface
 
         /** @var TenantInterface|null $tenant */
         $tenant = $this->cache->get(
-            'tenancy.tenant.' . $slug,
+            'tenancy.tenant.'.$slug,
             function (ItemInterface $item) use ($slug, $entityClass): ?TenantInterface {
                 $item->expiresAfter(self::CACHE_TTL);
 
@@ -42,7 +42,7 @@ final class DoctrineTenantProvider implements TenantProviderInterface
             }
         );
 
-        if ($tenant === null) {
+        if (null === $tenant) {
             throw new TenantNotFoundException(sprintf('Tenant "%s" not found.', $slug));
         }
 

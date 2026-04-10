@@ -22,7 +22,7 @@ final class TenantContext
 
     public function hasTenant(): bool
     {
-        return $this->currentTenant !== null;
+        return null !== $this->currentTenant;
     }
 
     public function clear(): void

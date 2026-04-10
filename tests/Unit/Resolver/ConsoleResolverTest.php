@@ -8,10 +8,10 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\NullOutput;
-use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
@@ -28,7 +28,6 @@ use Tenancy\Bundle\TenantInterface;
 final class ConsoleSpyBootstrapper implements TenantBootstrapperInterface
 {
     public int $bootCallCount = 0;
-    /** @var TenantInterface|null */
     public ?TenantInterface $lastBootedTenant = null;
 
     public function boot(TenantInterface $tenant): void
@@ -143,6 +142,7 @@ final class ConsoleResolverTest extends TestCase
             ->method('dispatch')
             ->willReturnCallback(function (object $event) use (&$dispatchedEvent) {
                 $dispatchedEvent = $event;
+
                 return $event;
             });
 

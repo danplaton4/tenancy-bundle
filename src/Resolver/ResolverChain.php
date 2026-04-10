@@ -29,7 +29,7 @@ final class ResolverChain
         foreach ($this->resolvers as $resolver) {
             $tenant = $resolver->resolve($request);
 
-            if ($tenant !== null) {
+            if (null !== $tenant) {
                 return [
                     'tenant' => $tenant,
                     'resolvedBy' => $resolver::class,

@@ -58,8 +58,9 @@ final class TenantContextTest extends TestCase
         $reflection = new \ReflectionClass(TenantContext::class);
         $constructor = $reflection->getConstructor();
 
-        if ($constructor === null) {
+        if (null === $constructor) {
             $this->assertTrue(true);
+
             return;
         }
 

@@ -15,13 +15,14 @@ final class QueryParamResolver implements TenantResolverInterface
 
     public function __construct(
         private readonly TenantProviderInterface $tenantProvider,
-    ) {}
+    ) {
+    }
 
     public function resolve(Request $request): ?TenantInterface
     {
         $slug = $request->query->get(self::PARAM_NAME);
 
-        if ($slug === null || $slug === '') {
+        if (null === $slug || '' === $slug) {
             return null;
         }
 

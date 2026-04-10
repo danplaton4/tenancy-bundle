@@ -30,12 +30,12 @@ final class ConsoleResolver
         $command = $event->getCommand();
         $input = $event->getInput();
 
-        if ($command === null) {
+        if (null === $command) {
             return;
         }
 
         $application = $command->getApplication();
-        if ($application === null) {
+        if (null === $application) {
             return;
         }
 
@@ -57,7 +57,7 @@ final class ConsoleResolver
 
         $slug = $input->getOption('tenant');
 
-        if (!\is_string($slug) || $slug === '') {
+        if (!\is_string($slug) || '' === $slug) {
             return; // Silent — no tenant context when --tenant is absent or empty
         }
 

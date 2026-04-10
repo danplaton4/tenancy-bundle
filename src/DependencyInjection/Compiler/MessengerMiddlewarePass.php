@@ -37,17 +37,17 @@ final class MessengerMiddlewarePass implements CompilerPassInterface
         $busIds = array_keys($container->findTaggedServiceIds('messenger.bus'));
 
         foreach ($busIds as $busId) {
-            $paramName = $busId . '.middleware';
+            $paramName = $busId.'.middleware';
 
             if (!$container->hasParameter($paramName)) {
                 // MessengerPass may have already consumed the parameter — try to modify bus definition directly
                 if ($container->hasDefinition($busId)) {
                     $busDefinition = $container->getDefinition($busId);
-                    $middlewareArg  = $busDefinition->getArgument(0);
+                    $middlewareArg = $busDefinition->getArgument(0);
 
                     if ($middlewareArg instanceof \Symfony\Component\DependencyInjection\Argument\IteratorArgument) {
                         $existingRefs = $middlewareArg->getValues();
-                        $newRefs      = [];
+                        $newRefs = [];
                         foreach ($tenancyMiddleware as $m) {
                             $newRefs[] = new \Symfony\Component\DependencyInjection\Reference($m['id']);
                         }

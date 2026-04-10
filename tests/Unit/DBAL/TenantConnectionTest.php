@@ -19,14 +19,14 @@ final class TenantConnectionTest extends TestCase
     protected function setUp(): void
     {
         $this->originalParams = [
-            'driver'   => 'pdo_sqlite',
-            'memory'   => true,
-            'host'     => 'localhost',
-            'user'     => 'root',
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+            'host' => 'localhost',
+            'user' => 'root',
             'password' => 'secret',
         ];
 
-        /** @phpstan-ignore method.internal */
+        /* @phpstan-ignore method.internal */
         $this->conn = DriverManager::getConnection(
             array_merge($this->originalParams, ['wrapperClass' => TenantConnection::class]),
         );

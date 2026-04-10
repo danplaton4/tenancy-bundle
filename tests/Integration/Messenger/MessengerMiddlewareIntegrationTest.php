@@ -33,7 +33,7 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
     public static function setUpBeforeClass(): void
     {
         // Clear cached container from prior runs
-        $cacheDir = sys_get_temp_dir() . '/tenancy_messenger_test';
+        $cacheDir = sys_get_temp_dir().'/tenancy_messenger_test';
         if (is_dir($cacheDir)) {
             self::removeDir($cacheDir);
         }
@@ -53,7 +53,7 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
     {
         static::$kernel->shutdown();
 
-        $cacheDir = sys_get_temp_dir() . '/tenancy_messenger_test';
+        $cacheDir = sys_get_temp_dir().'/tenancy_messenger_test';
         if (is_dir($cacheDir)) {
             self::removeDir($cacheDir);
         }
@@ -88,7 +88,7 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
         $context->setTenant(new StubTenant('acme'));
 
         /** @var MessageBusInterface $bus */
-        $bus      = $container->get('messenger.bus.default');
+        $bus = $container->get('messenger.bus.default');
         $envelope = $bus->dispatch(new \stdClass());
 
         $stamp = $envelope->last(TenantStamp::class);
@@ -102,7 +102,7 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
 
         // Context is already clear from setUp()
         /** @var MessageBusInterface $bus */
-        $bus      = $container->get('messenger.bus.default');
+        $bus = $container->get('messenger.bus.default');
         $envelope = $bus->dispatch(new \stdClass());
 
         $stamp = $envelope->last(TenantStamp::class);
@@ -123,7 +123,7 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
         // Use an array (mutable object via reference) to capture context state during handling
         $captured = ['slug' => null];
 
-        $innerMiddleware = new class ($context, $captured) implements MiddlewareInterface {
+        $innerMiddleware = new class($context, $captured) implements MiddlewareInterface {
             public function __construct(
                 private readonly TenantContext $ctx,
                 private array &$captured,
@@ -160,7 +160,7 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
         $capturedSlugs = [];
 
         $makeMiddleware = static function (TenantContext $ctx, array &$captured): MiddlewareInterface {
-            return new class ($ctx, $captured) implements MiddlewareInterface {
+            return new class($ctx, $captured) implements MiddlewareInterface {
                 public function __construct(
                     private readonly TenantContext $ctx,
                     private array &$captured,
@@ -181,13 +181,13 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
         // First message: acme
         // Pass MiddlewareInterface directly (not array) — StackMiddleware stores it in stack[0] directly
         $envelopeAcme = new Envelope(new \stdClass(), [new TenantStamp('acme')]);
-        $stackAcme    = new StackMiddleware($makeMiddleware($context, $capturedSlugs));
+        $stackAcme = new StackMiddleware($makeMiddleware($context, $capturedSlugs));
         $workerMiddleware->handle($envelopeAcme, $stackAcme);
         $this->assertFalse($context->hasTenant(), 'Context must be cleared after first message');
 
         // Second message: beta
         $envelopeBeta = new Envelope(new \stdClass(), [new TenantStamp('beta')]);
-        $stackBeta    = new StackMiddleware($makeMiddleware($context, $capturedSlugs));
+        $stackBeta = new StackMiddleware($makeMiddleware($context, $capturedSlugs));
         $workerMiddleware->handle($envelopeBeta, $stackBeta);
         $this->assertFalse($context->hasTenant(), 'Context must be cleared after second message');
 
@@ -202,10 +202,10 @@ final class MessengerMiddlewareIntegrationTest extends TestCase
 
         $items = scandir($dir);
         foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
+            if ('.' === $item || '..' === $item) {
                 continue;
             }
-            $path = $dir . '/' . $item;
+            $path = $dir.'/'.$item;
             if (is_dir($path)) {
                 self::removeDir($path);
             } else {

@@ -26,13 +26,13 @@ final class EntityManagerResetIntegrationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        static::$pathA = sys_get_temp_dir() . '/tenancy_reset_test_tenant_a.db';
+        static::$pathA = sys_get_temp_dir().'/tenancy_reset_test_tenant_a.db';
 
         // Remove any leftover files before booting (landlord DB is shared via DoctrineTestKernel path)
         foreach ([
             static::$pathA,
-            sys_get_temp_dir() . '/tenancy_test_landlord.db',
-            sys_get_temp_dir() . '/tenancy_test_placeholder.db',
+            sys_get_temp_dir().'/tenancy_test_landlord.db',
+            sys_get_temp_dir().'/tenancy_test_placeholder.db',
         ] as $path) {
             if (file_exists($path)) {
                 unlink($path);
@@ -70,8 +70,8 @@ final class EntityManagerResetIntegrationTest extends TestCase
 
         foreach ([
             static::$pathA,
-            sys_get_temp_dir() . '/tenancy_test_landlord.db',
-            sys_get_temp_dir() . '/tenancy_test_placeholder.db',
+            sys_get_temp_dir().'/tenancy_test_landlord.db',
+            sys_get_temp_dir().'/tenancy_test_placeholder.db',
         ] as $path) {
             if (file_exists($path)) {
                 unlink($path);

@@ -49,45 +49,45 @@ class BootstrapperTestKernel extends Kernel
 
     public function registerContainerConfiguration(LoaderInterface $loader): void
     {
-        $dbPath = sys_get_temp_dir() . '/tenancy_bootstrapper_' . $this->environment . '.db';
+        $dbPath = sys_get_temp_dir().'/tenancy_bootstrapper_'.$this->environment.'.db';
 
         $loader->load(function (ContainerBuilder $container) use ($dbPath): void {
             $container->loadFromExtension('framework', [
-                'secret'                => 'test',
-                'test'                  => true,
-                'http_method_override'  => false,
+                'secret' => 'test',
+                'test' => true,
+                'http_method_override' => false,
                 'handle_all_throwables' => true,
-                'php_errors'            => ['log' => true],
+                'php_errors' => ['log' => true],
             ]);
 
             $container->loadFromExtension('tenancy', [
-                'driver'      => 'shared_db',
+                'driver' => 'shared_db',
                 'strict_mode' => true,
             ]);
 
             $container->loadFromExtension('doctrine', [
                 'dbal' => [
                     'default_connection' => 'default',
-                    'connections'        => [
+                    'connections' => [
                         'default' => [
                             'driver' => 'pdo_sqlite',
-                            'path'   => $dbPath,
+                            'path' => $dbPath,
                         ],
                     ],
                 ],
                 'orm' => [
                     'default_entity_manager' => 'default',
                     'enable_native_lazy_objects' => \PHP_VERSION_ID >= 80400,
-                    'entity_managers'        => [
+                    'entity_managers' => [
                         'default' => [
                             'connection' => 'default',
-                            'mappings'   => [
+                            'mappings' => [
                                 'TenancyBundle' => [
                                     'is_bundle' => false,
-                                    'type'      => 'attribute',
-                                    'dir'       => realpath(__DIR__ . '/../../../src/Entity'),
-                                    'prefix'    => 'Tenancy\\Bundle\\Entity',
-                                    'alias'     => 'TenancyBundle',
+                                    'type' => 'attribute',
+                                    'dir' => realpath(__DIR__.'/../../../src/Entity'),
+                                    'prefix' => 'Tenancy\\Bundle\\Entity',
+                                    'alias' => 'TenancyBundle',
                                 ],
                             ],
                         ],
@@ -99,11 +99,11 @@ class BootstrapperTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_bootstrapper_test_' . $this->environment . '/cache';
+        return sys_get_temp_dir().'/tenancy_bootstrapper_test_'.$this->environment.'/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_bootstrapper_test_' . $this->environment . '/logs';
+        return sys_get_temp_dir().'/tenancy_bootstrapper_test_'.$this->environment.'/logs';
     }
 }

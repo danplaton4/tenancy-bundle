@@ -8,22 +8,23 @@ use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+
+use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
+
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
+use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
 use Tenancy\Bundle\Driver\SharedDriver;
-use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
-
-use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
-use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 class TenancyBundle extends AbstractBundle
 {
@@ -152,19 +153,19 @@ class TenancyBundle extends AbstractBundle
             'TenancyBundle' => [
                 'is_bundle' => false,
                 'type' => 'attribute',
-                'dir' => __DIR__ . '/Entity',
+                'dir' => __DIR__.'/Entity',
                 'prefix' => 'Tenancy\\Bundle\\Entity',
                 'alias' => 'TenancyBundle',
             ],
         ];
 
         $databaseEnabled = false;
-        $isSharedDb      = false;
+        $isSharedDb = false;
         foreach ($builder->getExtensionConfig('tenancy') as $config) {
             if (\is_array($config['database'] ?? null) && isset($config['database']['enabled'])) {
                 $databaseEnabled = (bool) $config['database']['enabled'];
             }
-            if (isset($config['driver']) && $config['driver'] === 'shared_db') {
+            if (isset($config['driver']) && 'shared_db' === $config['driver']) {
                 $isSharedDb = true;
             }
         }
@@ -192,13 +193,12 @@ class TenancyBundle extends AbstractBundle
                 'orm' => [
                     'filters' => [
                         'tenancy_aware' => [
-                            'class'   => TenantAwareFilter::class,
+                            'class' => TenantAwareFilter::class,
                             'enabled' => true,
                         ],
                     ],
                 ],
             ]);
         }
-
     }
 }

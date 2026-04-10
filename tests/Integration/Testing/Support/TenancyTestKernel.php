@@ -73,11 +73,11 @@ class TenancyTestKernel extends Kernel
                     'connections' => [
                         'landlord' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/tenancy_testing_trait_landlord.db',
+                            'path' => sys_get_temp_dir().'/tenancy_testing_trait_landlord.db',
                         ],
                         'tenant' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/tenancy_testing_trait_placeholder.db',
+                            'path' => sys_get_temp_dir().'/tenancy_testing_trait_placeholder.db',
                             'wrapper_class' => TenantConnection::class,
                         ],
                     ],
@@ -92,7 +92,7 @@ class TenancyTestKernel extends Kernel
                                 'TenancyBundle' => [
                                     'is_bundle' => false,
                                     'type' => 'attribute',
-                                    'dir' => realpath(__DIR__ . '/../../../../src/Entity'),
+                                    'dir' => realpath(__DIR__.'/../../../../src/Entity'),
                                     'prefix' => 'Tenancy\\Bundle\\Entity',
                                     'alias' => 'TenancyBundle',
                                 ],
@@ -104,7 +104,7 @@ class TenancyTestKernel extends Kernel
                                 'TestApp' => [
                                     'is_bundle' => false,
                                     'type' => 'attribute',
-                                    'dir' => realpath(__DIR__ . '/../../Support/Entity'),
+                                    'dir' => realpath(__DIR__.'/../../Support/Entity'),
                                     'prefix' => 'Tenancy\\Bundle\\Tests\\Integration\\Support\\Entity',
                                     'alias' => 'TestApp',
                                 ],
@@ -118,11 +118,11 @@ class TenancyTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_testing_trait_' . $this->environment . '/cache';
+        return sys_get_temp_dir().'/tenancy_testing_trait_'.$this->environment.'/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_testing_trait_' . $this->environment . '/logs';
+        return sys_get_temp_dir().'/tenancy_testing_trait_'.$this->environment.'/logs';
     }
 }

@@ -115,12 +115,14 @@ final class ResolverChainTest extends TestCase
         $resolverA = $this->createMock(TenantResolverInterface::class);
         $resolverA->method('resolve')->willReturnCallback(function () use (&$callOrder, $tenant): TenantInterface {
             $callOrder[] = 'A';
+
             return $tenant;
         });
 
         $resolverB = $this->createMock(TenantResolverInterface::class);
         $resolverB->method('resolve')->willReturnCallback(function () use (&$callOrder): null {
             $callOrder[] = 'B';
+
             return null;
         });
 

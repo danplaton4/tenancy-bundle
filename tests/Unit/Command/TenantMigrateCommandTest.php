@@ -117,7 +117,7 @@ final class TenantMigrateCommandTest extends TestCase
         $throwingBootstrapper = new class implements \Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface {
             public function boot(TenantInterface $tenant): void
             {
-                if ($tenant->getSlug() === 'acme') {
+                if ('acme' === $tenant->getSlug()) {
                     throw new \RuntimeException('Migration failed for acme');
                 }
             }

@@ -19,8 +19,8 @@ final class DatabaseSwitchBootstrapperTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->connection  = $this->createMock(TenantConnectionInterface::class);
-        $this->tenant      = $this->createMock(TenantInterface::class);
+        $this->connection = $this->createMock(TenantConnectionInterface::class);
+        $this->tenant = $this->createMock(TenantInterface::class);
         $this->bootstrapper = new DatabaseSwitchBootstrapper($this->connection);
     }
 

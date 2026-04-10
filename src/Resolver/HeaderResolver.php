@@ -15,13 +15,14 @@ final class HeaderResolver implements TenantResolverInterface
 
     public function __construct(
         private readonly TenantProviderInterface $tenantProvider,
-    ) {}
+    ) {
+    }
 
     public function resolve(Request $request): ?TenantInterface
     {
         $slug = $request->headers->get(self::HEADER_NAME);
 
-        if ($slug === null || $slug === '') {
+        if (null === $slug || '' === $slug) {
             return null;
         }
 

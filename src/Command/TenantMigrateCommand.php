@@ -49,7 +49,7 @@ final class TenantMigrateCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        if ($this->driver === 'shared_db') {
+        if ('shared_db' === $this->driver) {
             $errorOutput = $output instanceof \Symfony\Component\Console\Output\ConsoleOutputInterface
                 ? $output->getErrorOutput()
                 : $output;
@@ -62,13 +62,13 @@ final class TenantMigrateCommand extends Command
 
         $tenantSlug = $input->getOption('tenant');
 
-        if ($tenantSlug !== null && \is_string($tenantSlug)) {
+        if (null !== $tenantSlug && \is_string($tenantSlug)) {
             $tenants = [$this->tenantProvider->findBySlug($tenantSlug)];
         } else {
             $tenants = $this->tenantProvider->findAll();
         }
 
-        if ($tenants === []) {
+        if ([] === $tenants) {
             $io->writeln('No tenants found.');
 
             return Command::SUCCESS;
@@ -93,7 +93,7 @@ final class TenantMigrateCommand extends Command
         $succeeded = count($tenants) - count($failures);
         $io->writeln(sprintf('Completed: %d succeeded, %d failed', $succeeded, count($failures)));
 
-        if ($failures !== []) {
+        if ([] !== $failures) {
             $io->writeln('Failed tenants:');
             foreach ($failures as $slug) {
                 $io->writeln(sprintf('  - %s', $slug));
@@ -122,7 +122,7 @@ final class TenantMigrateCommand extends Command
             $dependencyFactory->getVersionAliasResolver()->resolveVersionAlias('latest')
         );
 
-        if (count($plan) === 0) {
+        if (0 === count($plan)) {
             return;
         }
 

@@ -18,7 +18,7 @@ final class DoctrineBootstrapperTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->em           = $this->createMock(EntityManagerInterface::class);
+        $this->em = $this->createMock(EntityManagerInterface::class);
         $this->bootstrapper = new DoctrineBootstrapper($this->em);
     }
 

@@ -41,7 +41,7 @@ final class TenantRunCommand extends Command
         // Validate tenant exists — let TenantNotFoundException / TenantInactiveException bubble
         $this->tenantProvider->findBySlug($tenantSlug);
 
-        $consolePath = $this->projectDir . '/bin/console';
+        $consolePath = $this->projectDir.'/bin/console';
 
         $commandLine = sprintf(
             '%s %s %s --tenant=%s',
@@ -51,7 +51,7 @@ final class TenantRunCommand extends Command
             escapeshellarg($tenantSlug),
         );
 
-        $process = ($this->processFactory !== null)
+        $process = (null !== $this->processFactory)
             ? ($this->processFactory)($commandLine)
             : Process::fromShellCommandline($commandLine);
 

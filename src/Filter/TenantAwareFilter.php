@@ -25,20 +25,21 @@ final class TenantAwareFilter extends SQLFilter
     {
         // Safety net: if setTenantContext was never called (e.g. console command
         // or test context before SharedDriver::boot()), skip filtering
-        if ($this->tenantContext === null) {
+        if (null === $this->tenantContext) {
             return '';
         }
 
         $reflClass = $targetEntity->reflClass;
-        if ($reflClass === null || empty($reflClass->getAttributes(TenantAware::class))) {
+        if (null === $reflClass || empty($reflClass->getAttributes(TenantAware::class))) {
             return '';
         }
 
         $tenant = $this->tenantContext->getTenant();
-        if ($tenant === null) {
+        if (null === $tenant) {
             if ($this->strictMode) {
                 throw new TenantMissingException($targetEntity->getName());
             }
+
             return '';
         }
 

@@ -47,6 +47,7 @@ final class TenantAwareFilterTest extends TestCase
         /** @var ClassMetadata<TenantAwareEntity> $metadata */
         $metadata = new ClassMetadata(TenantAwareEntity::class);
         $metadata->reflClass = new \ReflectionClass(TenantAwareEntity::class);
+
         return $metadata;
     }
 
@@ -55,6 +56,7 @@ final class TenantAwareFilterTest extends TestCase
         /** @var ClassMetadata<NonTenantAwareEntity> $metadata */
         $metadata = new ClassMetadata(NonTenantAwareEntity::class);
         $metadata->reflClass = new \ReflectionClass(NonTenantAwareEntity::class);
+
         return $metadata;
     }
 
@@ -64,11 +66,31 @@ final class TenantAwareFilterTest extends TestCase
             public function __construct(private readonly string $slug)
             {
             }
-            public function getSlug(): string { return $this->slug; }
-            public function getDomain(): ?string { return null; }
-            public function getConnectionConfig(): array { return []; }
-            public function getName(): string { return $this->slug; }
-            public function isActive(): bool { return true; }
+
+            public function getSlug(): string
+            {
+                return $this->slug;
+            }
+
+            public function getDomain(): ?string
+            {
+                return null;
+            }
+
+            public function getConnectionConfig(): array
+            {
+                return [];
+            }
+
+            public function getName(): string
+            {
+                return $this->slug;
+            }
+
+            public function isActive(): bool
+            {
+                return true;
+            }
         };
     }
 

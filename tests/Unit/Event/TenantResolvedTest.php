@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tenancy\Bundle\Tests\Unit\Event;
 
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use Symfony\Component\HttpFoundation\Request;
 use Tenancy\Bundle\Event\TenantResolved;
 use Tenancy\Bundle\TenantInterface;
@@ -36,7 +35,7 @@ final class TenantResolvedTest extends TestCase
 
     public function testPropertiesAreReadonly(): void
     {
-        $rc = new ReflectionClass(TenantResolved::class);
+        $rc = new \ReflectionClass(TenantResolved::class);
 
         foreach (['tenant', 'request', 'resolvedBy'] as $propertyName) {
             $property = $rc->getProperty($propertyName);

@@ -10,7 +10,7 @@ final class TenantInactiveException extends \RuntimeException implements HttpExc
 {
     public function __construct(string $slug = '', ?\Throwable $previous = null)
     {
-        $message = $slug !== ''
+        $message = '' !== $slug
             ? sprintf('Tenant "%s" is inactive.', $slug)
             : 'Tenant is inactive.';
 

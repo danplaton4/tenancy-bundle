@@ -40,8 +40,8 @@ final class InteractsWithTenancyTest extends TestCase
     {
         // Clean up any leftover DB files from prior runs
         foreach ([
-            sys_get_temp_dir() . '/tenancy_testing_trait_landlord.db',
-            sys_get_temp_dir() . '/tenancy_testing_trait_placeholder.db',
+            sys_get_temp_dir().'/tenancy_testing_trait_landlord.db',
+            sys_get_temp_dir().'/tenancy_testing_trait_placeholder.db',
         ] as $path) {
             if (file_exists($path)) {
                 unlink($path);
@@ -57,8 +57,8 @@ final class InteractsWithTenancyTest extends TestCase
         static::$kernel->shutdown();
 
         foreach ([
-            sys_get_temp_dir() . '/tenancy_testing_trait_landlord.db',
-            sys_get_temp_dir() . '/tenancy_testing_trait_placeholder.db',
+            sys_get_temp_dir().'/tenancy_testing_trait_landlord.db',
+            sys_get_temp_dir().'/tenancy_testing_trait_placeholder.db',
         ] as $path) {
             if (file_exists($path)) {
                 unlink($path);

@@ -68,11 +68,11 @@ class DoctrineTestKernel extends Kernel
                     'connections' => [
                         'landlord' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/tenancy_test_landlord.db',
+                            'path' => sys_get_temp_dir().'/tenancy_test_landlord.db',
                         ],
                         'tenant' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/tenancy_test_placeholder.db',
+                            'path' => sys_get_temp_dir().'/tenancy_test_placeholder.db',
                             'wrapper_class' => TenantConnection::class,
                         ],
                     ],
@@ -87,7 +87,7 @@ class DoctrineTestKernel extends Kernel
                                 'TenancyBundle' => [
                                     'is_bundle' => false,
                                     'type' => 'attribute',
-                                    'dir' => realpath(__DIR__ . '/../../../src/Entity'),
+                                    'dir' => realpath(__DIR__.'/../../../src/Entity'),
                                     'prefix' => 'Tenancy\\Bundle\\Entity',
                                     'alias' => 'TenancyBundle',
                                 ],
@@ -99,7 +99,7 @@ class DoctrineTestKernel extends Kernel
                                 'TestApp' => [
                                     'is_bundle' => false,
                                     'type' => 'attribute',
-                                    'dir' => __DIR__ . '/Entity',
+                                    'dir' => __DIR__.'/Entity',
                                     'prefix' => 'Tenancy\\Bundle\\Tests\\Integration\\Support\\Entity',
                                     'alias' => 'TestApp',
                                 ],
@@ -113,11 +113,11 @@ class DoctrineTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_doctrine_test_' . md5(static::class) . '_' . $this->environment . '/cache';
+        return sys_get_temp_dir().'/tenancy_doctrine_test_'.md5(static::class).'_'.$this->environment.'/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_doctrine_test_' . md5(static::class) . '_' . $this->environment . '/logs';
+        return sys_get_temp_dir().'/tenancy_doctrine_test_'.md5(static::class).'_'.$this->environment.'/logs';
     }
 }

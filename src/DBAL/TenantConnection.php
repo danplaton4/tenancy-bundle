@@ -31,7 +31,7 @@ final class TenantConnection extends Connection implements TenantConnectionInter
         ?Configuration $config = null,
     ) {
         parent::__construct($params, $driver, $config);
-        $this->originalParams  = $params;
+        $this->originalParams = $params;
         $this->paramsReflector = new \ReflectionProperty(Connection::class, 'params');
     }
 

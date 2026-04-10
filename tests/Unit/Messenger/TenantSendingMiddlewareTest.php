@@ -76,7 +76,7 @@ final class TenantSendingMiddlewareTest extends TestCase
         $this->assertNull($result->last(TenantStamp::class));
     }
 
-    public function testIdempotent_DoesNotDoubleStamp(): void
+    public function testIdempotentDoesNotDoubleStamp(): void
     {
         // Envelope already carries a TenantStamp
         $existingStamp = new TenantStamp('existing');
@@ -93,6 +93,7 @@ final class TenantSendingMiddlewareTest extends TestCase
             ->method('handle')
             ->willReturnCallback(function (Envelope $e, StackInterface $s) use (&$capturedEnvelope): Envelope {
                 $capturedEnvelope = $e;
+
                 return $e;
             });
 

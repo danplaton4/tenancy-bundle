@@ -47,14 +47,14 @@ class MessengerTestKernel extends Kernel
     {
         $loader->load(function (ContainerBuilder $container): void {
             $container->loadFromExtension('framework', [
-                'secret'                => 'test',
-                'test'                  => true,
-                'http_method_override'  => false,
+                'secret' => 'test',
+                'test' => true,
+                'http_method_override' => false,
                 'handle_all_throwables' => true,
-                'php_errors'            => ['log' => true],
-                'messenger'             => [
+                'php_errors' => ['log' => true],
+                'messenger' => [
                     'default_bus' => 'messenger.bus.default',
-                    'buses'       => [
+                    'buses' => [
                         'messenger.bus.default' => [
                             'default_middleware' => 'allow_no_handlers',
                         ],
@@ -63,7 +63,7 @@ class MessengerTestKernel extends Kernel
             ]);
 
             $container->loadFromExtension('tenancy', [
-                'driver'      => 'database_per_tenant',
+                'driver' => 'database_per_tenant',
                 'strict_mode' => false,
             ]);
         });
@@ -71,11 +71,11 @@ class MessengerTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_messenger_test/cache';
+        return sys_get_temp_dir().'/tenancy_messenger_test/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_messenger_test/logs';
+        return sys_get_temp_dir().'/tenancy_messenger_test/logs';
     }
 }

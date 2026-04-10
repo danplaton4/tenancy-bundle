@@ -18,7 +18,7 @@ final class EntityManagerResetListener
 
     public function __invoke(TenantContextCleared $event): void
     {
-        if ($this->managerRegistry === null) {
+        if (null === $this->managerRegistry) {
             return;
         }
 

@@ -31,7 +31,7 @@ final class CacheBootstrapperIntegrationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        static::$dbPath = sys_get_temp_dir() . '/tenancy_bootstrapper_cache_test.db';
+        static::$dbPath = sys_get_temp_dir().'/tenancy_bootstrapper_cache_test.db';
         // Note: BootstrapperTestKernel(env='cache_test') stores DB at tenancy_bootstrapper_cache_test.db
 
         if (file_exists(static::$dbPath)) {
@@ -44,7 +44,7 @@ final class CacheBootstrapperIntegrationTest extends TestCase
         $container = static::$kernel->getContainer();
 
         /** @var EntityManagerInterface $em */
-        $em         = $container->get('doctrine.orm.default_entity_manager');
+        $em = $container->get('doctrine.orm.default_entity_manager');
         $schemaTool = new SchemaTool($em);
         $schemaTool->createSchema($em->getMetadataFactory()->getAllMetadata());
     }
@@ -77,7 +77,7 @@ final class CacheBootstrapperIntegrationTest extends TestCase
 
     private function makeTenant(string $slug): TenantInterface
     {
-        return new class ($slug) implements TenantInterface {
+        return new class($slug) implements TenantInterface {
             public function __construct(private readonly string $slug)
             {
             }
@@ -113,7 +113,7 @@ final class CacheBootstrapperIntegrationTest extends TestCase
     public function testCacheAppIsDecoratedByTenantAwareAdapter(): void
     {
         $container = static::$kernel->getContainer();
-        $cache     = $container->get('cache.app');
+        $cache = $container->get('cache.app');
 
         $this->assertInstanceOf(TenantAwareCacheAdapter::class, $cache);
     }

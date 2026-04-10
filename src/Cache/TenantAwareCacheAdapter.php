@@ -10,21 +10,19 @@ use Symfony\Component\Cache\CacheItem;
 use Symfony\Contracts\Cache\NamespacedPoolInterface;
 use Tenancy\Bundle\Context\TenantContext;
 
-final class TenantAwareCacheAdapter implements AdapterInterface, NamespacedPoolInterface
+final class TenantAwareCacheAdapter implements AdapterInterface
 {
     public function __construct(
-        private AdapterInterface&NamespacedPoolInterface $inner,
+        private AdapterInterface $inner,
         private readonly TenantContext $tenantContext,
     ) {
     }
 
-    private function pool(): AdapterInterface&NamespacedPoolInterface
+    private function pool(): AdapterInterface
     {
         $tenant = $this->tenantContext->getTenant();
-        if ($tenant !== null) {
-            return $this->inner->withSubNamespace(
-                $tenant->getSlug()
-            );
+        if (null !== $tenant && $this->inner instanceof NamespacedPoolInterface) {
+            return $this->inner->withSubNamespace($tenant->getSlug());
         }
 
         return $this->inner;

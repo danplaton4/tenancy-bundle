@@ -14,4 +14,6 @@ namespace Tenancy\Bundle\Attribute;
  * root entity — Doctrine's addFilterConstraint receives parent metadata.
  */
 #[\Attribute(\Attribute::TARGET_CLASS)]
-final class TenantAware {}
+final class TenantAware
+{
+}

@@ -14,16 +14,17 @@ final class HostResolver implements TenantResolverInterface
     public function __construct(
         private readonly TenantProviderInterface $tenantProvider,
         private readonly ?string $appDomain = null,
-    ) {}
+    ) {
+    }
 
     public function resolve(Request $request): ?TenantInterface
     {
-        if ($this->appDomain === null) {
+        if (null === $this->appDomain) {
             return null;
         }
 
         $slug = $this->extractSlug($request->getHost(), $this->appDomain);
-        if ($slug === null) {
+        if (null === $slug) {
             return null;
         }
 
@@ -44,7 +45,7 @@ final class HostResolver implements TenantResolverInterface
             $host = substr($host, 4);
         }
 
-        $suffix = '.' . strtolower($appDomain);
+        $suffix = '.'.strtolower($appDomain);
 
         // Host must end with .app_domain
         if (!str_ends_with($host, $suffix)) {
@@ -54,7 +55,7 @@ final class HostResolver implements TenantResolverInterface
         // Strip app_domain suffix to get subdomain prefix
         $subdomain = substr($host, 0, -strlen($suffix));
 
-        if ($subdomain === '') {
+        if ('' === $subdomain) {
             return null; // Host is exactly app_domain, no subdomain
         }
 
@@ -62,6 +63,6 @@ final class HostResolver implements TenantResolverInterface
         $parts = explode('.', $subdomain);
         $slug = end($parts);
 
-        return $slug !== '' ? $slug : null;
+        return '' !== $slug ? $slug : null;
     }
 }

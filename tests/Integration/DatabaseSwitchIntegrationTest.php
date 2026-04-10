@@ -29,15 +29,15 @@ final class DatabaseSwitchIntegrationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        static::$pathA = sys_get_temp_dir() . '/tenancy_test_tenant_a.db';
-        static::$pathB = sys_get_temp_dir() . '/tenancy_test_tenant_b.db';
+        static::$pathA = sys_get_temp_dir().'/tenancy_test_tenant_a.db';
+        static::$pathB = sys_get_temp_dir().'/tenancy_test_tenant_b.db';
 
         // Remove any leftover files from a prior run (including the shared landlord DB)
         foreach ([
             static::$pathA,
             static::$pathB,
-            sys_get_temp_dir() . '/tenancy_test_landlord.db',
-            sys_get_temp_dir() . '/tenancy_test_placeholder.db',
+            sys_get_temp_dir().'/tenancy_test_landlord.db',
+            sys_get_temp_dir().'/tenancy_test_placeholder.db',
         ] as $path) {
             if (file_exists($path)) {
                 unlink($path);
@@ -82,8 +82,8 @@ final class DatabaseSwitchIntegrationTest extends TestCase
         foreach ([
             static::$pathA,
             static::$pathB,
-            sys_get_temp_dir() . '/tenancy_test_landlord.db',
-            sys_get_temp_dir() . '/tenancy_test_placeholder.db',
+            sys_get_temp_dir().'/tenancy_test_landlord.db',
+            sys_get_temp_dir().'/tenancy_test_placeholder.db',
         ] as $path) {
             if (file_exists($path)) {
                 unlink($path);

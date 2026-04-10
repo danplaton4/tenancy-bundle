@@ -34,7 +34,7 @@ class TestTenantProduct
     public function __construct(string $tenantId, string $name)
     {
         $this->tenantId = $tenantId;
-        $this->name     = $name;
+        $this->name = $name;
     }
 
     public function getId(): ?int

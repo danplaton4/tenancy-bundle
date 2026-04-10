@@ -86,7 +86,7 @@ final class TenantWorkerMiddlewareTest extends TestCase
         // (boot was already called in the test above — no further call expected here)
     }
 
-    public function testBootsTenantContextFromStamp_setsTenant(): void
+    public function testBootsTenantContextFromStampSetsTenant(): void
     {
         $tenant = $this->createMock(TenantInterface::class);
         $tenant->method('getSlug')->willReturn('acme');
@@ -100,6 +100,7 @@ final class TenantWorkerMiddlewareTest extends TestCase
             ->method('handle')
             ->willReturnCallback(function (Envelope $e, StackInterface $s) use (&$tenantDuringHandler): Envelope {
                 $tenantDuringHandler = $this->tenantContext->getTenant();
+
                 return $e;
             });
 
@@ -125,6 +126,7 @@ final class TenantWorkerMiddlewareTest extends TestCase
             ->method('dispatch')
             ->willReturnCallback(function (object $event) use (&$dispatchedEvents): object {
                 $dispatchedEvents[] = $event;
+
                 return $event;
             });
 

@@ -32,7 +32,7 @@ final class SharedDbFilterIntegrationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        static::$dbPath = sys_get_temp_dir() . '/tenancy_test_shared_db.db';
+        static::$dbPath = sys_get_temp_dir().'/tenancy_test_shared_db.db';
 
         // Remove leftover DB file from prior runs
         if (file_exists(static::$dbPath)) {
@@ -45,7 +45,7 @@ final class SharedDbFilterIntegrationTest extends TestCase
         $container = static::$kernel->getContainer();
 
         /** @var EntityManagerInterface $em */
-        $em         = $container->get('doctrine.orm.default_entity_manager');
+        $em = $container->get('doctrine.orm.default_entity_manager');
         $schemaTool = new SchemaTool($em);
         $schemaTool->createSchema($em->getMetadataFactory()->getAllMetadata());
 
@@ -86,7 +86,7 @@ final class SharedDbFilterIntegrationTest extends TestCase
 
     private function makeTenant(string $slug): TenantInterface
     {
-        return new class ($slug) implements TenantInterface {
+        return new class($slug) implements TenantInterface {
             public function __construct(private readonly string $slug)
             {
             }

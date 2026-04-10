@@ -262,7 +262,7 @@ final class AutoconfigurationTest extends TestCase
 
         $addBootstrapperCalls = array_filter(
             $methodCalls,
-            fn (array $call) => $call[0] === 'addBootstrapper',
+            fn (array $call) => 'addBootstrapper' === $call[0],
         );
 
         $this->assertNotEmpty(

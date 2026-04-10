@@ -97,29 +97,29 @@ class CommandTestKernel extends Kernel
     {
         $loader->load(function (ContainerBuilder $container): void {
             $container->loadFromExtension('framework', [
-                'secret'                => 'test',
-                'test'                  => true,
-                'http_method_override'  => false,
+                'secret' => 'test',
+                'test' => true,
+                'http_method_override' => false,
                 'handle_all_throwables' => true,
-                'php_errors'            => ['log' => true],
+                'php_errors' => ['log' => true],
             ]);
 
             $container->loadFromExtension('tenancy', [
-                'driver'              => 'database_per_tenant',
-                'database'            => ['enabled' => true],
+                'driver' => 'database_per_tenant',
+                'database' => ['enabled' => true],
                 'tenant_entity_class' => 'Tenancy\\Bundle\\Entity\\Tenant',
-                'host'                => ['app_domain' => 'app.test'],
+                'host' => ['app_domain' => 'app.test'],
             ]);
         });
     }
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_command_test/cache';
+        return sys_get_temp_dir().'/tenancy_command_test/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir() . '/tenancy_command_test/logs';
+        return sys_get_temp_dir().'/tenancy_command_test/logs';
     }
 }

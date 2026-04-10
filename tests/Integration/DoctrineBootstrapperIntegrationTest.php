@@ -30,7 +30,7 @@ final class DoctrineBootstrapperIntegrationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        static::$dbPath = sys_get_temp_dir() . '/tenancy_bootstrapper_test.db';
+        static::$dbPath = sys_get_temp_dir().'/tenancy_bootstrapper_test.db';
 
         // Remove leftover DB file from prior runs
         if (file_exists(static::$dbPath)) {
@@ -43,7 +43,7 @@ final class DoctrineBootstrapperIntegrationTest extends TestCase
         $container = static::$kernel->getContainer();
 
         /** @var EntityManagerInterface $em */
-        $em         = $container->get('doctrine.orm.default_entity_manager');
+        $em = $container->get('doctrine.orm.default_entity_manager');
         $schemaTool = new SchemaTool($em);
         $schemaTool->createSchema($em->getMetadataFactory()->getAllMetadata());
     }
@@ -73,7 +73,7 @@ final class DoctrineBootstrapperIntegrationTest extends TestCase
 
     private function makeTenantStub(string $slug): TenantInterface
     {
-        return new class ($slug) implements TenantInterface {
+        return new class($slug) implements TenantInterface {
             public function __construct(private readonly string $slug)
             {
             }
@@ -108,7 +108,7 @@ final class DoctrineBootstrapperIntegrationTest extends TestCase
 
     public function testDoctrineBootstrapperIsRegisteredInContainer(): void
     {
-        $container    = static::$kernel->getContainer();
+        $container = static::$kernel->getContainer();
         $bootstrapper = $container->get('tenancy.doctrine_bootstrapper');
 
         $this->assertInstanceOf(DoctrineBootstrapper::class, $bootstrapper);
@@ -188,13 +188,13 @@ final class DoctrineBootstrapperIntegrationTest extends TestCase
         /** @var ManagerRegistry $registry */
         $registry = $container->get('doctrine');
 
-        $emBefore  = $registry->getManager();
+        $emBefore = $registry->getManager();
         $uowBefore = spl_object_id($emBefore->getUnitOfWork());
 
         // Simulate what EntityManagerResetListener does: resetManager() with no argument
         $registry->resetManager();
 
-        $emAfter  = $registry->getManager();
+        $emAfter = $registry->getManager();
         $uowAfter = spl_object_id($emAfter->getUnitOfWork());
 
         $this->assertNotSame(

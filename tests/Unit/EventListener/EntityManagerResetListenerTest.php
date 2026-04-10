@@ -7,7 +7,6 @@ namespace Tenancy\Bundle\Tests\Unit\EventListener;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Tenancy\Bundle\Event\TenantContextCleared;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
@@ -52,6 +51,7 @@ final class EntityManagerResetListenerTest extends TestCase
             ->method('resetManager')
             ->willReturnCallback(function (string $name) use (&$calls) {
                 $calls[] = $name;
+
                 return $this->createMock(\Doctrine\Persistence\ObjectManager::class);
             });
 
@@ -62,7 +62,7 @@ final class EntityManagerResetListenerTest extends TestCase
 
     public function testHasAsEventListenerAttribute(): void
     {
-        $reflection = new ReflectionClass(EntityManagerResetListener::class);
+        $reflection = new \ReflectionClass(EntityManagerResetListener::class);
         $attributes = $reflection->getAttributes(AsEventListener::class);
 
         $this->assertNotEmpty($attributes, 'EntityManagerResetListener must have #[AsEventListener] attribute');

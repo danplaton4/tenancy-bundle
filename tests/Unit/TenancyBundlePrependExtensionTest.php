@@ -37,6 +37,7 @@ final class TenancyBundlePrependExtensionTest extends TestCase
             ->method('prependExtensionConfig')
             ->with('doctrine', $this->callback(function (array $config) use (&$capturedConfig): bool {
                 $capturedConfig = $config;
+
                 return true;
             }));
 
@@ -74,6 +75,7 @@ final class TenancyBundlePrependExtensionTest extends TestCase
             ->method('prependExtensionConfig')
             ->with('doctrine', $this->callback(function (array $config) use (&$capturedConfig): bool {
                 $capturedConfig = $config;
+
                 return true;
             }));
 
@@ -109,6 +111,7 @@ final class TenancyBundlePrependExtensionTest extends TestCase
             ->method('prependExtensionConfig')
             ->with('doctrine', $this->callback(function (array $config) use (&$capturedConfig): bool {
                 $capturedConfig = $config;
+
                 return true;
             }));
 

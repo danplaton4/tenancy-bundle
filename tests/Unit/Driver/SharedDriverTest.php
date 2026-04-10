@@ -25,8 +25,8 @@ use Tenancy\Bundle\TenantInterface;
 final class FilterSpy extends SQLFilter
 {
     public ?TenantContext $capturedContext = null;
-    public ?bool $capturedStrictMode      = null;
-    public int $callCount                  = 0;
+    public ?bool $capturedStrictMode = null;
+    public int $callCount = 0;
 
     public function addFilterConstraint(ClassMetadata $targetEntity, string $targetTableAlias): string
     {
@@ -35,7 +35,7 @@ final class FilterSpy extends SQLFilter
 
     public function setTenantContext(TenantContext $context, bool $strictMode): void
     {
-        $this->capturedContext    = $context;
+        $this->capturedContext = $context;
         $this->capturedStrictMode = $strictMode;
         ++$this->callCount;
     }
@@ -52,10 +52,10 @@ final class SharedDriverTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->em               = $this->createMock(EntityManagerInterface::class);
+        $this->em = $this->createMock(EntityManagerInterface::class);
         $this->filterCollection = $this->createMock(FilterCollection::class);
-        $this->tenantContext    = new TenantContext();
-        $this->tenant           = $this->createMock(TenantInterface::class);
+        $this->tenantContext = new TenantContext();
+        $this->tenant = $this->createMock(TenantInterface::class);
 
         // FilterSpy extends SQLFilter — its constructor requires an EntityManagerInterface.
         // We pass the mock EM so the parent constructor is satisfied.
@@ -89,9 +89,9 @@ final class SharedDriverTest extends TestCase
      */
     public function testBootPassesTenantContextAndStrictModeToFilter(): void
     {
-        $em               = $this->createMock(EntityManagerInterface::class);
+        $em = $this->createMock(EntityManagerInterface::class);
         $filterCollection = $this->createMock(FilterCollection::class);
-        $spy              = new FilterSpy($em);
+        $spy = new FilterSpy($em);
 
         $em->method('getFilters')->willReturn($filterCollection);
         $filterCollection->method('getFilter')->with('tenancy_aware')->willReturn($spy);

@@ -30,7 +30,7 @@ final class SpyBootstrapper implements TenantBootstrapperInterface
 {
     public int $clearCallCount = 0;
     /** @var callable|null */
-    public $onClear = null;
+    public $onClear;
 
     public function boot(TenantInterface $tenant): void
     {
@@ -40,7 +40,7 @@ final class SpyBootstrapper implements TenantBootstrapperInterface
     public function clear(): void
     {
         ++$this->clearCallCount;
-        if ($this->onClear !== null) {
+        if (null !== $this->onClear) {
             ($this->onClear)();
         }
     }
@@ -179,13 +179,14 @@ final class TenantContextOrchestratorTest extends TestCase
             ->method('dispatch')
             ->willReturnCallback(function (object $e) use (&$dispatchedEvent): object {
                 $dispatchedEvent = $e;
+
                 return $e;
             });
 
         $this->orchestrator->onKernelRequest($event);
 
         $this->assertInstanceOf(TenantResolved::class, $dispatchedEvent);
-        /** @var TenantResolved $dispatchedEvent */
+        /* @var TenantResolved $dispatchedEvent */
         $this->assertSame($this->tenant, $dispatchedEvent->tenant);
         $this->assertSame($request, $dispatchedEvent->request);
         $this->assertSame(StubResolver::class, $dispatchedEvent->resolvedBy);
@@ -275,6 +276,7 @@ final class TenantContextOrchestratorTest extends TestCase
             ->method('dispatch')
             ->willReturnCallback(function () use (&$callOrder): object {
                 $callOrder[] = 'eventDispatcher.dispatch';
+
                 return new TenantContextCleared();
             });
 

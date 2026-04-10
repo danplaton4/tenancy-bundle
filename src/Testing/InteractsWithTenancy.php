@@ -94,7 +94,7 @@ trait InteractsWithTenancy
         // resetManager() is required after switchTenant() to get an EntityManager whose UnitOfWork
         // is tied to the new connection (not the stale one from before the boot).
         $registry = $container->get('doctrine');
-        $em       = $registry->resetManager('tenant');
+        $em = $registry->resetManager('tenant');
         $schemaTool = new SchemaTool($em);
         $schemaTool->createSchema($em->getMetadataFactory()->getAllMetadata());
     }
@@ -164,7 +164,9 @@ trait InteractsWithTenancy
      * Retrieve a service from the test container by class name.
      *
      * @template T of object
+     *
      * @param class-string<T> $class
+     *
      * @return T
      */
     protected function getTenantService(string $class): object
