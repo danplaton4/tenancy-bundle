@@ -11,9 +11,6 @@
         <testsuite name="integration">
             <directory>tests/Integration</directory>
         </testsuite>
-        <testsuite name="messenger">
-            <directory>tests/Integration/Messenger</directory>
-        </testsuite>
     </testsuites>
 
     <source>

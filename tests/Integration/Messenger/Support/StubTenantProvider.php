@@ -30,4 +30,9 @@ final class StubTenantProvider implements TenantProviderInterface
 
         return $this->tenants[$slug];
     }
+
+    public function findAll(): array
+    {
+        return array_values($this->tenants);
+    }
 }

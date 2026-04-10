@@ -81,6 +81,14 @@ class CommandTestKernel extends Kernel
                     $emStub->setPublic(false);
                     $container->setDefinition('doctrine.orm.default_entity_manager', $emStub);
                 }
+
+                // Stub doctrine.orm.landlord_entity_manager for database.enabled rewiring
+                if (!$container->hasDefinition('doctrine.orm.landlord_entity_manager')
+                    && !$container->hasAlias('doctrine.orm.landlord_entity_manager')) {
+                    $landlordEmStub = new Definition(\stdClass::class);
+                    $landlordEmStub->setPublic(false);
+                    $container->setDefinition('doctrine.orm.landlord_entity_manager', $landlordEmStub);
+                }
             }
         });
     }
@@ -98,6 +106,7 @@ class CommandTestKernel extends Kernel
 
             $container->loadFromExtension('tenancy', [
                 'driver'              => 'database_per_tenant',
+                'database'            => ['enabled' => true],
                 'tenant_entity_class' => 'Tenancy\\Bundle\\Entity\\Tenant',
                 'host'                => ['app_domain' => 'app.test'],
             ]);

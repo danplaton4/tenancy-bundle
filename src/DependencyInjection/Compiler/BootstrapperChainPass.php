@@ -15,6 +15,12 @@ final class BootstrapperChainPass implements CompilerPassInterface
 
     public function process(ContainerBuilder $container): void
     {
+        // Remove DoctrineBootstrapper if no entity manager is available
+        if ($container->hasDefinition('tenancy.doctrine_bootstrapper')
+            && !$container->has('doctrine.orm.entity_manager')) {
+            $container->removeDefinition('tenancy.doctrine_bootstrapper');
+        }
+
         if (!$container->has(BootstrapperChain::class)) {
             return;
         }

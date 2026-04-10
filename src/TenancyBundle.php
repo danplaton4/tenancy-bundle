@@ -10,16 +10,19 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
 use Tenancy\Bundle\Driver\SharedDriver;
+use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
 
+use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 class TenancyBundle extends AbstractBundle
@@ -83,7 +86,7 @@ class TenancyBundle extends AbstractBundle
         $services = $container->services();
         $services->set(EntityManagerResetListener::class)
             ->autoconfigure(true)
-            ->args([service('doctrine')]);
+            ->args([service('doctrine')->nullOnInvalid()]);
 
         if ($config['database']['enabled'] ?? false) {
             $container->parameters()->set('tenancy.database.enabled', true);
@@ -97,6 +100,19 @@ class TenancyBundle extends AbstractBundle
             // Rewire DoctrineTenantProvider to landlord EM (services.php is already imported above)
             $builder->getDefinition('tenancy.provider')
                 ->setArgument(0, new Reference('doctrine.orm.landlord_entity_manager'));
+
+            if (class_exists(\Doctrine\Migrations\DependencyFactory::class)) {
+                $services->set('tenancy.command.migrate', TenantMigrateCommand::class)
+                    ->args([
+                        service('tenancy.provider'),
+                        service('tenancy.bootstrapper_chain'),
+                        service('tenancy.context'),
+                        param('tenancy.driver'),
+                        service('doctrine.dbal.tenant_connection'),
+                        service('doctrine.migrations.configuration')->nullOnInvalid(),
+                    ])
+                    ->tag('console.command');
+            }
         }
 
         if (($config['driver'] ?? 'database_per_tenant') === 'shared_db') {
@@ -117,7 +133,7 @@ class TenancyBundle extends AbstractBundle
         parent::build($container);
         $container->addCompilerPass(new BootstrapperChainPass());
         $container->addCompilerPass(new ResolverChainPass());
-        if (interface_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
+        if (interface_exists(MessageBusInterface::class)) {
             // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
             $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
         }

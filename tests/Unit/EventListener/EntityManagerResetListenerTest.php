@@ -23,25 +23,41 @@ final class EntityManagerResetListenerTest extends TestCase
         $this->listener = new EntityManagerResetListener($this->managerRegistry);
     }
 
-    public function testInvokeResetsDefaultEntityManager(): void
+    public function testInvokeResetsAllEntityManagers(): void
     {
+        $this->managerRegistry
+            ->method('getManagerNames')
+            ->willReturn(['default' => 'doctrine.orm.default_entity_manager']);
+
         $this->managerRegistry
             ->expects($this->once())
             ->method('resetManager')
-            ->with(null);
+            ->with('default');
 
         ($this->listener)(new TenantContextCleared());
     }
 
-    public function testDoesNotResetLandlordManager(): void
+    public function testInvokeResetsMultipleEntityManagers(): void
     {
-        // Expect resetManager called exactly once with null (default EM) — never with 'landlord' or 'tenant'.
         $this->managerRegistry
-            ->expects($this->once())
+            ->method('getManagerNames')
+            ->willReturn([
+                'landlord' => 'doctrine.orm.landlord_entity_manager',
+                'tenant' => 'doctrine.orm.tenant_entity_manager',
+            ]);
+
+        $calls = [];
+        $this->managerRegistry
+            ->expects($this->exactly(2))
             ->method('resetManager')
-            ->with(null);
+            ->willReturnCallback(function (string $name) use (&$calls) {
+                $calls[] = $name;
+                return $this->createMock(\Doctrine\Persistence\ObjectManager::class);
+            });
 
         ($this->listener)(new TenantContextCleared());
+
+        $this->assertSame(['landlord', 'tenant'], $calls);
     }
 
     public function testHasAsEventListenerAttribute(): void

@@ -79,6 +79,7 @@ class DoctrineTestKernel extends Kernel
                 ],
                 'orm' => [
                     'default_entity_manager' => 'landlord',
+                    'enable_native_lazy_objects' => true,
                     'entity_managers' => [
                         'landlord' => [
                             'connection' => 'landlord',

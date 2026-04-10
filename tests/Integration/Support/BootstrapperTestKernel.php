@@ -77,6 +77,7 @@ class BootstrapperTestKernel extends Kernel
                 ],
                 'orm' => [
                     'default_entity_manager' => 'default',
+                    'enable_native_lazy_objects' => true,
                     'entity_managers'        => [
                         'default' => [
                             'connection' => 'default',

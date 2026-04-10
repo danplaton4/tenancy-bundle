@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
-use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\Command\TenantRunCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
@@ -82,7 +82,7 @@ return function (ContainerConfigurator $container): void {
 
     if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
         $services->set('tenancy.doctrine_bootstrapper', DoctrineBootstrapper::class)
-            ->args([service('doctrine.orm.entity_manager')])
+            ->args([service('doctrine.orm.entity_manager')->nullOnInvalid()])
             ->tag('tenancy.bootstrapper', ['priority' => -10]);
     }
 
@@ -93,18 +93,6 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.context'),
         ]);
 
-    if (class_exists(\Doctrine\Migrations\DependencyFactory::class)) {
-        $services->set('tenancy.command.migrate', TenantMigrateCommand::class)
-            ->args([
-                service('tenancy.provider'),
-                service('tenancy.bootstrapper_chain'),
-                service('tenancy.context'),
-                param('tenancy.driver'),
-                service('doctrine.dbal.tenant_connection'),
-                service('doctrine.migrations.configuration')->nullOnInvalid(),
-            ])
-            ->tag('console.command');
-    }
 
     $services->set('tenancy.command.run', TenantRunCommand::class)
         ->args([
@@ -113,7 +101,7 @@ return function (ContainerConfigurator $container): void {
         ])
         ->tag('console.command');
 
-    if (interface_exists(\Symfony\Component\Messenger\MessageBusInterface::class)) {
+    if (interface_exists(MessageBusInterface::class)) {
         $services->set('tenancy.messenger.sending_middleware', TenantSendingMiddleware::class)
             ->args([service('tenancy.context')]);
 

@@ -12,12 +12,18 @@ use Tenancy\Bundle\Event\TenantContextCleared;
 final class EntityManagerResetListener
 {
     public function __construct(
-        private readonly ManagerRegistry $managerRegistry,
+        private readonly ?ManagerRegistry $managerRegistry,
     ) {
     }
 
     public function __invoke(TenantContextCleared $event): void
     {
-        $this->managerRegistry->resetManager();
+        if ($this->managerRegistry === null) {
+            return;
+        }
+
+        foreach ($this->managerRegistry->getManagerNames() as $name => $id) {
+            $this->managerRegistry->resetManager($name);
+        }
     }
 }
