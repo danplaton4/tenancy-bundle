@@ -4,17 +4,17 @@
 
 Symfony multi-tenancy bundle (`danplaton4/tenancy-bundle`). When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks.
 
-Targets PHP 8.2+ and Symfony 6.4/7.x. Published on Packagist as a reusable bundle.
+Targets PHP 8.2+ and Symfony 7.x/8.x. Published on Packagist as a reusable bundle.
 
 ## Stack
 
 - **Language:** PHP 8.2+ (strict_types everywhere)
-- **Framework:** Symfony 6.4 / 7.x (bundle architecture)
+- **Framework:** Symfony 7.x / 8.x (bundle architecture)
 - **ORM:** Doctrine ORM/DBAL (optional dependency — guarded by `class_exists`/`interface_exists`)
 - **Testing:** PHPUnit 11 (unit + integration suites)
 - **Static Analysis:** PHPStan level 9
 - **Code Style:** php-cs-fixer with `@Symfony` ruleset
-- **CI:** GitHub Actions (PHP 8.2/8.3/8.4 × Symfony 6.4/7.4 matrix)
+- **CI:** GitHub Actions (PHP 8.2/8.3/8.4 × Symfony 7.4/8.0 matrix)
 
 ## Architecture
 

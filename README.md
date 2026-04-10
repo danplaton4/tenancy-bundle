@@ -107,7 +107,7 @@ A data leak across tenants is a security incident, not a config mistake — so s
 ## Requirements
 
 - PHP `^8.2`
-- Symfony `^6.4` or `^7.0`
+- Symfony `^7.0` or `^8.0`
 - Optional: `doctrine/orm`, `doctrine/dbal`, `doctrine/migrations`, `symfony/messenger`
 
 ## Contributing
