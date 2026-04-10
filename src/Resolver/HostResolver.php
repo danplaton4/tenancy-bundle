@@ -22,7 +22,7 @@ final class HostResolver implements TenantResolverInterface
             return null;
         }
 
-        $slug = $this->extractSlug($request->getHost());
+        $slug = $this->extractSlug($request->getHost(), $this->appDomain);
         if ($slug === null) {
             return null;
         }
@@ -35,7 +35,7 @@ final class HostResolver implements TenantResolverInterface
         // TenantInactiveException is NOT caught — bubbles up as HTTP 403
     }
 
-    private function extractSlug(string $host): ?string
+    private function extractSlug(string $host, string $appDomain): ?string
     {
         $host = strtolower($host);
 
@@ -44,7 +44,7 @@ final class HostResolver implements TenantResolverInterface
             $host = substr($host, 4);
         }
 
-        $suffix = '.' . strtolower($this->appDomain);
+        $suffix = '.' . strtolower($appDomain);
 
         // Host must end with .app_domain
         if (!str_ends_with($host, $suffix)) {
@@ -54,7 +54,7 @@ final class HostResolver implements TenantResolverInterface
         // Strip app_domain suffix to get subdomain prefix
         $subdomain = substr($host, 0, -strlen($suffix));
 
-        if ($subdomain === '' || $subdomain === false) {
+        if ($subdomain === '') {
             return null; // Host is exactly app_domain, no subdomain
         }
 
@@ -62,6 +62,6 @@ final class HostResolver implements TenantResolverInterface
         $parts = explode('.', $subdomain);
         $slug = end($parts);
 
-        return ($slug !== '' && $slug !== false) ? $slug : null;
+        return $slug !== '' ? $slug : null;
     }
 }

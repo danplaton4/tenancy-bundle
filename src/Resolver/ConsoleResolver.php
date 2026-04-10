@@ -30,12 +30,21 @@ final class ConsoleResolver
         $command = $event->getCommand();
         $input = $event->getInput();
 
+        if ($command === null) {
+            return;
+        }
+
+        $application = $command->getApplication();
+        if ($application === null) {
+            return;
+        }
+
         // Add --tenant to Application definition if not already present.
         // This must happen before we try to read the option value because the
         // input is already bound at this point — without adding the option to
         // the Application definition and rebinding, Symfony throws
         // InvalidArgumentException: The "tenant" option does not exist.
-        $appDefinition = $command->getApplication()->getDefinition();
+        $appDefinition = $application->getDefinition();
         if (!$appDefinition->hasOption('tenant')) {
             $appDefinition->addOption(
                 new InputOption('tenant', null, InputOption::VALUE_OPTIONAL, 'Tenant slug to resolve')
@@ -48,11 +57,11 @@ final class ConsoleResolver
 
         $slug = $input->getOption('tenant');
 
-        if ($slug === null || $slug === '') {
+        if (!\is_string($slug) || $slug === '') {
             return; // Silent — no tenant context when --tenant is absent or empty
         }
 
-        $tenant = $this->tenantProvider->findBySlug((string) $slug);
+        $tenant = $this->tenantProvider->findBySlug($slug);
         $this->tenantContext->setTenant($tenant);
         $this->bootstrapperChain->boot($tenant);
         $this->eventDispatcher->dispatch(

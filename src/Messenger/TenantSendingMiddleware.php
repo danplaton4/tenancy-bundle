@@ -17,9 +17,10 @@ final class TenantSendingMiddleware implements MiddlewareInterface
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {
-        if ($envelope->last(TenantStamp::class) === null && $this->tenantContext->hasTenant()) {
+        $tenant = $this->tenantContext->getTenant();
+        if ($envelope->last(TenantStamp::class) === null && $tenant !== null) {
             $envelope = $envelope->with(
-                new TenantStamp($this->tenantContext->getTenant()->getSlug())
+                new TenantStamp($tenant->getSlug())
             );
         }
 

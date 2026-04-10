@@ -18,6 +18,7 @@ final class TenantNotFoundException extends \RuntimeException implements HttpExc
         return 404;
     }
 
+    /** @return array<string, string> */
     public function getHeaders(): array
     {
         return [];

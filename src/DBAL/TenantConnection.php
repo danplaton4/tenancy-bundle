@@ -19,6 +19,7 @@ use Doctrine\DBAL\Driver;
  */
 final class TenantConnection extends Connection implements TenantConnectionInterface
 {
+    /** @var array<string, mixed> */
     private readonly array $originalParams;
 
     private readonly \ReflectionProperty $paramsReflector;

@@ -34,7 +34,8 @@ final class TenantAwareFilter extends SQLFilter
             return '';
         }
 
-        if (!$this->tenantContext->hasTenant()) {
+        $tenant = $this->tenantContext->getTenant();
+        if ($tenant === null) {
             if ($this->strictMode) {
                 throw new TenantMissingException($targetEntity->getName());
             }
@@ -44,7 +45,7 @@ final class TenantAwareFilter extends SQLFilter
         return sprintf(
             "%s.tenant_id = '%s'",
             $targetTableAlias,
-            addslashes($this->tenantContext->getTenant()->getSlug())
+            addslashes($tenant->getSlug())
         );
     }
 }

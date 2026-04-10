@@ -20,6 +20,7 @@ class Tenant implements TenantInterface
     #[ORM\Column(type: 'string', length: 253, nullable: true)]
     private ?string $domain = null;
 
+    /** @var array<string, mixed> */
     #[ORM\Column(type: 'json')]
     private array $connectionConfig = [];
 
@@ -87,6 +88,7 @@ class Tenant implements TenantInterface
         return $this;
     }
 
+    /** @param array<string, mixed> $connectionConfig */
     public function setConnectionConfig(array $connectionConfig): self
     {
         $this->connectionConfig = $connectionConfig;

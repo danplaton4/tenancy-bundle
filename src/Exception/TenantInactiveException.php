@@ -22,6 +22,7 @@ final class TenantInactiveException extends \RuntimeException implements HttpExc
         return 403;
     }
 
+    /** @return array<string, string> */
     public function getHeaders(): array
     {
         return [];

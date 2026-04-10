@@ -20,9 +20,10 @@ final class TenantAwareCacheAdapter implements AdapterInterface, NamespacedPoolI
 
     private function pool(): AdapterInterface&NamespacedPoolInterface
     {
-        if ($this->tenantContext->hasTenant()) {
+        $tenant = $this->tenantContext->getTenant();
+        if ($tenant !== null) {
             return $this->inner->withSubNamespace(
-                $this->tenantContext->getTenant()->getSlug()
+                $tenant->getSlug()
             );
         }
 

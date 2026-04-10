@@ -62,8 +62,8 @@ final class TenantMigrateCommand extends Command
 
         $tenantSlug = $input->getOption('tenant');
 
-        if ($tenantSlug !== null) {
-            $tenants = [$this->tenantProvider->findBySlug((string) $tenantSlug)];
+        if ($tenantSlug !== null && \is_string($tenantSlug)) {
+            $tenants = [$this->tenantProvider->findBySlug($tenantSlug)];
         } else {
             $tenants = $this->tenantProvider->findAll();
         }
@@ -122,7 +122,7 @@ final class TenantMigrateCommand extends Command
             $dependencyFactory->getVersionAliasResolver()->resolveVersionAlias('latest')
         );
 
-        if ($plan->isEmpty()) {
+        if (count($plan) === 0) {
             return;
         }
 

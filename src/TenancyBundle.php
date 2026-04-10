@@ -64,6 +64,7 @@ class TenancyBundle extends AbstractBundle
             ->end();
     }
 
+    /** @param array<string, mixed> $config */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $container->import('../config/services.php');
@@ -74,12 +75,18 @@ class TenancyBundle extends AbstractBundle
         $builder->registerForAutoconfiguration(TenantResolverInterface::class)
             ->addTag('tenancy.resolver');
 
+        /** @var array<string, mixed> $hostConfig */
+        $hostConfig = $config['host'];
+
+        /** @var array<string, mixed> $databaseConfig */
+        $databaseConfig = $config['database'] ?? [];
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
             ->set('tenancy.landlord_connection', $config['landlord_connection'])
             ->set('tenancy.tenant_entity_class', $config['tenant_entity_class'])
-            ->set('tenancy.host.app_domain', $config['host']['app_domain'])
+            ->set('tenancy.host.app_domain', $hostConfig['app_domain'])
             ->set('tenancy.resolvers', $config['resolvers']);
 
         // Always-on: EntityManagerResetListener (works in both driver modes after resetManager() fix)
@@ -88,7 +95,7 @@ class TenancyBundle extends AbstractBundle
             ->autoconfigure(true)
             ->args([service('doctrine')->nullOnInvalid()]);
 
-        if ($config['database']['enabled'] ?? false) {
+        if ($databaseConfig['enabled'] ?? false) {
             $container->parameters()->set('tenancy.database.enabled', true);
 
             $services = $container->services();
@@ -154,8 +161,8 @@ class TenancyBundle extends AbstractBundle
         $databaseEnabled = false;
         $isSharedDb      = false;
         foreach ($builder->getExtensionConfig('tenancy') as $config) {
-            if (isset($config['database']['enabled'])) {
-                $databaseEnabled = $config['database']['enabled'];
+            if (\is_array($config['database'] ?? null) && isset($config['database']['enabled'])) {
+                $databaseEnabled = (bool) $config['database']['enabled'];
             }
             if (isset($config['driver']) && $config['driver'] === 'shared_db') {
                 $isSharedDb = true;

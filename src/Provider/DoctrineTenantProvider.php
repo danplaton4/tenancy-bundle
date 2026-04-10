@@ -24,15 +24,18 @@ final class DoctrineTenantProvider implements TenantProviderInterface
 
     public function findBySlug(string $slug): TenantInterface
     {
+        /** @var class-string<TenantInterface> $entityClass */
+        $entityClass = $this->tenantEntityClass;
+
         /** @var TenantInterface|null $tenant */
         $tenant = $this->cache->get(
             'tenancy.tenant.' . $slug,
-            function (ItemInterface $item) use ($slug): ?TenantInterface {
+            function (ItemInterface $item) use ($slug, $entityClass): ?TenantInterface {
                 $item->expiresAfter(self::CACHE_TTL);
 
                 /** @var TenantInterface|null $result */
                 $result = $this->entityManager
-                    ->getRepository($this->tenantEntityClass)
+                    ->getRepository($entityClass)
                     ->findOneBy(['slug' => $slug]);
 
                 return $result;
@@ -60,9 +63,12 @@ final class DoctrineTenantProvider implements TenantProviderInterface
      */
     public function findAll(): array
     {
+        /** @var class-string<TenantInterface> $entityClass */
+        $entityClass = $this->tenantEntityClass;
+
         /** @var TenantInterface[] $tenants */
         $tenants = $this->entityManager
-            ->getRepository($this->tenantEntityClass)
+            ->getRepository($entityClass)
             ->findAll();
 
         return $tenants;
