@@ -101,4 +101,4 @@ jobs:
         run: composer remove --dev doctrine/orm doctrine/dbal doctrine/doctrine-bundle doctrine/migrations --no-interaction
 
       - name: Run unit tests without Doctrine
-        run: vendor/bin/phpunit --testsuite unit
+        run: vendor/bin/phpunit tests/Unit/Context tests/Unit/Event tests/Unit/Resolver tests/Unit/Messenger tests/Unit/Cache tests/Unit/Exception tests/Unit/Attribute tests/Unit/DependencyInjection tests/Unit/Command/TenantRunCommandTest.php tests/Unit/Bootstrapper/BootstrapperChainTest.php tests/Unit/Bootstrapper/DatabaseSwitchBootstrapperTest.php tests/Unit/EventListener/TenantContextOrchestratorTest.php
