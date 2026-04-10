@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    name: PHP ${{ matrix.php }} / Symfony ${{ matrix.symfony }}
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        symfony: ['6.4.*', '7.4.*']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: flex
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+        env:
+          SYMFONY_REQUIRE: ${{ matrix.symfony }}
+
+      - run: vendor/bin/phpunit
+
+  coverage:
+    runs-on: ubuntu-latest
+    name: Coverage
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: flex
+          coverage: xdebug
+
+      - uses: ramsey/composer-install@v3
+        env:
+          SYMFONY_REQUIRE: '7.4.*'
+
+      - run: vendor/bin/phpunit --coverage-clover coverage.xml
+
+      - uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  phpstan:
+    runs-on: ubuntu-latest
+    name: PHPStan (level 9)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - run: vendor/bin/phpstan analyse
+
+  cs-fixer:
+    runs-on: ubuntu-latest
+    name: PHP CS Fixer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - run: vendor/bin/php-cs-fixer check --diff
+
+  no-doctrine:
+    runs-on: ubuntu-latest
+    name: No Doctrine (guards check)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: flex
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Remove Doctrine packages
+        run: composer remove --dev doctrine/orm doctrine/dbal doctrine/doctrine-bundle doctrine/migrations --no-interaction
+
+      - name: Run unit tests without Doctrine
+        run: vendor/bin/phpunit --testsuite unit
