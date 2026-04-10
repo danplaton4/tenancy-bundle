@@ -5,6 +5,9 @@ on:
     branches: [master]
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -14,6 +17,9 @@ jobs:
       matrix:
         php: ['8.2', '8.3', '8.4']
         symfony: ['7.4.*']
+        include:
+          - php: '8.4'
+            symfony: '8.0.*'
     steps:
       - uses: actions/checkout@v4
 
@@ -28,32 +34,6 @@ jobs:
           SYMFONY_REQUIRE: ${{ matrix.symfony }}
 
       - run: vendor/bin/phpunit
-
-  symfony8:
-    runs-on: ubuntu-latest
-    name: PHP 8.4 / Symfony 8.0 (no Doctrine)
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: flex
-          coverage: none
-
-      - name: Remove Doctrine dev deps before install
-        run: |
-          composer config --unset require-dev.doctrine/dbal
-          composer config --unset require-dev.doctrine/doctrine-bundle
-          composer config --unset require-dev.doctrine/migrations
-          composer config --unset require-dev.doctrine/orm
-
-      - uses: ramsey/composer-install@v3
-        env:
-          SYMFONY_REQUIRE: '8.0.*'
-
-      - name: Run unit tests (no Doctrine)
-        run: vendor/bin/phpunit tests/Unit/Context tests/Unit/Event tests/Unit/Resolver tests/Unit/Messenger tests/Unit/Cache tests/Unit/Exception tests/Unit/Attribute tests/Unit/DependencyInjection tests/Unit/Command/TenantRunCommandTest.php tests/Unit/Bootstrapper/BootstrapperChainTest.php tests/Unit/Bootstrapper/DatabaseSwitchBootstrapperTest.php tests/Unit/EventListener/TenantContextOrchestratorTest.php
 
   coverage:
     runs-on: ubuntu-latest

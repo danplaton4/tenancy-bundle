@@ -30,7 +30,7 @@
     },
     "require-dev": {
         "doctrine/dbal": "^4.4",
-        "doctrine/doctrine-bundle": "^2.13",
+        "doctrine/doctrine-bundle": "^2.13||^3.0",
         "doctrine/migrations": "^3.9",
         "doctrine/orm": "^3.3",
         "friendsofphp/php-cs-fixer": "^3.0",
@@ -42,7 +42,7 @@
     },
     "suggest": {
         "doctrine/dbal": "Required for database drivers (^4.4)",
-        "doctrine/doctrine-bundle": "Required for Doctrine integration (^2.13)",
+        "doctrine/doctrine-bundle": "Required for Doctrine integration (^2.13||^3.0)",
         "doctrine/orm": "Required for Tenant entity (^3.3)",
         "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
         "symfony/messenger": "Required for tenant context preservation across async message processing (^7.0||^8.0)"
