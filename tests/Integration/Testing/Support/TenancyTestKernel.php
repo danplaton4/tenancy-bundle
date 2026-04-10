@@ -83,7 +83,7 @@ class TenancyTestKernel extends Kernel
                     ],
                 ],
                 'orm' => [
-                    'enable_native_lazy_objects' => true,
+                    'enable_native_lazy_objects' => \PHP_VERSION_ID >= 80400,
                     'default_entity_manager' => 'landlord',
                     'entity_managers' => [
                         'landlord' => [

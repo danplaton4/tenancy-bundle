@@ -33,7 +33,9 @@ final class TenantAwareFilterTest extends TestCase
     protected function setUp(): void
     {
         $config = ORMSetup::createAttributeMetadataConfiguration(paths: [], isDevMode: true);
-        $config->enableNativeLazyObjects(true);
+        if (\PHP_VERSION_ID >= 80400) {
+            $config->enableNativeLazyObjects(true);
+        }
         $config->addFilter('tenancy_aware', TenantAwareFilter::class);
         $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $config);
         $this->em = new EntityManager($connection, $config);

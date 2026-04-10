@@ -74,7 +74,7 @@ class SharedDbTestKernel extends Kernel
                 ],
                 'orm' => [
                     'default_entity_manager' => 'default',
-                    'enable_native_lazy_objects' => true,
+                    'enable_native_lazy_objects' => \PHP_VERSION_ID >= 80400,
                     'entity_managers'        => [
                         'default' => [
                             'connection' => 'default',
