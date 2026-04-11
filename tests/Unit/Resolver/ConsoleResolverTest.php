@@ -78,7 +78,7 @@ final class ConsoleResolverTest extends TestCase
     {
         $application = new Application();
         $command = new Command('test:command');
-        $application->add($command);
+        $application->addCommand($command);
 
         $input = new ArrayInput([]);
         $output = new NullOutput();
@@ -96,7 +96,7 @@ final class ConsoleResolverTest extends TestCase
         );
 
         $command = new Command('test:command');
-        $application->add($command);
+        $application->addCommand($command);
 
         $input = new ArrayInput(['--tenant' => $slug]);
         $output = new NullOutput();

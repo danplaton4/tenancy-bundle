@@ -74,7 +74,6 @@ class SharedDbTestKernel extends Kernel
                 ],
                 'orm' => [
                     'default_entity_manager' => 'default',
-                    'enable_native_lazy_objects' => \PHP_VERSION_ID >= 80400,
                     'entity_managers' => [
                         'default' => [
                             'connection' => 'default',
@@ -98,6 +97,17 @@ class SharedDbTestKernel extends Kernel
                     ],
                 ],
             ]);
+
+            // enable_native_lazy_objects: only supported in DoctrineBundle >= 2.14
+            if (\PHP_VERSION_ID >= 80400 && version_compare(
+                \Composer\InstalledVersions::getVersion('doctrine/doctrine-bundle') ?? '0',
+                '2.14.0',
+                '>='
+            )) {
+                $container->loadFromExtension('doctrine', [
+                    'orm' => ['enable_native_lazy_objects' => true],
+                ]);
+            }
         });
     }
 

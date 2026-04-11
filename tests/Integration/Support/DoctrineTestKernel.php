@@ -79,7 +79,6 @@ class DoctrineTestKernel extends Kernel
                 ],
                 'orm' => [
                     'default_entity_manager' => 'landlord',
-                    'enable_native_lazy_objects' => \PHP_VERSION_ID >= 80400,
                     'entity_managers' => [
                         'landlord' => [
                             'connection' => 'landlord',
@@ -108,6 +107,17 @@ class DoctrineTestKernel extends Kernel
                     ],
                 ],
             ]);
+
+            // enable_native_lazy_objects: only supported in DoctrineBundle >= 2.14
+            if (\PHP_VERSION_ID >= 80400 && version_compare(
+                \Composer\InstalledVersions::getVersion('doctrine/doctrine-bundle') ?? '0',
+                '2.14.0',
+                '>='
+            )) {
+                $container->loadFromExtension('doctrine', [
+                    'orm' => ['enable_native_lazy_objects' => true],
+                ]);
+            }
         });
     }
 
