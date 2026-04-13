@@ -30,7 +30,7 @@ final class TenantMigrateCommand extends Command
         private readonly TenantContext $tenantContext,
         private readonly string $driver,
         private readonly Connection $tenantConnection,
-        private readonly Configuration $migrationsConfig,
+        private readonly ?Configuration $migrationsConfig,
     ) {
         parent::__construct();
     }
@@ -56,6 +56,12 @@ final class TenantMigrateCommand extends Command
             $errorOutput->writeln(
                 '<error>tenancy:migrate is only available with the database_per_tenant driver.</error>'
             );
+
+            return Command::FAILURE;
+        }
+
+        if (null === $this->migrationsConfig) {
+            $io->error('doctrine/migrations is not configured. Install doctrine/doctrine-migrations-bundle and configure migrations.');
 
             return Command::FAILURE;
         }
