@@ -12,6 +12,40 @@ use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 
 final class BootstrapperChainPassTest extends TestCase
 {
+    public function testProcessRemovesDoctrineBootstrapperWhenNoEntityManager(): void
+    {
+        $container = new ContainerBuilder();
+
+        // Register DoctrineBootstrapper but no entity manager
+        $container->setDefinition('tenancy.doctrine_bootstrapper', new Definition(\stdClass::class));
+
+        // Register the chain so the pass doesn't bail early
+        $chainDefinition = new Definition(BootstrapperChain::class);
+        $container->setDefinition(BootstrapperChain::class, $chainDefinition);
+
+        $pass = new BootstrapperChainPass();
+        $pass->process($container);
+
+        $this->assertFalse($container->hasDefinition('tenancy.doctrine_bootstrapper'));
+    }
+
+    public function testProcessKeepsDoctrineBootstrapperWhenEntityManagerExists(): void
+    {
+        $container = new ContainerBuilder();
+
+        // Register DoctrineBootstrapper AND an entity manager
+        $container->setDefinition('tenancy.doctrine_bootstrapper', new Definition(\stdClass::class));
+        $container->setDefinition('doctrine.orm.entity_manager', new Definition(\stdClass::class));
+
+        $chainDefinition = new Definition(BootstrapperChain::class);
+        $container->setDefinition(BootstrapperChain::class, $chainDefinition);
+
+        $pass = new BootstrapperChainPass();
+        $pass->process($container);
+
+        $this->assertTrue($container->hasDefinition('tenancy.doctrine_bootstrapper'));
+    }
+
     public function testProcessDoesNothingWhenChainServiceMissing(): void
     {
         $container = new ContainerBuilder();
