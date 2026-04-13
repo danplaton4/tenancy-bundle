@@ -69,7 +69,13 @@ final class TenantMigrateCommand extends Command
         $tenantSlug = $input->getOption('tenant');
 
         if (null !== $tenantSlug && \is_string($tenantSlug)) {
-            $tenants = [$this->tenantProvider->findBySlug($tenantSlug)];
+            try {
+                $tenants = [$this->tenantProvider->findBySlug($tenantSlug)];
+            } catch (\Tenancy\Bundle\Exception\TenantNotFoundException|\Tenancy\Bundle\Exception\TenantInactiveException $e) {
+                $io->error($e->getMessage());
+
+                return Command::FAILURE;
+            }
         } else {
             $tenants = $this->tenantProvider->findAll();
         }

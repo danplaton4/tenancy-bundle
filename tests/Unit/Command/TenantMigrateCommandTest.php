@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\Migrations\Configuration\Configuration;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
@@ -194,7 +195,7 @@ final class TenantMigrateCommandTest extends TestCase
         }
     }
 
-    public function testTenantFilterNonexistentThrowsTenantNotFoundException(): void
+    public function testTenantFilterNonexistentReturnsFailureWithErrorMessage(): void
     {
         $this->tenantProvider
             ->method('findBySlug')
@@ -204,8 +205,10 @@ final class TenantMigrateCommandTest extends TestCase
         $command = $this->makeCommand();
         $tester = new CommandTester($command);
 
-        $this->expectException(TenantNotFoundException::class);
-        $tester->execute(['--tenant' => 'nonexistent']);
+        $exitCode = $tester->execute(['--tenant' => 'nonexistent']);
+
+        $this->assertSame(Command::FAILURE, $exitCode);
+        $this->assertStringContainsString('Tenant "nonexistent" not found.', $tester->getDisplay(true));
     }
 
     public function testContextAndBootstrapperChainClearedInFinally(): void
