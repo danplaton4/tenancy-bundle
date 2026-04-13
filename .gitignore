@@ -1,0 +1,8 @@
+.planning/
+.claude/
+vendor/
+.idea/
+.phpunit.result.cache
+composer.lock
+site/
+.php-cs-fixer.cache

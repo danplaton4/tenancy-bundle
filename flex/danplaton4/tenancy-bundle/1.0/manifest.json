@@ -1,0 +1,9 @@
+{
+    "bundles": {
+        "Tenancy\\Bundle\\TenancyBundle": ["all"]
+    },
+    "copy-from-recipe": {
+        "config/": "%CONFIG_DIR%/"
+    },
+    "aliases": ["tenancy"]
+}

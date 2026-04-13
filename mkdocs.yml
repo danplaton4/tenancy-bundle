@@ -1,0 +1,105 @@
+site_name: Tenancy Bundle
+site_url: https://danplaton4.github.io/tenancy-bundle/
+site_description: Multi-tenancy for Symfony. Zero boilerplate, zero leaks.
+site_author: Dan Platon
+repo_name: danplaton4/tenancy-bundle
+repo_url: https://github.com/danplaton4/tenancy-bundle
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.path
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      extend_pygments_lang:
+        - name: php
+          lang: php
+          options:
+            startinline: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - User Guide:
+    - user-guide/index.md
+    - Installation: user-guide/installation.md
+    - Getting Started: user-guide/getting-started.md
+    - Configuration Reference: user-guide/configuration.md
+    - Resolvers: user-guide/resolvers.md
+    - Database-per-Tenant: user-guide/database-per-tenant.md
+    - Shared-DB Driver: user-guide/shared-db.md
+    - Cache Isolation: user-guide/cache-isolation.md
+    - Messenger Integration: user-guide/messenger.md
+    - CLI Commands: user-guide/cli-commands.md
+    - Testing: user-guide/testing.md
+    - Strict Mode: user-guide/strict-mode.md
+    - Examples:
+      - SaaS Subdomain: user-guide/examples/saas-subdomain.md
+      - API Header: user-guide/examples/api-header.md
+  - Contributor Guide:
+    - contributor-guide/index.md
+    - Development Setup: contributor-guide/setup.md
+    - Architecture Overview: contributor-guide/architecture.md
+    - Test Infrastructure: contributor-guide/test-infrastructure.md
+    - Coding Standards: contributor-guide/coding-standards.md
+    - PR Workflow: contributor-guide/pr-workflow.md
+    - Custom Resolver: contributor-guide/custom-resolver.md
+    - Custom Bootstrapper: contributor-guide/custom-bootstrapper.md
+  - Architecture Reference:
+    - architecture/index.md
+    - Event Lifecycle: architecture/event-lifecycle.md
+    - DI Compilation Pipeline: architecture/di-compilation.md
+    - DBAL Wrapper Mechanics: architecture/dbal-wrapper.md
+    - SQL Filter Internals: architecture/sql-filter.md
+    - Messenger Stamp Lifecycle: architecture/messenger-lifecycle.md
+    - Design Decisions: architecture/design-decisions.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/danplaton4/tenancy-bundle

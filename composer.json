@@ -1,0 +1,73 @@
+{
+    "name": "danplaton4/tenancy-bundle",
+    "description": "Multi-tenant Symfony bundle - zero boilerplate, zero leaks.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": ["symfony", "multitenancy", "multi-tenant", "saas", "bundle", "doctrine", "tenancy"],
+    "authors": [
+        {
+            "name": "Dan Platon",
+            "homepage": "https://github.com/danplaton4",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/danplaton4/tenancy-bundle",
+    "support": {
+        "issues": "https://github.com/danplaton4/tenancy-bundle/issues",
+        "source": "https://github.com/danplaton4/tenancy-bundle"
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "php": "^8.2",
+        "symfony/cache": "^7.4||^8.0",
+        "symfony/config": "^7.4||^8.0",
+        "symfony/console": "^7.4||^8.0",
+        "symfony/dependency-injection": "^7.4||^8.0",
+        "symfony/event-dispatcher": "^7.4||^8.0",
+        "symfony/http-foundation": "^7.4||^8.0",
+        "symfony/http-kernel": "^7.4||^8.0",
+        "symfony/process": "^7.4||^8.0"
+    },
+    "require-dev": {
+        "doctrine/dbal": "^4.4",
+        "doctrine/doctrine-bundle": "^2.13||^3.0",
+        "doctrine/migrations": "^3.9",
+        "doctrine/orm": "^3.3",
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.0",
+        "symfony/framework-bundle": "^7.4||^8.0",
+        "symfony/messenger": "^7.4||^8.0",
+        "symfony/phpunit-bridge": "^7.4||^8.0"
+    },
+    "suggest": {
+        "doctrine/dbal": "Required for database drivers (^4.4)",
+        "doctrine/doctrine-bundle": "Required for Doctrine integration (^2.13||^3.0)",
+        "doctrine/orm": "Required for Tenant entity (^3.3)",
+        "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
+        "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tenancy\\Bundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tenancy\\Bundle\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundles": {
+                "Tenancy\\Bundle\\TenancyBundle": ["all"]
+            }
+        },
+        "branch-alias": {
+            "dev-master": "1.0.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
