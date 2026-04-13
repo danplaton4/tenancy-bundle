@@ -85,7 +85,7 @@ final class TenantMigrateCommand extends Command
 
         foreach ($tenants as $tenant) {
             try {
-                $this->runMigrationsForTenant($tenant, $io);
+                $this->runMigrationsForTenant($tenant, $this->migrationsConfig, $io);
                 $io->writeln(sprintf(' <info>✓</info> %s', $tenant->getSlug()));
             } catch (\Throwable $e) {
                 $failures[] = $tenant->getSlug();
@@ -111,13 +111,13 @@ final class TenantMigrateCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function runMigrationsForTenant(TenantInterface $tenant, SymfonyStyle $io): void
+    private function runMigrationsForTenant(TenantInterface $tenant, Configuration $migrationsConfig, SymfonyStyle $io): void
     {
         $this->tenantContext->setTenant($tenant);
         $this->bootstrapperChain->boot($tenant);
 
         $dependencyFactory = DependencyFactory::fromConnection(
-            new ExistingConfiguration($this->migrationsConfig),
+            new ExistingConfiguration($migrationsConfig),
             new ExistingConnection($this->tenantConnection),
         );
 
