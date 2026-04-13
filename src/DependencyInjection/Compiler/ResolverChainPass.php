@@ -55,9 +55,13 @@ final class ResolverChainPass implements CompilerPassInterface
 
             // If filtering is active, check whether this resolver is allowed
             if (null !== $allowedFqcns) {
+                // Resolve actual FQCN from the definition to handle aliased service IDs
+                $resolverDefinition = $container->findDefinition($serviceId);
+                $fqcn = $resolverDefinition->getClass() ?? $serviceId;
+
                 // Built-in resolvers must be in the allowed list
-                if (in_array($serviceId, self::BUILT_IN_RESOLVER_MAP, true)) {
-                    if (!in_array($serviceId, $allowedFqcns, true)) {
+                if (in_array($fqcn, self::BUILT_IN_RESOLVER_MAP, true)) {
+                    if (!in_array($fqcn, $allowedFqcns, true)) {
                         continue; // Skip this built-in resolver — not in config
                     }
                 }
