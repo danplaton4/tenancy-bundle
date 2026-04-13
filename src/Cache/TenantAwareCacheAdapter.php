@@ -15,6 +15,7 @@ final class TenantAwareCacheAdapter implements AdapterInterface, NamespacedPoolI
     public function __construct(
         private AdapterInterface&NamespacedPoolInterface $inner,
         private readonly TenantContext $tenantContext,
+        private readonly string $cachePrefixSeparator = ':',
     ) {
     }
 
@@ -22,7 +23,7 @@ final class TenantAwareCacheAdapter implements AdapterInterface, NamespacedPoolI
     {
         $tenant = $this->tenantContext->getTenant();
         if (null !== $tenant) {
-            return $this->inner->withSubNamespace($tenant->getSlug());
+            return $this->inner->withSubNamespace($tenant->getSlug().$this->cachePrefixSeparator);
         }
 
         return $this->inner;

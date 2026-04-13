@@ -51,7 +51,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -95,7 +95,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -119,7 +119,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -173,7 +173,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -195,7 +195,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -215,7 +215,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -235,7 +235,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -257,7 +257,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -277,7 +277,7 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->inner
             ->expects($this->once())
             ->method('withSubNamespace')
-            ->with('acme')
+            ->with('acme:')
             ->willReturnSelf();
 
         $this->inner
@@ -299,5 +299,29 @@ class TenantAwareCacheAdapterTest extends TestCase
     {
         $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
         $this->assertInstanceOf(NamespacedPoolInterface::class, $adapter);
+    }
+
+    public function testCustomCachePrefixSeparatorIsUsed(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $expectedItem = new CacheItem();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme_')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('getItem')
+            ->with('foo')
+            ->willReturn($expectedItem);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext, '_');
+        $result = $adapter->getItem('foo');
+
+        $this->assertSame($expectedItem, $result);
     }
 }
