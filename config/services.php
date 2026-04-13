@@ -91,6 +91,7 @@ return function (ContainerConfigurator $container): void {
         ->args([
             service('.inner'),
             service('tenancy.context'),
+            param('tenancy.cache_prefix_separator'),
         ]);
 
 

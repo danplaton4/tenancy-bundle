@@ -88,7 +88,8 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.landlord_connection', $config['landlord_connection'])
             ->set('tenancy.tenant_entity_class', $config['tenant_entity_class'])
             ->set('tenancy.host.app_domain', $hostConfig['app_domain'])
-            ->set('tenancy.resolvers', $config['resolvers']);
+            ->set('tenancy.resolvers', $config['resolvers'])
+            ->set('tenancy.cache_prefix_separator', $config['cache_prefix_separator']);
 
         // Always-on: EntityManagerResetListener (works in both driver modes after resetManager() fix)
         $services = $container->services();
