@@ -36,7 +36,7 @@ class TenancyBundle extends AbstractBundle
             ->booleanNode('strict_mode')->defaultTrue()->end()
             ->scalarNode('landlord_connection')->defaultValue('default')->end()
             ->scalarNode('tenant_entity_class')->defaultValue('Tenancy\\Bundle\\Entity\\Tenant')->end()
-            ->scalarNode('cache_prefix_separator')->defaultValue(':')->end()
+            ->scalarNode('cache_prefix_separator')->defaultValue('.')->end()
             ->arrayNode('database')
             ->addDefaultsIfNotSet()
             ->children()
