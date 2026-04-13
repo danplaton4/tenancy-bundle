@@ -34,7 +34,7 @@ final class TenantMigrateCommandTest extends TestCase
         $this->migrationsConfig = new Configuration();
     }
 
-    private function makeCommand(string $driver = 'database_per_tenant'): TenantMigrateCommand
+    private function makeCommand(string $driver = 'database_per_tenant', ?Configuration $config = null): TenantMigrateCommand
     {
         return new TenantMigrateCommand(
             $this->tenantProvider,
@@ -42,7 +42,27 @@ final class TenantMigrateCommandTest extends TestCase
             $this->tenantContext,
             $driver,
             $this->connection,
-            $this->migrationsConfig,
+            $config ?? $this->migrationsConfig,
+        );
+    }
+
+    public function testNullMigrationsConfigExitsWithError(): void
+    {
+        $command = new TenantMigrateCommand(
+            $this->tenantProvider,
+            $this->bootstrapperChain,
+            $this->tenantContext,
+            'database_per_tenant',
+            $this->connection,
+            null,
+        );
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString(
+            'doctrine/migrations is not configured',
+            $tester->getDisplay(true)
         );
     }
 

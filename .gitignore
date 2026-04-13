@@ -7,4 +7,3 @@ composer.lock
 site/
 .php-cs-fixer.cache
 CLAUDE.md
-vendor
