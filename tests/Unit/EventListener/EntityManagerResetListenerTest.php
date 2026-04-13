@@ -24,40 +24,46 @@ final class EntityManagerResetListenerTest extends TestCase
 
     public function testInvokeResetsAllEntityManagers(): void
     {
-        $this->managerRegistry
-            ->method('getManagerNames')
-            ->willReturn(['default' => 'doctrine.orm.default_entity_manager']);
-
+        // Default constructor: resets default EM (null)
         $this->managerRegistry
             ->expects($this->once())
             ->method('resetManager')
-            ->with('default');
+            ->with(null);
+
+        // getManagerNames should NOT be called (we iterate managersToReset, not all managers)
+        $this->managerRegistry
+            ->expects($this->never())
+            ->method('getManagerNames');
 
         ($this->listener)(new TenantContextCleared());
     }
 
-    public function testInvokeResetsMultipleEntityManagers(): void
+    public function testInvokeResetsOnlyConfiguredManagers(): void
     {
-        $this->managerRegistry
-            ->method('getManagerNames')
-            ->willReturn([
-                'landlord' => 'doctrine.orm.landlord_entity_manager',
-                'tenant' => 'doctrine.orm.tenant_entity_manager',
-            ]);
+        // Simulate database_per_tenant mode: only 'tenant' EM should be reset
+        $listener = new EntityManagerResetListener($this->managerRegistry, ['tenant']);
 
-        $calls = [];
         $this->managerRegistry
-            ->expects($this->exactly(2))
+            ->expects($this->once())
             ->method('resetManager')
-            ->willReturnCallback(function (string $name) use (&$calls) {
-                $calls[] = $name;
+            ->with('tenant')
+            ->willReturn($this->createMock(\Doctrine\Persistence\ObjectManager::class));
 
-                return $this->createMock(\Doctrine\Persistence\ObjectManager::class);
-            });
+        $listener(new TenantContextCleared());
+    }
 
-        ($this->listener)(new TenantContextCleared());
+    public function testInvokeResetsDefaultEmWhenNoManagersConfigured(): void
+    {
+        // Default: managersToReset = [null] -> resetManager(null) = default EM
+        $listener = new EntityManagerResetListener($this->managerRegistry);
 
-        $this->assertSame(['landlord', 'tenant'], $calls);
+        $this->managerRegistry
+            ->expects($this->once())
+            ->method('resetManager')
+            ->with(null)
+            ->willReturn($this->createMock(\Doctrine\Persistence\ObjectManager::class));
+
+        $listener(new TenantContextCleared());
     }
 
     public function testHasAsEventListenerAttribute(): void
