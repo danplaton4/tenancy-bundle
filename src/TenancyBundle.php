@@ -110,6 +110,16 @@ class TenancyBundle extends AbstractBundle
             $builder->getDefinition('tenancy.provider')
                 ->setArgument(0, new Reference('doctrine.orm.landlord_entity_manager'));
 
+            // Override DoctrineBootstrapper to target tenant EM (services.php targets default = landlord)
+            if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+                $builder->getDefinition('tenancy.doctrine_bootstrapper')
+                    ->setArgument(0, new Reference('doctrine.orm.tenant_entity_manager'));
+            }
+
+            // Override EntityManagerResetListener to reset only tenant EM (not landlord)
+            $builder->getDefinition(EntityManagerResetListener::class)
+                ->setArgument(1, ['tenant']);
+
             if (class_exists(\Doctrine\Migrations\DependencyFactory::class)) {
                 $services->set('tenancy.command.migrate', TenantMigrateCommand::class)
                     ->args([

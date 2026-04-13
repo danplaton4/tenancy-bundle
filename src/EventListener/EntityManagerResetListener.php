@@ -11,8 +11,12 @@ use Tenancy\Bundle\Event\TenantContextCleared;
 #[AsEventListener(event: TenantContextCleared::class)]
 final class EntityManagerResetListener
 {
+    /**
+     * @param list<string|null> $managersToReset Manager names to reset. [null] = default EM only.
+     */
     public function __construct(
         private readonly ?ManagerRegistry $managerRegistry,
+        private readonly array $managersToReset = [null],
     ) {
     }
 
@@ -22,7 +26,7 @@ final class EntityManagerResetListener
             return;
         }
 
-        foreach ($this->managerRegistry->getManagerNames() as $name => $id) {
+        foreach ($this->managersToReset as $name) {
             $this->managerRegistry->resetManager($name);
         }
     }
