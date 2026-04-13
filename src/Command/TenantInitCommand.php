@@ -44,7 +44,7 @@ final class TenantInitCommand extends Command
             $io->note('Overwriting existing configuration file.');
         }
 
-        $doctrineDetected = class_exists(\Doctrine\ORM\EntityManagerInterface::class);
+        $doctrineDetected = interface_exists(\Doctrine\ORM\EntityManagerInterface::class);
 
         $yamlContent = $this->generateYamlContent($doctrineDetected);
 
@@ -84,40 +84,42 @@ final class TenantInitCommand extends Command
             ? '    #     enabled: true'
             : '    #     enabled: false';
 
-        return <<<YAML
-            # config/packages/tenancy.yaml
-            #
-            # Tenancy Bundle Configuration
-            # Full reference: https://github.com/danplaton4/tenancy-bundle
+        $lines = [
+            '# config/packages/tenancy.yaml',
+            '#',
+            '# Tenancy Bundle Configuration',
+            '# Full reference: https://github.com/danplaton4/tenancy-bundle',
+            '',
+            'tenancy:',
+            '    # Isolation driver: database_per_tenant (separate DB per tenant) or shared_db (single DB with SQL filter)',
+            $driverLine,
+            '',
+            '    # Throw TenantMissingException when a #[TenantAware] entity is queried without an active tenant',
+            '    # strict_mode: true',
+            '',
+            '    # DBAL connection name for the landlord (central) database',
+            '    # landlord_connection: default',
+            '',
+            '    # Fully-qualified class name of your Tenant entity (must implement TenantInterface)',
+            '    # tenant_entity_class: Tenancy\Bundle\Entity\Tenant',
+            '',
+            '    # Separator used for tenant cache namespace isolation',
+            "    # cache_prefix_separator: ':'",
+            '',
+            '    # Enabled resolvers (order = priority: first match wins)',
+            '    # resolvers: [host, header, query_param, console]',
+            '',
+            '    # HostResolver settings — extract tenant slug from subdomain',
+            '    # host:',
+            '    #     app_domain: app.example.com',
+            '',
+            '    # Database-per-tenant mode (requires doctrine/orm)',
+            '    # Set enabled: true to activate two entity managers (landlord + tenant)',
+            '    # database:',
+            $databaseEnabledLine,
+        ];
 
-            tenancy:
-                # Isolation driver: database_per_tenant (separate DB per tenant) or shared_db (single DB with SQL filter)
-                {$driverLine}
-
-                # Throw TenantMissingException when a #[TenantAware] entity is queried without an active tenant
-                # strict_mode: true
-
-                # DBAL connection name for the landlord (central) database
-                # landlord_connection: default
-
-                # Fully-qualified class name of your Tenant entity (must implement TenantInterface)
-                # tenant_entity_class: Tenancy\Bundle\Entity\Tenant
-
-                # Separator used for tenant cache namespace isolation
-                # cache_prefix_separator: ':'
-
-                # Enabled resolvers (order = priority: first match wins)
-                # resolvers: [host, header, query_param, console]
-
-                # HostResolver settings — extract tenant slug from subdomain
-                # host:
-                #     app_domain: app.example.com
-
-                # Database-per-tenant mode (requires doctrine/orm)
-                # Set enabled: true to activate two entity managers (landlord + tenant)
-                # database:
-                {$databaseEnabledLine}
-            YAML;
+        return implode("\n", $lines)."\n";
     }
 
     private function printNextSteps(SymfonyStyle $io): void

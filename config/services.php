@@ -3,25 +3,27 @@
 declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
-use Symfony\Component\Messenger\MessageBusInterface;
-use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
-use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
-use Tenancy\Bundle\Command\TenantRunCommand;
-use Tenancy\Bundle\Context\TenantContext;
-use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
-use Tenancy\Bundle\Provider\DoctrineTenantProvider;
-use Tenancy\Bundle\Provider\TenantProviderInterface;
-use Tenancy\Bundle\Resolver\HeaderResolver;
-use Tenancy\Bundle\Resolver\HostResolver;
-use Tenancy\Bundle\Resolver\QueryParamResolver;
-use Tenancy\Bundle\Resolver\ConsoleResolver;
-use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
-use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
-use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
-use Tenancy\Bundle\Resolver\ResolverChain;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
+
+use Symfony\Component\Messenger\MessageBusInterface;
+use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
+use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
+use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
+use Tenancy\Bundle\Command\TenantInitCommand;
+use Tenancy\Bundle\Command\TenantRunCommand;
+use Tenancy\Bundle\Context\TenantContext;
+use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
+use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
+use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
+use Tenancy\Bundle\Provider\DoctrineTenantProvider;
+use Tenancy\Bundle\Provider\TenantProviderInterface;
+use Tenancy\Bundle\Resolver\ConsoleResolver;
+use Tenancy\Bundle\Resolver\HeaderResolver;
+use Tenancy\Bundle\Resolver\HostResolver;
+use Tenancy\Bundle\Resolver\QueryParamResolver;
+use Tenancy\Bundle\Resolver\ResolverChain;
 
 return function (ContainerConfigurator $container): void {
     $services = $container->services();
@@ -80,7 +82,7 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.resolver_chain'),
         ]);
 
-    if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+    if (interface_exists(Doctrine\ORM\EntityManagerInterface::class)) {
         $services->set('tenancy.doctrine_bootstrapper', DoctrineBootstrapper::class)
             ->args([service('doctrine.orm.entity_manager')->nullOnInvalid()])
             ->tag('tenancy.bootstrapper', ['priority' => -10]);
@@ -93,10 +95,15 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.context'),
         ]);
 
-
     $services->set('tenancy.command.run', TenantRunCommand::class)
         ->args([
             service('tenancy.provider'),
+            param('kernel.project_dir'),
+        ])
+        ->tag('console.command');
+
+    $services->set('tenancy.command.init', TenantInitCommand::class)
+        ->args([
             param('kernel.project_dir'),
         ])
         ->tag('console.command');
