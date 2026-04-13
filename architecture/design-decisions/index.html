@@ -1,0 +1,2023 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-tenancy for Symfony. Zero boilerplate, zero leaks.">
+      
+      
+        <meta name="author" content="Dan Platon">
+      
+      
+        <link rel="canonical" href="https://danplaton4.github.io/tenancy-bundle/architecture/design-decisions/">
+      
+      
+        <link rel="prev" href="../messenger-lifecycle/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Design Decisions - Tenancy Bundle</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#design-decisions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Tenancy Bundle" class="md-header__button md-logo" aria-label="Tenancy Bundle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tenancy Bundle
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design Decisions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/danplaton4/tenancy-bundle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    danplaton4/tenancy-bundle
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../user-guide/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributor-guide/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Contributor Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tenancy Bundle" class="md-nav__button md-logo" aria-label="Tenancy Bundle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tenancy Bundle
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/danplaton4/tenancy-bundle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    danplaton4/tenancy-bundle
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../user-guide/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/resolvers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resolvers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/database-per-tenant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database-per-Tenant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/shared-db/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shared-DB Driver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/cache-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cache Isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/messenger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Messenger Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/cli-commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/strict-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strict Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_13" id="__nav_2_13_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/examples/saas-subdomain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaaS Subdomain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/examples/api-header/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Header
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../contributor-guide/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributor Guide
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributor Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/test-infrastructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Infrastructure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/coding-standards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coding Standards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/pr-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PR Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/custom-resolver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Resolver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributor-guide/custom-bootstrapper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Bootstrapper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../di-compilation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DI Compilation Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dbal-wrapper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DBAL Wrapper Mechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sql-filter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SQL Filter Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../messenger-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Messenger Stamp Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Decisions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-strict_mode-defaults-to-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. strict_mode Defaults to ON
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-tenantcontext-is-zero-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. TenantContext Is Zero-Dependency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-bootstrapper-clear-runs-in-reverse-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Bootstrapper clear() Runs in Reverse Order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-kernelrequest-priority-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. kernel.request Priority 20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-dbal-reflectionproperty-for-connection-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. DBAL ReflectionProperty for Connection Switching
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-optional-doctrine-via-class_exists-guards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Optional Doctrine via class_exists Guards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-interface_exists-for-messenger-not-class_exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. interface_exists for Messenger — Not class_exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-consoleresolver-operates-independently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. ConsoleResolver Operates Independently
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-tenantresolved-not-dispatched-in-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. TenantResolved Not Dispatched in Worker
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-entitymanagerresetlistener-uses-resetmanagernull" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. EntityManagerResetListener Uses resetManager(null)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-strict_mode-defaults-to-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. strict_mode Defaults to ON
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-tenantcontext-is-zero-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. TenantContext Is Zero-Dependency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-bootstrapper-clear-runs-in-reverse-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Bootstrapper clear() Runs in Reverse Order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-kernelrequest-priority-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. kernel.request Priority 20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-dbal-reflectionproperty-for-connection-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. DBAL ReflectionProperty for Connection Switching
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-optional-doctrine-via-class_exists-guards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Optional Doctrine via class_exists Guards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-interface_exists-for-messenger-not-class_exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. interface_exists for Messenger — Not class_exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-consoleresolver-operates-independently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. ConsoleResolver Operates Independently
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-tenantresolved-not-dispatched-in-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. TenantResolved Not Dispatched in Worker
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-entitymanagerresetlistener-uses-resetmanagernull" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. EntityManagerResetListener Uses resetManager(null)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Architecture Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="design-decisions">Design Decisions<a class="headerlink" href="#design-decisions" title="Permanent link">&para;</a></h1>
+<p>This page documents the key architectural decisions made during bundle development. For each decision: what was decided, why it was chosen, what alternatives were considered, and the trade-offs accepted.</p>
+<p>These decisions are not arbitrary. Many encode security defaults or practical constraints that would otherwise require users to re-discover them.</p>
+<hr />
+<h2 id="1-strict_mode-defaults-to-on">1. strict_mode Defaults to ON<a class="headerlink" href="#1-strict_mode-defaults-to-on" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> When a <code>#[TenantAware]</code> entity is queried and no tenant is active, <code>TenantAwareFilter</code> throws <code>TenantMissingException</code>. This is the default behavior.</p>
+<p><strong>Why:</strong> "A data leak across tenants is a security incident, not a config mistake." Fail-closed is safer than fail-open. If a developer forgets to boot tenant context before querying, they get a clear error — not silently cross-tenant data.</p>
+<p><strong>Alternatives considered:</strong> Default <code>strict_mode: false</code> (more convenient for initial setup). Rejected — convenience does not justify the data leak risk. Developers opt out explicitly when they genuinely need cross-tenant queries (admin tooling, migrations).</p>
+<p><strong>Trade-off:</strong> Console commands and admin tooling that intentionally query across tenants must either disable strict mode in config or ensure no <code>#[TenantAware]</code> entities are queried without an active tenant.</p>
+<hr />
+<h2 id="2-tenantcontext-is-zero-dependency">2. TenantContext Is Zero-Dependency<a class="headerlink" href="#2-tenantcontext-is-zero-dependency" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> <code>TenantContext</code> has no constructor parameters and no injected services. It is a plain PHP object with four methods: <code>setTenant()</code>, <code>getTenant()</code>, <code>hasTenant()</code>, <code>clear()</code>.</p>
+<p><strong>Why:</strong> <code>TenantContext</code> is injected into nearly every bundle service: <code>TenantAwareFilter</code>, <code>TenantWorkerMiddleware</code>, <code>TenantSendingMiddleware</code>, <code>SharedDriver</code>, resolvers, and user-land bootstrappers. Any dependency added to <code>TenantContext</code> risks a circular reference during container compilation. A zero-dependency leaf node is always safe to inject anywhere in the dependency graph.</p>
+<p><strong>Alternatives considered:</strong> Inject <code>EventDispatcherInterface</code> into <code>TenantContext</code> to auto-dispatch events when <code>setTenant()</code> is called. Rejected — creates coupling between the context holder and the event system, and introduces circular dep risk when any event listener also holds <code>TenantContext</code>.</p>
+<p><strong>Trade-off:</strong> <code>TenantContextOrchestrator</code> and <code>TenantWorkerMiddleware</code> must explicitly call <code>setTenant()</code> and dispatch events themselves. The orchestration logic is slightly more verbose, but the context holder stays clean.</p>
+<hr />
+<h2 id="3-bootstrapper-clear-runs-in-reverse-order">3. Bootstrapper clear() Runs in Reverse Order<a class="headerlink" href="#3-bootstrapper-clear-runs-in-reverse-order" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> If bootstrappers A, B, C boot in that order, teardown calls C, B, A.</p>
+<p><strong>Why:</strong> Later bootstrappers may depend on state set up by earlier ones. Example: <code>DatabaseSwitchBootstrapper</code> sets up the tenant DB connection (A). <code>DoctrineBootstrapper</code> clears the identity map using that connection (B). If clear ran A first (restore landlord DB), then B would be clearing an identity map against the landlord connection — not the tenant connection it was built with. Reverse order unwinds the stack safely.</p>
+<p><strong>Alternatives considered:</strong> Clear in original order (A, B, C). Rejected — would require each bootstrapper to be fully independent, which is too restrictive. The cascade-dependency pattern (later bootstrappers depending on earlier ones) is a natural and useful pattern.</p>
+<p><strong>Trade-off:</strong> Bootstrapper authors must be aware that other bootstrappers that ran after them will clear first. The clear order is documented and predictable.</p>
+<hr />
+<h2 id="4-kernelrequest-priority-20">4. kernel.request Priority 20<a class="headerlink" href="#4-kernelrequest-priority-20" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> <code>TenantContextOrchestrator</code> is registered at <code>kernel.request</code> priority 20.</p>
+<p><strong>Why:</strong> Must be after the Router (priority 32) so the resolved route is available to resolvers that inspect route attributes. Must be before the Security firewall (priority 8) so that controllers receive fully-tenanted services when they are constructed. Priority 20 is the only safe window.</p>
+<p><strong>Alternatives considered:</strong></p>
+<ul>
+<li>Priority 0 (default, after security): Rejected — controller constructors would receive un-tenanted services because the DI container resolves constructor dependencies before the controller action runs.</li>
+<li>Priority 32+ (before Router): Rejected — route information would not be available to route-based resolvers.</li>
+</ul>
+<p><strong>Trade-off:</strong> The priority constant is <code>public const PRIORITY = 20</code> — it can be referenced by integrators who need to know where tenancy fits in the listener stack.</p>
+<hr />
+<h2 id="5-dbal-reflectionproperty-for-connection-switching">5. DBAL ReflectionProperty for Connection Switching<a class="headerlink" href="#5-dbal-reflectionproperty-for-connection-switching" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> <code>TenantConnection::switchTenant()</code> uses <code>ReflectionProperty</code> to mutate the private <code>$params</code> property on <code>Doctrine\DBAL\Connection</code>.</p>
+<p><strong>Why:</strong> DBAL 4 made <code>$params</code> private with no public setter. The alternative approaches:</p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Problem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New <code>Connection</code> instance per tenant</td>
+<td>Invalidates all DI service references to the old connection</td>
+</tr>
+<tr>
+<td>DBAL event for parameter mutation</td>
+<td>No such event exists in DBAL</td>
+</tr>
+<tr>
+<td>Proxy class with virtual params</td>
+<td>Requires reimplementing the full <code>Connection</code> interface</td>
+</tr>
+<tr>
+<td><strong>ReflectionProperty mutation</strong></td>
+<td><strong>Works, stable API surface</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Creating a new <code>Connection</code> instance is impractical — every service that holds <code>TenantConnection</code> would need to be re-instantiated or re-wired. The wrapperClass approach means one shared instance is mutated in place.</p>
+<p><strong>Trade-off:</strong> Couples to DBAL's internal property layout. Mitigated by:
+- <code>$params</code> has existed on <code>Connection</code> since DBAL 2
+- The bundle's CI matrix tests against DBAL 3 and 4
+- <code>ReflectionProperty</code> is created once in the constructor (no repeated reflection overhead)</p>
+<hr />
+<h2 id="6-optional-doctrine-via-class_exists-guards">6. Optional Doctrine via class_exists Guards<a class="headerlink" href="#6-optional-doctrine-via-class_exists-guards" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> All Doctrine imports and features are guarded by <code>class_exists()</code> or <code>interface_exists()</code>. No Doctrine class is hard-imported at the top of bundle files without a guard.</p>
+<p><strong>Why:</strong> The bundle should be installable without Doctrine for non-DB use cases (cache isolation, Messenger context propagation, or custom bootstrappers). A hard <code>use Doctrine\ORM\...</code> import at the top of any bundle service file would cause a fatal <code>class not found</code> error if Doctrine is not installed.</p>
+<p><strong>Alternatives considered:</strong> Make Doctrine a hard <code>require</code> in <code>composer.json</code>. Rejected — reduces bundle applicability. Users running Messenger-only or cache-isolation-only scenarios would be forced to install Doctrine.</p>
+<p><strong>Trade-off:</strong> The <code>BootstrapperChainPass</code> must check <code>$container-&gt;has('doctrine.orm.entity_manager')</code> before keeping <code>DoctrineBootstrapper</code>. Conditional service registration in <code>loadExtension()</code> adds complexity.</p>
+<hr />
+<h2 id="7-interface_exists-for-messenger-not-class_exists">7. interface_exists for Messenger — Not class_exists<a class="headerlink" href="#7-interface_exists-for-messenger-not-class_exists" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> The Messenger guard uses <code>interface_exists(MessageBusInterface::class)</code>, not <code>class_exists(MessageBusInterface::class)</code>.</p>
+<p><strong>Why:</strong> <code>MessageBusInterface</code> is a PHP <strong>interface</strong>. <code>class_exists()</code> returns <code>false</code> for interfaces in PHP — it only returns <code>true</code> for classes, abstract classes, and traits. Using <code>class_exists()</code> here would cause silent skip of all Messenger wiring, with no error.</p>
+<p>This distinction was caught during development when Messenger middleware was silently not registered because the guard used <code>class_exists</code>.</p>
+<div class="admonition info">
+<p class="admonition-title">Lesson: PHP type check functions are specific</p>
+<ul>
+<li><code>class_exists(Foo::class)</code> — returns <code>true</code> for classes, abstract classes, traits; returns <code>false</code> for interfaces</li>
+<li><code>interface_exists(Foo::class)</code> — returns <code>true</code> for interfaces only</li>
+<li>When guarding optional dependencies, always use the function matching the PHP type</li>
+</ul>
+</div>
+<hr />
+<h2 id="8-consoleresolver-operates-independently">8. ConsoleResolver Operates Independently<a class="headerlink" href="#8-consoleresolver-operates-independently" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> The <code>ConsoleResolver</code> listens on <code>ConsoleCommandEvent</code> and boots tenant context directly, rather than routing through <code>TenantContextOrchestrator</code> and <code>ResolverChain</code>.</p>
+<p><strong>Why:</strong> Console commands have no HTTP <code>Request</code> object. <code>ResolverChain::resolve(Request $request)</code> requires a <code>Request</code> — it cannot be called from a console context. ConsoleResolver intercepts <code>ConsoleCommandEvent</code>, reads the <code>--tenant=&lt;slug&gt;</code> flag, and calls <code>BootstrapperChain::boot()</code> directly.</p>
+<p><strong>Alternatives considered:</strong> Modify <code>ResolverChain</code> to accept a nullable <code>Request</code>. Rejected — makes the HTTP path more complex for a single special case. The console path is sufficiently different (CLI flag vs. HTTP header/domain) to warrant separate handling.</p>
+<p><strong>Trade-off:</strong> ConsoleResolver bypasses the normal resolver priority ordering. This is intentional — there is only one source of tenant identity in a console context (the <code>--tenant</code> flag).</p>
+<hr />
+<h2 id="9-tenantresolved-not-dispatched-in-worker">9. TenantResolved Not Dispatched in Worker<a class="headerlink" href="#9-tenantresolved-not-dispatched-in-worker" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> <code>TenantWorkerMiddleware</code> does not dispatch <code>TenantResolved</code> when it boots tenant context from a <code>TenantStamp</code>.</p>
+<p><strong>Why:</strong> <code>TenantResolved</code> carries <code>public readonly ?Request $request</code>. Listeners attached to this event in HTTP context may call <code>$event-&gt;getRequest()</code> and expect a non-null value. In a Messenger worker, there is no request — firing <code>TenantResolved</code> could trigger HTTP-specific listeners and cause null reference errors or incorrect behavior.</p>
+<p>The tenant is being <strong>restored</strong> from a stamp, not <strong>resolved</strong> from a request. These are semantically different operations.</p>
+<p><strong>Alternative considered:</strong> Dispatch <code>TenantResolved</code> with <code>request: null</code> (the field is nullable). Rejected — would require every <code>TenantResolved</code> listener to check <code>$event-&gt;request !== null</code> before using it, creating a fragile contract.</p>
+<hr />
+<h2 id="10-entitymanagerresetlistener-uses-resetmanagernull">10. EntityManagerResetListener Uses resetManager(null)<a class="headerlink" href="#10-entitymanagerresetlistener-uses-resetmanagernull" title="Permanent link">&para;</a></h2>
+<p><strong>What:</strong> <code>EntityManagerResetListener</code> calls <code>$registry-&gt;resetManager()</code> with no argument (equivalent to <code>null</code>), not <code>$registry-&gt;resetManager('tenant')</code>.</p>
+<p><strong>Why:</strong> Works correctly in both driver modes:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Entity Manager to Reset</th>
+<th>Correct Call</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>database_per_tenant</code></td>
+<td>Named <code>'tenant'</code> EM</td>
+<td><code>resetManager()</code> → default EM</td>
+</tr>
+<tr>
+<td><code>shared_db</code></td>
+<td>Default unnamed EM</td>
+<td><code>resetManager()</code> → default EM</td>
+</tr>
+</tbody>
+</table>
+<p>In <code>database_per_tenant</code> mode, the tenant EM is the default EM (applications that don't use the landlord EM directly only have one EM configured as default). In <code>shared_db</code> mode, there is only one EM and it is the default. Passing <code>null</code> (no argument) resets the default EM, which is the correct EM in both modes.</p>
+<p><strong>Original bug:</strong> The listener previously called <code>resetManager('tenant')</code>, which worked only in <code>database_per_tenant</code> mode and threw <code>InvalidArgumentException</code> in <code>shared_db</code> mode (where no EM named <code>'tenant'</code> exists). This was fixed in Phase 05.</p>
+<div class="admonition info">
+<p class="admonition-title">Lesson: 'Default' is correct for multi-mode services</p>
+<p>When a service must work across multiple driver modes, targeting the default entity manager (null/no argument) is more robust than targeting a named EM. The default EM always exists; named EMs are mode-specific.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/danplaton4/tenancy-bundle" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.path", "toc.follow", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
