@@ -81,6 +81,33 @@ class TenantTest extends TestCase
         $this->assertInstanceOf(\DateTimeImmutable::class, $tenant->getUpdatedAt());
     }
 
+    public function testSetConnectionConfigReturnsSelf(): void
+    {
+        $tenant = new Tenant('acme', 'Acme Corp');
+        $result = $tenant->setConnectionConfig(['host' => 'localhost']);
+
+        $this->assertSame($tenant, $result);
+        $this->assertSame(['host' => 'localhost'], $tenant->getConnectionConfig());
+    }
+
+    public function testSetNameReturnsSelf(): void
+    {
+        $tenant = new Tenant('acme', 'Acme Corp');
+        $result = $tenant->setName('New Name');
+
+        $this->assertSame($tenant, $result);
+        $this->assertSame('New Name', $tenant->getName());
+    }
+
+    public function testSetIsActiveReturnsSelf(): void
+    {
+        $tenant = new Tenant('acme', 'Acme Corp');
+        $result = $tenant->setIsActive(false);
+
+        $this->assertSame($tenant, $result);
+        $this->assertFalse($tenant->isActive());
+    }
+
     public function testOnPreUpdateUpdatesOnlyUpdatedAt(): void
     {
         $tenant = new Tenant('acme', 'Acme Corp');

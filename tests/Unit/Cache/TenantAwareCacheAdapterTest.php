@@ -164,6 +164,131 @@ class TenantAwareCacheAdapterTest extends TestCase
         $this->assertSame($expectedItem, $result);
     }
 
+    public function testGetItemsDelegatesToScopedPool(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $expectedItems = [new CacheItem()];
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('getItems')
+            ->with(['foo', 'bar'])
+            ->willReturn($expectedItems);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
+        $result = $adapter->getItems(['foo', 'bar']);
+
+        $this->assertSame($expectedItems, $result);
+    }
+
+    public function testHasItemDelegatesToScopedPool(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('hasItem')
+            ->with('foo')
+            ->willReturn(true);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
+        $this->assertTrue($adapter->hasItem('foo'));
+    }
+
+    public function testDeleteItemDelegatesToScopedPool(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('deleteItem')
+            ->with('foo')
+            ->willReturn(true);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
+        $this->assertTrue($adapter->deleteItem('foo'));
+    }
+
+    public function testDeleteItemsDelegatesToScopedPool(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('deleteItems')
+            ->with(['foo', 'bar'])
+            ->willReturn(true);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
+        $this->assertTrue($adapter->deleteItems(['foo', 'bar']));
+    }
+
+    public function testSaveDeferredDelegatesToScopedPool(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $item = new CacheItem();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('saveDeferred')
+            ->with($item)
+            ->willReturn(true);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
+        $this->assertTrue($adapter->saveDeferred($item));
+    }
+
+    public function testCommitDelegatesToScopedPool(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $this->inner
+            ->expects($this->once())
+            ->method('withSubNamespace')
+            ->with('acme')
+            ->willReturnSelf();
+
+        $this->inner
+            ->expects($this->once())
+            ->method('commit')
+            ->willReturn(true);
+
+        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
+        $this->assertTrue($adapter->commit());
+    }
+
     public function testImplementsAdapterInterface(): void
     {
         $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
