@@ -6,6 +6,7 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
+use Tenancy\Bundle\Command\TenantInitCommand;
 use Tenancy\Bundle\Command\TenantRunCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
@@ -98,6 +99,12 @@ return function (ContainerConfigurator $container): void {
     $services->set('tenancy.command.run', TenantRunCommand::class)
         ->args([
             service('tenancy.provider'),
+            param('kernel.project_dir'),
+        ])
+        ->tag('console.command');
+
+    $services->set('tenancy.command.init', TenantInitCommand::class)
+        ->args([
             param('kernel.project_dir'),
         ])
         ->tag('console.command');
