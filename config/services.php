@@ -40,33 +40,35 @@ return function (ContainerConfigurator $container): void {
         ->public(false);
     $services->alias(ResolverChain::class, 'tenancy.resolver_chain');
 
+    if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+        $services->set('tenancy.provider', DoctrineTenantProvider::class)
+            ->args([
+                service('doctrine.orm.default_entity_manager'),
+                service('cache.app'),
+                param('tenancy.tenant_entity_class'),
+            ]);
+        $services->alias(TenantProviderInterface::class, 'tenancy.provider');
+    }
+
     $services->set(HostResolver::class)
         ->args([
-            service('tenancy.provider'),
+            service('tenancy.provider')->nullOnInvalid(),
             param('tenancy.host.app_domain'),
         ])
         ->tag('tenancy.resolver', ['priority' => 30]);
 
     $services->set(HeaderResolver::class)
-        ->args([service('tenancy.provider')])
+        ->args([service('tenancy.provider')->nullOnInvalid()])
         ->tag('tenancy.resolver', ['priority' => 20]);
 
     $services->set(QueryParamResolver::class)
-        ->args([service('tenancy.provider')])
+        ->args([service('tenancy.provider')->nullOnInvalid()])
         ->tag('tenancy.resolver', ['priority' => 10]);
-
-    $services->set('tenancy.provider', DoctrineTenantProvider::class)
-        ->args([
-            service('doctrine.orm.default_entity_manager'),
-            service('cache.app'),
-            param('tenancy.tenant_entity_class'),
-        ]);
-    $services->alias(TenantProviderInterface::class, 'tenancy.provider');
 
     $services->set(ConsoleResolver::class)
         ->autoconfigure(true)
         ->args([
-            service('tenancy.provider'),
+            service('tenancy.provider')->nullOnInvalid(),
             service('tenancy.context'),
             service('tenancy.bootstrapper_chain'),
             service('event_dispatcher'),
@@ -98,7 +100,7 @@ return function (ContainerConfigurator $container): void {
 
     $services->set('tenancy.command.run', TenantRunCommand::class)
         ->args([
-            service('tenancy.provider'),
+            service('tenancy.provider')->nullOnInvalid(),
             param('kernel.project_dir'),
         ])
         ->tag('console.command');
@@ -117,7 +119,7 @@ return function (ContainerConfigurator $container): void {
             ->args([
                 service('tenancy.context'),
                 service('tenancy.bootstrapper_chain'),
-                service('tenancy.provider'),
+                service('tenancy.provider')->nullOnInvalid(),
                 service('event_dispatcher'),
             ]);
     }
