@@ -49,6 +49,11 @@ final class TenantMigrateCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        // Safety net only: this branch is unreachable in production because the DI container
+        // registers TenantMigrateCommand exclusively when database.enabled: true, and the
+        // configuration schema rejects the combination of driver: shared_db + database.enabled: true.
+        // At runtime the driver is always 'database_per_tenant'. Retained for testability and
+        // defence-in-depth against future mis-wiring.
         if ('shared_db' === $this->driver) {
             $errorOutput = $output instanceof \Symfony\Component\Console\Output\ConsoleOutputInterface
                 ? $output->getErrorOutput()
