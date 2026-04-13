@@ -18,6 +18,7 @@ final class MakeCommandsPublicPass implements CompilerPassInterface
         $ids = [
             'tenancy.command.migrate',
             'tenancy.command.run',
+            'tenancy.command.init',
         ];
 
         foreach ($ids as $id) {
