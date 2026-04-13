@@ -49,11 +49,17 @@ final class TenantInitCommand extends Command
         $yamlContent = $this->generateYamlContent($doctrineDetected);
 
         $dir = \dirname($targetPath);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+            $io->error('Could not create directory: '.$dir);
+
+            return Command::FAILURE;
         }
 
-        file_put_contents($targetPath, $yamlContent);
+        if (false === file_put_contents($targetPath, $yamlContent)) {
+            $io->error('Could not write configuration file: '.$targetPath);
+
+            return Command::FAILURE;
+        }
 
         $io->success('Created config/packages/tenancy.yaml');
 
