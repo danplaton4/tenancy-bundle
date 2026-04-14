@@ -70,9 +70,9 @@ Override this if you extend `Tenancy\Bundle\Entity\Tenant` or provide your own i
 
 | Type | Default |
 |------|---------|
-| `string` | `:` |
+| `string` | `.` |
 
-The separator inserted between the tenant slug and the cache key when the cache bootstrapper namespaces the cache pool. For example, with the default separator and slug `acme`, a cache key `user.123` becomes `acme:user.123`.
+The separator inserted between the tenant slug and the cache key when the cache bootstrapper namespaces the cache pool. For example, with the default separator and slug `acme`, a cache key `user.123` becomes `acme.user.123`.
 
 ---
 
@@ -152,7 +152,7 @@ The bundle enforces one compile-time constraint:
         strict_mode: true
         landlord_connection: default
         tenant_entity_class: Tenancy\Bundle\Entity\Tenant
-        cache_prefix_separator: ':'
+        cache_prefix_separator: '.'
         database:
             enabled: false
         resolvers:
@@ -174,7 +174,7 @@ The bundle enforces one compile-time constraint:
             'strict_mode'          => true,
             'landlord_connection'  => 'default',
             'tenant_entity_class'  => 'Tenancy\\Bundle\\Entity\\Tenant',
-            'cache_prefix_separator' => ':',
+            'cache_prefix_separator' => '.',
             'database' => [
                 'enabled' => false,
             ],
