@@ -18,7 +18,7 @@ Laravel has `stancl/tenancy`. Symfony had nothing comparable — until now. This
 composer require danplaton4/tenancy-bundle
 ```
 
-Symfony Flex auto-registers the bundle and drops a `config/packages/tenancy.yaml` stub in your project.
+Register the bundle in `config/bundles.php`, then run `bin/console tenancy:init` to generate `config/packages/tenancy.yaml`.
 
 **2. Configure** (`config/packages/tenancy.yaml`):
 
@@ -51,7 +51,7 @@ See the sections below for resolver configuration, shared-DB mode, Messenger int
 - **4 built-in resolvers** — subdomain, `X-Tenant-ID` header, query param, CLI `--tenant` flag
 - **Cache namespace isolation** — per-tenant cache pool prefixing, no cross-tenant cache bleed
 - **Messenger context propagation** — `TenantStamp` attached to every envelope, re-booted on consume
-- **CLI commands** — `tenancy:migrate` (run migrations per tenant), `tenancy:run` (wrap any command with tenant context)
+- **CLI commands** — `tenancy:init` (scaffold config), `tenancy:migrate` (run migrations per tenant), `tenancy:run` (wrap any command with tenant context)
 - **PHPUnit testing trait** — `InteractsWithTenancy` sets up a clean tenant DB/schema per test method
 - **Strict mode** — `TenantMissingException` thrown when `#[TenantAware]` entity is queried with no active tenant; on by default
 
@@ -95,7 +95,7 @@ Bootstrappers are Symfony services tagged with `tenancy.bootstrapper` — add yo
 | Subdomain + domain resolution | Yes | Yes | Yes | DIY |
 | CLI tenant context | Yes | Yes | No | No |
 | Strict mode (no-tenant = error) | Yes (default ON) | No | No | No |
-| Flex recipe (zero-config install) | Yes | N/A (Laravel) | No | No |
+| `tenancy:init` scaffolding | Yes | N/A (Laravel) | No | No |
 | PHPUnit testing trait | Yes | Yes | No | No |
 | PHPStan level 9 | Yes | No | No | No |
 | Event-driven bootstrappers | Yes | Bootstrapper classes | No | No |

@@ -19,7 +19,7 @@ Laravel has `stancl/tenancy`. Symfony had nothing comparable — until now. This
 composer require danplaton4/tenancy-bundle
 ```
 
-Symfony Flex auto-registers the bundle and creates `config/packages/tenancy.yaml`.
+Register the bundle in `config/bundles.php`, then run `bin/console tenancy:init` to generate `config/packages/tenancy.yaml` with commented defaults.
 
 **2. Configure** (`config/packages/tenancy.yaml`):
 
@@ -72,7 +72,7 @@ That's it. Subdomain requests resolve tenants, database connections switch, cach
 | **4 built-in resolvers** | Subdomain, `X-Tenant-ID` header, query param, CLI `--tenant` |
 | **Cache isolation** | Per-tenant cache namespace — no cross-tenant bleed |
 | **Messenger context** | `TenantStamp` on every envelope, re-booted on consume |
-| **CLI commands** | `tenancy:migrate` and `tenancy:run` |
+| **CLI commands** | `tenancy:init`, `tenancy:migrate`, and `tenancy:run` |
 | **PHPUnit trait** | `InteractsWithTenancy` for clean per-test tenant setup |
 | **Strict mode** | `TenantMissingException` when querying without tenant (default: ON) |
 
@@ -122,7 +122,7 @@ Bootstrappers are Symfony services tagged `tenancy.bootstrapper`. Add your own b
 | Subdomain + domain resolution | :material-check: | :material-check: | :material-check: | DIY |
 | CLI tenant context | :material-check: | :material-check: | :material-close: | :material-close: |
 | Strict mode (default ON) | :material-check: | :material-close: | :material-close: | :material-close: |
-| Flex recipe (zero-config) | :material-check: | N/A | :material-close: | :material-close: |
+| `tenancy:init` scaffolding | :material-check: | N/A | :material-close: | :material-close: |
 | PHPUnit testing trait | :material-check: | :material-check: | :material-close: | :material-close: |
 | PHPStan level 9 | :material-check: | :material-close: | :material-close: | :material-close: |
 
