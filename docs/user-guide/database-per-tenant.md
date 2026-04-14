@@ -200,14 +200,18 @@ every tenant switch.
 
 ### Entity Manager Isolation
 
-`EntityManagerResetListener` listens for `TenantContextCleared` and calls `resetManager()` on the
-registry. This clears the tenant EM's identity map, preventing entity objects from leaking between
-requests.
+`EntityManagerResetListener` listens for `TenantContextCleared` and resets entity managers to
+prevent identity map pollution across tenant switches. The behavior depends on the active driver:
+
+- **`database_per_tenant` mode**: Only the `tenant` EM is reset via `resetManager('tenant')`.
+  The `landlord` EM is never reset — it remains stable across tenant switches.
+- **`shared_db` / single-EM mode**: The default EM is reset via `resetManager(null)`.
 
 !!! warning "Stale EM References"
     `resetManager()` is called on every tenant switch. Any `EntityManagerInterface` reference
-    obtained before the switch may be invalid after. Always retrieve the EM from the registry
-    (e.g., `$doctrine->getManager('tenant')`) rather than caching it as a class property.
+    to the **tenant** EM obtained before the switch may be invalid after. Always retrieve the
+    tenant EM from the registry (e.g., `$doctrine->getManager('tenant')`) rather than caching
+    it as a class property. The `landlord` EM is not affected.
 
 ## Migrations
 

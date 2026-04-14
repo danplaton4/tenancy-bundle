@@ -184,6 +184,13 @@ tenancy:
 !!! note "ConsoleResolver is always active"
     Removing `console` from the `resolvers` list has no effect — `ConsoleResolver` is registered unconditionally as a `ConsoleCommandEvent` listener.
 
+!!! note "Custom resolvers always pass through"
+    The `tenancy.resolvers` config list only filters the four built-in resolvers (`host`,
+    `header`, `query_param`, `console`). Custom resolvers that implement
+    `TenantResolverInterface` are **never** filtered — they are always added to the chain
+    regardless of the `resolvers` config value. This means you cannot accidentally disable
+    a custom resolver by omitting it from the config list.
+
 ---
 
 ## Custom Resolver
