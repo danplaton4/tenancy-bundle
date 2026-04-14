@@ -6,7 +6,7 @@ Everything you need to install, configure, and use Tenancy Bundle in your Symfon
 
 New to the bundle? Start here:
 
-1. [Installation](installation.md) — composer require, Flex auto-config, manual registration
+1. [Installation](installation.md) — composer require, bundle registration, tenancy:init
 2. [Getting Started](getting-started.md) — 5-minute end-to-end walkthrough
 3. [Configuration Reference](configuration.md) — every `tenancy.yaml` key explained
 
