@@ -87,16 +87,46 @@ App\Bootstrapper\MyBootstrapper:
 `ResolverChainPass` mirrors `BootstrapperChainPass` for resolvers:
 
 ```php
+// src/DependencyInjection/Compiler/ResolverChainPass.php (simplified)
 public function process(ContainerBuilder $container): void
 {
     $definition = $container->findDefinition(ResolverChain::class);
+
+    // Build allowed FQCN set from config short-names (e.g. 'host', 'header')
+    $allowedFqcns = null;
+    if ($container->hasParameter('tenancy.resolvers')) {
+        $allowedFqcns = [];
+        foreach ($container->getParameter('tenancy.resolvers') as $name) {
+            if (isset(self::BUILT_IN_RESOLVER_MAP[$name])) {
+                $allowedFqcns[] = self::BUILT_IN_RESOLVER_MAP[$name];
+            }
+        }
+    }
+
     $resolvers = $this->findAndSortTaggedServices('tenancy.resolver', $container);
 
     foreach ($resolvers as $resolver) {
+        $serviceId = (string) $resolver;
+        if (null !== $allowedFqcns) {
+            $fqcn = $container->findDefinition($serviceId)->getClass() ?? $serviceId;
+            // Built-in resolvers must be in the allowed list
+            if (in_array($fqcn, self::BUILT_IN_RESOLVER_MAP, true)
+                && !in_array($fqcn, $allowedFqcns, true)) {
+                continue; // Skip — not in config
+            }
+            // Custom resolvers (not in built-in map) always pass through
+        }
         $definition->addMethodCall('addResolver', [$resolver]);
     }
 }
 ```
+
+The pass reads the `tenancy.resolvers` config parameter to determine which built-in resolvers
+are active. Built-in resolvers not listed in the config are skipped. Custom resolvers (any class
+implementing `TenantResolverInterface` that is not in the `BUILT_IN_RESOLVER_MAP`) always pass
+through the filter — they cannot be accidentally disabled by configuration. If no
+`tenancy.resolvers` parameter exists, all resolvers are added unconditionally (backward
+compatible).
 
 Built-in resolver priorities (defined in `config/services.php`):
 
@@ -227,6 +257,7 @@ This uses Doctrine's native filter mechanism so the filter participates in Doctr
 | `tenancy.resolver_chain` | `ResolverChain` | Runs resolvers in priority order |
 | `TenantContextOrchestrator` | — | Kernel event listener (autoconfigured) |
 | `EntityManagerResetListener` | — | Resets EM on `TenantContextCleared` |
+| `tenancy.command.init` | `TenantInitCommand` | Scaffolds `config/packages/tenancy.yaml` |
 
 ### When database.enabled: true
 
