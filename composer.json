@@ -58,11 +58,6 @@
         }
     },
     "extra": {
-        "symfony": {
-            "bundles": {
-                "Tenancy\\Bundle\\TenancyBundle": ["all"]
-            }
-        },
         "branch-alias": {
             "dev-master": "1.0.x-dev"
         }
