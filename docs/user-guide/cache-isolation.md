@@ -48,8 +48,8 @@ Assuming `cache.app` uses Redis or filesystem storage:
 
 ```
 No tenant active:    cache key  →  app:my_key
-Tenant 'acme':       cache key  →  app/acme:my_key
-Tenant 'demo':       cache key  →  app/demo:my_key
+Tenant 'acme':       cache key  →  app/acme.my_key
+Tenant 'demo':       cache key  →  app/demo.my_key
 ```
 
 Clearing the 'acme' namespace does not touch 'demo' data, and does not touch the global

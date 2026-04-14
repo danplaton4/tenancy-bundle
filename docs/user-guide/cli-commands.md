@@ -1,8 +1,75 @@
 # CLI Commands
 
-The bundle provides two console commands for tenant-aware operations: `tenancy:migrate` for
-running Doctrine Migrations across all tenants, and `tenancy:run` for executing any Symfony
-console command within a specific tenant's context.
+The bundle provides three console commands: `tenancy:init` for scaffolding configuration,
+`tenancy:migrate` for running Doctrine Migrations across all tenants, and `tenancy:run` for
+executing any Symfony console command within a specific tenant's context.
+
+## tenancy:init
+
+Scaffold a fully commented `config/packages/tenancy.yaml` with all configuration keys, Doctrine
+detection, and next-steps guidance.
+
+### Usage
+
+```bash
+# First-time setup — creates config/packages/tenancy.yaml
+bin/console tenancy:init
+
+# Regenerate (overwrite existing file)
+bin/console tenancy:init --force
+```
+
+### Behavior
+
+- **File creation**: Creates `config/packages/tenancy.yaml` in the project root. If the
+  `config/packages/` directory does not exist, it is created automatically.
+- **Overwrite protection**: If `config/packages/tenancy.yaml` already exists and `--force` is
+  NOT passed, the command prints a warning and exits with failure. Pass `--force` to overwrite.
+- **Doctrine detection**: The command checks `interface_exists(EntityManagerInterface::class)`.
+  If Doctrine ORM is installed, it recommends `database_per_tenant` as the driver and
+  uncomments the `driver:` line in the generated YAML. If Doctrine is absent, it recommends
+  `shared_db` and leaves the driver line commented.
+- **Next-steps guidance**: After creating the file, the command prints actionable next steps
+  (review config, create Tenant entity, configure app_domain, run schema update).
+- **No dependencies**: The command is always registered — no optional packages required.
+
+### Output
+
+When Doctrine ORM is detected:
+
+```
+ [OK] Created config/packages/tenancy.yaml
+
+ Doctrine ORM detected — recommended driver: database_per_tenant
+ Uncomment driver and set database.enabled: true in your config.
+
+ Next Steps
+ ----------
+  * Review and uncomment the configuration values in config/packages/tenancy.yaml
+  * Create your Tenant entity implementing Tenancy\Bundle\TenantInterface
+  * Configure your host.app_domain if using subdomain-based resolution
+  * Run bin/console doctrine:schema:update or create migrations for the Tenant entity
+  * Visit https://github.com/danplaton4/tenancy-bundle for full documentation
+```
+
+When Doctrine ORM is NOT detected:
+
+```
+ [OK] Created config/packages/tenancy.yaml
+
+ Doctrine ORM not detected — recommended driver: shared_db
+ Install doctrine/orm to use database_per_tenant mode.
+
+ Next Steps
+ ----------
+  * Review and uncomment the configuration values in config/packages/tenancy.yaml
+  * Create your Tenant entity implementing Tenancy\Bundle\TenantInterface
+  * Configure your host.app_domain if using subdomain-based resolution
+  * Run bin/console doctrine:schema:update or create migrations for the Tenant entity
+  * Visit https://github.com/danplaton4/tenancy-bundle for full documentation
+```
+
+---
 
 ## tenancy:migrate
 
@@ -117,6 +184,7 @@ No additional installation is needed.
 
 ## See Also
 
+- [Installation](installation.md) — initial setup with tenancy:init
 - [Database-per-Tenant](database-per-tenant.md) — connection switching mechanics
 - [Testing](testing.md) — running tests with tenant context
 - [Architecture: DI Compilation Pipeline](../architecture/di-compilation.md)
