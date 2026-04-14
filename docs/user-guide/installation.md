@@ -14,58 +14,39 @@ composer require danplaton4/tenancy-bundle
 
 ## 2. Bundle Registration
 
-=== "With Flex"
+Add the bundle to `config/bundles.php`:
 
-    Symfony Flex automatically registers the bundle and creates a stub config file.
-
-    **`config/bundles.php`** — added automatically:
-
-    ```php
+```php
+return [
+    // ... other bundles
     Tenancy\Bundle\TenancyBundle::class => ['all' => true],
-    ```
+];
+```
 
-    **`config/packages/tenancy.yaml`** — created automatically with defaults:
+Then create `config/packages/tenancy.yaml` with the full defaults:
 
-    ```yaml
-    tenancy:
-        driver: database_per_tenant
-        strict_mode: true
-        database:
-            enabled: false
-    ```
+```yaml
+tenancy:
+    driver: database_per_tenant
+    strict_mode: true
+    landlord_connection: default
+    tenant_entity_class: Tenancy\Bundle\Entity\Tenant
+    cache_prefix_separator: '.'
+    database:
+        enabled: false
+    resolvers:
+        - host
+        - header
+        - query_param
+        - console
+    host:
+        app_domain: ~
+```
 
-    You only need to uncomment and adjust the keys you want to change.
-
-=== "Without Flex"
-
-    Add the bundle to `config/bundles.php` manually:
-
-    ```php
-    return [
-        // ... other bundles
-        Tenancy\Bundle\TenancyBundle::class => ['all' => true],
-    ];
-    ```
-
-    Then create `config/packages/tenancy.yaml` with the full defaults:
-
-    ```yaml
-    tenancy:
-        driver: database_per_tenant
-        strict_mode: true
-        landlord_connection: default
-        tenant_entity_class: Tenancy\Bundle\Entity\Tenant
-        cache_prefix_separator: ':'
-        database:
-            enabled: false
-        resolvers:
-            - host
-            - header
-            - query_param
-            - console
-        host:
-            app_domain: ~
-    ```
+!!! tip "Or use tenancy:init"
+    Instead of creating the config manually, run `bin/console tenancy:init` to generate a fully
+    commented `config/packages/tenancy.yaml` with all keys and Doctrine-aware driver recommendations.
+    See [CLI Commands](cli-commands.md#tenancyinit) for details.
 
 ---
 
