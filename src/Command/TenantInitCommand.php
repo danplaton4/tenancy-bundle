@@ -110,7 +110,7 @@ final class TenantInitCommand extends Command
             '    # tenant_entity_class: Tenancy\Bundle\Entity\Tenant',
             '',
             '    # Separator used for tenant cache namespace isolation',
-            "    # cache_prefix_separator: ':'",
+            "    # cache_prefix_separator: '.'",
             '',
             '    # Enabled resolvers (order = priority: first match wins)',
             '    # resolvers: [host, header, query_param, console]',
