@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-04-12
+## [0.1.0] - 2026-04-19
 
-First stable release. Multi-tenancy for Symfony with zero boilerplate and zero leaks.
+Initial public release. Multi-tenancy for Symfony with zero boilerplate and zero leaks.
+
+> **Note on versioning**: Previously tagged as `v1.0.0` (2026-04-12) but never publicly released — the v1.0.0 tag was removed because four architectural issues (cache decorator contract, resolver optionality, DBAL 4 connection switching) surfaced in downstream demo projects before the tag was advertised. The codebase has been restarted from `0.x` until those issues are resolved.
 
 ### Added
 
@@ -68,5 +70,5 @@ First stable release. Multi-tenancy for Symfony with zero boilerplate and zero l
   - CI jobs for no-Doctrine, no-Messenger, and prefer-lowest dependency validation
   - Codecov coverage reporting
 
-[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/danplaton4/tenancy-bundle/releases/tag/v1.0.0
+[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/danplaton4/tenancy-bundle/releases/tag/v0.1.0

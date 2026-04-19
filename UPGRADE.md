@@ -1,6 +1,6 @@
 # Upgrade Guide
 
-## Upgrading to 1.0
+## Upgrading to 0.1
 
 ### Requirements
 
@@ -38,4 +38,4 @@ Strict mode is **on by default**. When enabled, querying a `#[TenantAware]` enti
 
 ### Breaking Changes
 
-This is the first stable release. There are no breaking changes from prior versions.
+This is the initial `0.x` release. The public API is still stabilizing — minor releases on the `0.x` line may include breaking changes as architectural issues identified in early adopter feedback are addressed. A stable `1.0` will be tagged once those are resolved.
