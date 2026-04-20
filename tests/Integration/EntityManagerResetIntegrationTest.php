@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle\Tests\Integration;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Tenancy\Bundle\DBAL\TenantConnection;
+use Tenancy\Bundle\Context\TenantContext;
+use Tenancy\Bundle\Entity\Tenant;
 use Tenancy\Bundle\Event\TenantContextCleared;
 use Tenancy\Bundle\Tests\Integration\Support\DoctrineTestKernel;
 use Tenancy\Bundle\Tests\Integration\Support\Entity\TestProduct;
@@ -44,11 +46,16 @@ final class EntityManagerResetIntegrationTest extends TestCase
 
         $container = static::$kernel->getContainer();
 
-        /** @var TenantConnection $conn */
+        /** @var TenantContext $ctx */
+        $ctx = $container->get('tenancy.context');
+        /** @var Connection $conn */
         $conn = $container->get('doctrine.dbal.tenant_connection');
 
-        // Switch to a real SQLite file so schema creation succeeds
-        $conn->switchTenant(['driver' => 'pdo_sqlite', 'path' => static::$pathA]);
+        // Activate a tenant via TenantContext + close() so the middleware routes the next
+        // connect() to tenant A's SQLite file — required for schema creation.
+        $tenantA = (new Tenant('a', 'A'))->setConnectionConfig(['path' => static::$pathA]);
+        $ctx->setTenant($tenantA);
+        $conn->close();
 
         /** @var \Doctrine\Persistence\ManagerRegistry $registry */
         $registry = $container->get('doctrine');
@@ -108,9 +115,15 @@ final class EntityManagerResetIntegrationTest extends TestCase
     {
         $container = static::$kernel->getContainer();
 
-        /** @var TenantConnection $conn */
+        /** @var TenantContext $ctx */
+        $ctx = $container->get('tenancy.context');
+        /** @var Connection $conn */
         $conn = $container->get('doctrine.dbal.tenant_connection');
-        $conn->switchTenant(['driver' => 'pdo_sqlite', 'path' => static::$pathA]);
+
+        // Re-activate tenant A and force a reconnect so subsequent persistence lands in tenant A's DB
+        $tenantA = (new Tenant('a', 'A'))->setConnectionConfig(['path' => static::$pathA]);
+        $ctx->setTenant($tenantA);
+        $conn->close();
 
         /** @var \Doctrine\Persistence\ManagerRegistry $registry */
         $registry = $container->get('doctrine');

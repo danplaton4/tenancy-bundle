@@ -11,7 +11,6 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
-use Tenancy\Bundle\DBAL\TenantConnection;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
 use Tenancy\Bundle\TenancyBundle;
 
@@ -91,7 +90,6 @@ final class DoctrineTenantProviderBootTestKernel extends Kernel
                         'default' => [
                             'driver' => 'pdo_sqlite',
                             'path' => sys_get_temp_dir().'/tenancy_test_landlord.db',
-                            'wrapper_class' => TenantConnection::class,
                         ],
                     ],
                 ],
