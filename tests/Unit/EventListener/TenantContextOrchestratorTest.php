@@ -24,17 +24,18 @@ use Tenancy\Bundle\TenantInterface;
 
 /**
  * Spy TenantBootstrapperInterface implementation.
- * Tracks clear() calls so we can verify BootstrapperChain::clear() was invoked.
+ * Tracks boot()/clear() calls so we can verify BootstrapperChain flow.
  */
 final class SpyBootstrapper implements TenantBootstrapperInterface
 {
+    public int $bootCallCount = 0;
     public int $clearCallCount = 0;
     /** @var callable|null */
     public $onClear;
 
     public function boot(TenantInterface $tenant): void
     {
-        // no-op in these tests
+        ++$this->bootCallCount;
     }
 
     public function clear(): void
@@ -47,7 +48,7 @@ final class SpyBootstrapper implements TenantBootstrapperInterface
 }
 
 /**
- * Stub TenantResolverInterface that always returns a fixed tenant.
+ * Stub TenantResolverInterface that always returns a fixed tenant (or null).
  * Used to make ResolverChain (final) return a predictable result in unit tests.
  */
 final class StubResolver implements TenantResolverInterface
@@ -83,7 +84,7 @@ final class TenantContextOrchestratorTest extends TestCase
         $this->chainDispatcher->method('dispatch')->willReturnArgument(0);
         $this->bootstrapperChain = new BootstrapperChain($this->chainDispatcher);
 
-        // Add a spy bootstrapper so we can detect when chain->clear() is called
+        // Add a spy bootstrapper so we can detect when chain->boot()/clear() is called
         $this->spyBootstrapper = new SpyBootstrapper();
         $this->bootstrapperChain->addBootstrapper($this->spyBootstrapper);
 
@@ -124,11 +125,12 @@ final class TenantContextOrchestratorTest extends TestCase
         $this->orchestrator->onKernelRequest($event);
 
         $this->assertFalse($this->tenantContext->hasTenant());
+        $this->assertSame(0, $this->spyBootstrapper->bootCallCount);
         $this->assertSame(0, $this->spyBootstrapper->clearCallCount);
     }
 
     // -------------------------------------------------------------------------
-    // onKernelRequest — main request flow
+    // onKernelRequest — main request flow (tenant resolved)
     // -------------------------------------------------------------------------
 
     public function testOnKernelRequestCallsResolverChain(): void
@@ -165,6 +167,8 @@ final class TenantContextOrchestratorTest extends TestCase
             ->method('dispatch');
 
         $this->orchestrator->onKernelRequest($event);
+
+        $this->assertSame(1, $this->spyBootstrapper->bootCallCount);
     }
 
     public function testOnKernelRequestDispatchesTenantResolved(): void
@@ -192,10 +196,72 @@ final class TenantContextOrchestratorTest extends TestCase
         $this->assertSame(StubResolver::class, $dispatchedEvent->resolvedBy);
     }
 
+    // -------------------------------------------------------------------------
+    // onKernelRequest — main request flow (null resolution — FIX-02)
+    // -------------------------------------------------------------------------
+
+    public function testOnKernelRequestIsNoOpWhenNoResolverMatches(): void
+    {
+        $kernel = $this->createMock(HttpKernelInterface::class);
+        $request = Request::create('/');
+        $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
+
+        // Construct an orchestrator backed by a chain whose only resolver returns null
+        $emptyChain = new ResolverChain();
+        $emptyChain->addResolver(new StubResolver(null));
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->expects($this->never())->method('dispatch');
+
+        $chainDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $chainDispatcher->expects($this->never())->method('dispatch');
+
+        $context = new TenantContext();
+        $chain = new BootstrapperChain($chainDispatcher);
+        $spy = new SpyBootstrapper();
+        $chain->addBootstrapper($spy);
+
+        $orchestrator = new TenantContextOrchestrator(
+            $context,
+            $chain,
+            $dispatcher,
+            $emptyChain,
+        );
+
+        $orchestrator->onKernelRequest($event);
+
+        $this->assertFalse($context->hasTenant(), 'TenantContext must remain empty when no resolver matches');
+        $this->assertSame(0, $spy->bootCallCount, 'BootstrapperChain::boot() must NOT run on null resolution');
+    }
+
+    public function testOnKernelRequestDoesNotDispatchTenantResolvedWhenChainReturnsNull(): void
+    {
+        // Rebuild orchestrator with a chain that returns null
+        $emptyChain = new ResolverChain();
+        $emptyChain->addResolver(new StubResolver(null));
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->expects($this->never())
+            ->method('dispatch')
+            ->with($this->isInstanceOf(TenantResolved::class));
+
+        $orchestrator = new TenantContextOrchestrator(
+            new TenantContext(),
+            new BootstrapperChain($this->createMock(EventDispatcherInterface::class)),
+            $dispatcher,
+            $emptyChain,
+        );
+
+        $kernel = $this->createMock(HttpKernelInterface::class);
+        $request = Request::create('/');
+        $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $orchestrator->onKernelRequest($event);
+    }
+
     public function testOnKernelRequestSkipsSubRequests(): void
     {
-        // Orchestrator built with an empty ResolverChain so that if resolve() were called
-        // it would throw — proving sub-request path is truly skipped.
+        // Orchestrator built with an empty ResolverChain — confirms sub-request path is truly skipped.
         $emptyChain = new ResolverChain();
         $orchestratorWithEmptyChain = new TenantContextOrchestrator(
             new TenantContext(),
