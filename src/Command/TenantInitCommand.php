@@ -12,10 +12,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'tenancy:init', description: 'Initialize tenancy configuration')]
-final class TenantInitCommand extends Command
+class TenantInitCommand extends Command
 {
     public function __construct(
-        private readonly string $projectDir,
+        protected readonly string $projectDir,
     ) {
         parent::__construct();
     }
@@ -44,7 +44,7 @@ final class TenantInitCommand extends Command
             $io->note('Overwriting existing configuration file.');
         }
 
-        $doctrineDetected = interface_exists(\Doctrine\ORM\EntityManagerInterface::class);
+        $doctrineDetected = $this->detectDoctrine();
 
         $yamlContent = $this->generateYamlContent($doctrineDetected);
 
@@ -78,6 +78,16 @@ final class TenantInitCommand extends Command
         $this->printNextSteps($io);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Detect whether Doctrine ORM is installed. Overridable for tests — the
+     * non-Doctrine onboarding path cannot be exercised otherwise in a test
+     * environment where doctrine/orm is always installed as a dev dependency.
+     */
+    protected function detectDoctrine(): bool
+    {
+        return interface_exists(\Doctrine\ORM\EntityManagerInterface::class);
     }
 
     private function generateYamlContent(bool $doctrineDetected): string
