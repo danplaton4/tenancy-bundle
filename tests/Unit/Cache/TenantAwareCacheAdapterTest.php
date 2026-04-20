@@ -8,6 +8,9 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\CacheItem;
+use Symfony\Component\Cache\PruneableInterface;
+use Symfony\Component\Cache\ResettableInterface;
+use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\NamespacedPoolInterface;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
 use Tenancy\Bundle\Context\TenantContext;
@@ -15,23 +18,33 @@ use Tenancy\Bundle\TenantInterface;
 
 class TenantAwareCacheAdapterTest extends TestCase
 {
-    /** @var (AdapterInterface&NamespacedPoolInterface)&MockObject */
-    private AdapterInterface&NamespacedPoolInterface $inner;
+    /** @var (AdapterInterface&CacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface)&MockObject */
+    private AdapterInterface&CacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface $inner;
 
     private TenantContext $tenantContext;
 
     /** @var TenantInterface&MockObject */
     private TenantInterface $tenant;
 
+    private TenantAwareCacheAdapter $adapter;
+
     protected function setUp(): void
     {
-        /** @var (AdapterInterface&NamespacedPoolInterface)&MockObject $inner */
-        $inner = $this->createMockForIntersectionOfInterfaces([AdapterInterface::class, NamespacedPoolInterface::class]);
+        /** @var (AdapterInterface&CacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface)&MockObject $inner */
+        $inner = $this->createMockForIntersectionOfInterfaces([
+            AdapterInterface::class,
+            CacheInterface::class,
+            NamespacedPoolInterface::class,
+            PruneableInterface::class,
+            ResettableInterface::class,
+        ]);
         $this->inner = $inner;
 
         $this->tenantContext = new TenantContext();
         $this->tenant = $this->createMock(TenantInterface::class);
         $this->tenant->method('getSlug')->willReturn('acme');
+
+        $this->adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
     }
 
     /**
@@ -60,8 +73,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with('foo')
             ->willReturn($expectedItem);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $result = $adapter->getItem('foo');
+        $result = $this->adapter->getItem('foo');
 
         $this->assertSame($expectedItem, $result);
     }
@@ -82,8 +94,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with('foo')
             ->willReturn($expectedItem);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $result = $adapter->getItem('foo');
+        $result = $this->adapter->getItem('foo');
 
         $this->assertSame($expectedItem, $result);
     }
@@ -104,8 +115,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with('')
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $result = $adapter->clear();
+        $result = $this->adapter->clear();
 
         $this->assertTrue($result);
     }
@@ -128,8 +138,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with($item)
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $result = $adapter->save($item);
+        $result = $this->adapter->save($item);
 
         $this->assertTrue($result);
     }
@@ -146,10 +155,9 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with('extra')
             ->willReturnSelf(); // static return type: returns $inner itself
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $cloned = $adapter->withSubNamespace('extra');
+        $cloned = $this->adapter->withSubNamespace('extra');
 
-        $this->assertNotSame($adapter, $cloned);
+        $this->assertNotSame($this->adapter, $cloned);
         $this->assertInstanceOf(TenantAwareCacheAdapter::class, $cloned);
 
         // No tenant set, pool() returns cloned inner (which is still $this->inner)
@@ -182,8 +190,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with(['foo', 'bar'])
             ->willReturn($expectedItems);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $result = $adapter->getItems(['foo', 'bar']);
+        $result = $this->adapter->getItems(['foo', 'bar']);
 
         $this->assertSame($expectedItems, $result);
     }
@@ -204,8 +211,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with('foo')
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertTrue($adapter->hasItem('foo'));
+        $this->assertTrue($this->adapter->hasItem('foo'));
     }
 
     public function testDeleteItemDelegatesToScopedPool(): void
@@ -224,8 +230,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with('foo')
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertTrue($adapter->deleteItem('foo'));
+        $this->assertTrue($this->adapter->deleteItem('foo'));
     }
 
     public function testDeleteItemsDelegatesToScopedPool(): void
@@ -244,8 +249,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with(['foo', 'bar'])
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertTrue($adapter->deleteItems(['foo', 'bar']));
+        $this->assertTrue($this->adapter->deleteItems(['foo', 'bar']));
     }
 
     public function testSaveDeferredDelegatesToScopedPool(): void
@@ -266,8 +270,7 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->with($item)
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertTrue($adapter->saveDeferred($item));
+        $this->assertTrue($this->adapter->saveDeferred($item));
     }
 
     public function testCommitDelegatesToScopedPool(): void
@@ -285,20 +288,17 @@ class TenantAwareCacheAdapterTest extends TestCase
             ->method('commit')
             ->willReturn(true);
 
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertTrue($adapter->commit());
+        $this->assertTrue($this->adapter->commit());
     }
 
     public function testImplementsAdapterInterface(): void
     {
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertInstanceOf(AdapterInterface::class, $adapter);
+        $this->assertInstanceOf(AdapterInterface::class, $this->adapter);
     }
 
     public function testImplementsNamespacedPoolInterface(): void
     {
-        $adapter = new TenantAwareCacheAdapter($this->inner, $this->tenantContext);
-        $this->assertInstanceOf(NamespacedPoolInterface::class, $adapter);
+        $this->assertInstanceOf(NamespacedPoolInterface::class, $this->adapter);
     }
 
     public function testCustomCachePrefixSeparatorIsUsed(): void
@@ -323,5 +323,74 @@ class TenantAwareCacheAdapterTest extends TestCase
         $result = $adapter->getItem('foo');
 
         $this->assertSame($expectedItem, $result);
+    }
+
+    public function testImplementsFullCacheAppSubstitutionSurface(): void
+    {
+        $reflection = new \ReflectionClass(TenantAwareCacheAdapter::class);
+        $interfaces = $reflection->getInterfaceNames();
+
+        $this->assertContains(AdapterInterface::class, $interfaces);
+        $this->assertContains(CacheInterface::class, $interfaces);
+        $this->assertContains(NamespacedPoolInterface::class, $interfaces);
+        $this->assertContains(PruneableInterface::class, $interfaces);
+        $this->assertContains(ResettableInterface::class, $interfaces);
+    }
+
+    public function testGetWithoutTenantDelegatesToInner(): void
+    {
+        $this->inner
+            ->expects($this->once())
+            ->method('get')
+            ->with('foo', $this->isType('callable'))
+            ->willReturn('bar');
+
+        $result = $this->adapter->get('foo', fn () => 'bar');
+        $this->assertSame('bar', $result);
+    }
+
+    public function testGetWithTenantAppliesSubNamespace(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+
+        $this->inner->expects($this->once())->method('withSubNamespace')->with('acme.')->willReturnSelf();
+        $this->inner->expects($this->once())->method('get')->with('foo', $this->isType('callable'))->willReturn('bar');
+
+        $result = $this->adapter->get('foo', fn () => 'bar');
+        $this->assertSame('bar', $result);
+    }
+
+    public function testDeleteWithoutTenantDelegatesToInner(): void
+    {
+        $this->inner->expects($this->once())->method('delete')->with('foo')->willReturn(true);
+        $this->assertTrue($this->adapter->delete('foo'));
+    }
+
+    public function testDeleteWithTenantAppliesSubNamespace(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+        $this->inner->expects($this->once())->method('withSubNamespace')->with('acme.')->willReturnSelf();
+        $this->inner->expects($this->once())->method('delete')->with('foo')->willReturn(true);
+
+        $this->assertTrue($this->adapter->delete('foo'));
+    }
+
+    public function testPruneDelegatesToInnerIgnoringTenant(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+        // prune is pool-wide — namespace is intentionally NOT applied (RESEARCH § 2.3)
+        $this->inner->expects($this->never())->method('withSubNamespace');
+        $this->inner->expects($this->once())->method('prune')->willReturn(true);
+
+        $this->assertTrue($this->adapter->prune());
+    }
+
+    public function testResetDelegatesToInnerIgnoringTenant(): void
+    {
+        $this->tenantContext->setTenant($this->tenant);
+        $this->inner->expects($this->never())->method('withSubNamespace');
+        $this->inner->expects($this->once())->method('reset');
+
+        $this->adapter->reset();
     }
 }
