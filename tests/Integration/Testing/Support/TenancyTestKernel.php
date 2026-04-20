@@ -9,7 +9,6 @@ use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
-use Tenancy\Bundle\DBAL\TenantConnection;
 use Tenancy\Bundle\TenancyBundle;
 use Tenancy\Bundle\Tests\Integration\Support\ReplaceTenancyProviderPass;
 
@@ -18,7 +17,8 @@ use Tenancy\Bundle\Tests\Integration\Support\ReplaceTenancyProviderPass;
  *
  * Registers FrameworkBundle + DoctrineBundle + TenancyBundle with:
  *   - landlord connection: file-based SQLite (tenancy_testing_trait_landlord.db)
- *   - tenant connection: file-based SQLite placeholder with TenantConnection wrapperClass
+ *   - tenant connection: file-based SQLite placeholder (TenantDriverMiddleware is wired
+ *     automatically by TenancyBundle::loadExtension() when tenancy.database.enabled: true)
  *   - two separate entity managers (landlord + tenant)
  *   - tenancy.database.enabled: true (database-per-tenant mode)
  *
@@ -78,7 +78,6 @@ class TenancyTestKernel extends Kernel
                         'tenant' => [
                             'driver' => 'pdo_sqlite',
                             'path' => sys_get_temp_dir().'/tenancy_testing_trait_placeholder.db',
-                            'wrapper_class' => TenantConnection::class,
                         ],
                     ],
                 ],
