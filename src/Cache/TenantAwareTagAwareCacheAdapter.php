@@ -21,9 +21,7 @@ use Tenancy\Bundle\Context\TenantContext;
  * extends CacheInterface — so a TagAwareAdapterInterface&TagAwareCacheInterface value
  * is also an AdapterInterface&CacheInterface value.
  */
-final class TenantAwareTagAwareCacheAdapter extends TenantAwareCacheAdapter implements
-    TagAwareAdapterInterface,
-    TagAwareCacheInterface
+final class TenantAwareTagAwareCacheAdapter extends TenantAwareCacheAdapter implements TagAwareAdapterInterface, TagAwareCacheInterface
 {
     public function __construct(
         TagAwareAdapterInterface&TagAwareCacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface $inner,

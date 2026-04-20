@@ -46,7 +46,7 @@ final class TenantAwareTagAwareCacheAdapterTest extends TestCase
     public function testExtendsBaseAndImplementsTagAwareContracts(): void
     {
         $reflection = new \ReflectionClass(TenantAwareTagAwareCacheAdapter::class);
-        $this->assertSame(TenantAwareCacheAdapter::class, $reflection->getParentClass() !== false ? $reflection->getParentClass()->getName() : null);
+        $this->assertSame(TenantAwareCacheAdapter::class, false !== $reflection->getParentClass() ? $reflection->getParentClass()->getName() : null);
         $this->assertContains(TagAwareAdapterInterface::class, $reflection->getInterfaceNames());
         $this->assertContains(TagAwareCacheInterface::class, $reflection->getInterfaceNames());
     }

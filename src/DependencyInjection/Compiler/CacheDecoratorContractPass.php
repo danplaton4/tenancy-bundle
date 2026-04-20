@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle\DependencyInjection\Compiler;
 
+use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
 
 /**
  * Asserts at container compile time that every cache decorator shipped by TenancyBundle
@@ -60,12 +60,7 @@ final class CacheDecoratorContractPass implements CompilerPassInterface
             $missing = array_filter($missing, static fn (string $i): bool => str_starts_with($i, 'Symfony\\'));
 
             if ([] !== $missing) {
-                throw new \LogicException(sprintf(
-                    'Cache decorator "%s" must implement every Symfony interface exposed by "%s". Missing: %s',
-                    $decoratorClass,
-                    $decoratedClass,
-                    implode(', ', $missing),
-                ));
+                throw new \LogicException(sprintf('Cache decorator "%s" must implement every Symfony interface exposed by "%s". Missing: %s', $decoratorClass, $decoratedClass, implode(', ', $missing)));
             }
         }
     }
@@ -74,8 +69,10 @@ final class CacheDecoratorContractPass implements CompilerPassInterface
     {
         $def = $container->getDefinition($id);
 
-        // Parent-definition recursion (cache.app's parent is cache.adapter.filesystem)
-        while ($def instanceof Definition && null === $def->getClass() && null !== $def->getParent()) {
+        // Parent-definition recursion (cache.app's parent is cache.adapter.filesystem).
+        // Only ChildDefinition has getParent(); resolve through the chain until a concrete
+        // class is found or the chain breaks.
+        while (null === $def->getClass() && $def instanceof ChildDefinition) {
             $parentId = $def->getParent();
             if (!$container->hasDefinition($parentId)) {
                 return null;
