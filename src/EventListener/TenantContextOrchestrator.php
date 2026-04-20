@@ -36,12 +36,18 @@ final class TenantContextOrchestrator
             return;
         }
 
-        $result = $this->resolverChain->resolve($event->getRequest());
+        $resolution = $this->resolverChain->resolve($event->getRequest());
 
-        $this->tenantContext->setTenant($result['tenant']);
-        $this->bootstrapperChain->boot($result['tenant']);
+        if (null === $resolution) {
+            // Public route / landlord / health check — leave TenantContext empty,
+            // skip the bootstrapper chain, do NOT dispatch TenantResolved.
+            return;
+        }
+
+        $this->tenantContext->setTenant($resolution->tenant);
+        $this->bootstrapperChain->boot($resolution->tenant);
         $this->eventDispatcher->dispatch(
-            new TenantResolved($result['tenant'], $event->getRequest(), $result['resolvedBy'])
+            new TenantResolved($resolution->tenant, $event->getRequest(), $resolution->resolvedBy)
         );
     }
 
