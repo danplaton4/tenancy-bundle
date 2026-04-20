@@ -43,9 +43,17 @@ final class TenantAwareDriver extends AbstractDriverMiddleware
         $tenant = $this->tenantContext->getTenant();
 
         if (null !== $tenant) {
+            $tenantConfig = $tenant->getConnectionConfig();
+            if (array_key_exists('url', $tenantConfig)) {
+                throw new \LogicException(sprintf(
+                    'Tenant "%s" returned "url" in getConnectionConfig(); use discrete keys '
+                    .'(driver, host, dbname, ...) — url is parsed before middlewares run and has no effect.',
+                    $tenant->getSlug()
+                ));
+            }
             // Tenant keys win; driver stays consistent (tenant config MUST match landlord driver family).
             /** @var Params $params */
-            $params = array_merge($params, $tenant->getConnectionConfig());
+            $params = array_merge($params, $tenantConfig);
         }
 
         return parent::connect($params);
