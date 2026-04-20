@@ -60,18 +60,16 @@ public function onKernelRequest(RequestEvent $event): void
 `ResolverChain::resolve(Request $request)` iterates all registered resolvers in tag-priority order:
 
 ```php
-public function resolve(Request $request): array
+public function resolve(Request $request): ?TenantResolution
 {
     foreach ($this->resolvers as $resolver) {
         $tenant = $resolver->resolve($request);
         if (null !== $tenant) {
-            return [
-                'tenant' => $tenant,
-                'resolvedBy' => $resolver::class,
-            ];
+            return new TenantResolution($tenant, $resolver::class);
         }
     }
-    throw new TenantNotFoundException('No resolver could identify a tenant from the current request.');
+
+    return null;
 }
 ```
 
@@ -79,21 +77,36 @@ public function resolve(Request $request): array
 
 - Each resolver receives the `Request` and returns `?TenantInterface`
 - First non-null result wins — subsequent resolvers are not called
-- The return type is `array{tenant: TenantInterface, resolvedBy: string}`, where `resolvedBy` is the FQCN of the resolver that succeeded
-- If every resolver returns `null`, `TenantNotFoundException` is thrown (strict mode) or the request proceeds without tenant context (when you have a fallback handler)
+- The return type is `?TenantResolution` — a `final readonly` value object with
+  `TenantInterface $tenant` and `string $resolvedBy` (the FQCN of the winning resolver).
+- If every resolver returns `null`, `ResolverChain::resolve()` returns `null` —
+  `TenantContextOrchestrator` leaves `TenantContext` empty, skips `BootstrapperChain::boot()`,
+  and does **not** dispatch `TenantResolved`. The request proceeds on public/landlord/health
+  routes untouched. `TenantNotFoundException` is reserved for the narrower case where a
+  resolver extracted an identifier but the provider rejected it (see
+  `DoctrineTenantProvider::findBySlug`).
 
-After resolution, `TenantContext::setTenant()` stores the resolved tenant in the stateful context object, and `BootstrapperChain::boot()` is called.
+After a non-null resolution, `TenantContext::setTenant()` stores the resolved tenant in the
+stateful context object, and `BootstrapperChain::boot()` is called.
 
 **Event: `TenantResolved`** is dispatched *after* bootstrapping completes (see source order in `TenantContextOrchestrator::onKernelRequest()`):
 
 ```php
-$result = $this->resolverChain->resolve($event->getRequest());
-$this->tenantContext->setTenant($result['tenant']);
-$this->bootstrapperChain->boot($result['tenant']);
+$resolution = $this->resolverChain->resolve($event->getRequest());
+if (null === $resolution) {
+    return;   // public route — no tenant, no bootstrappers, no event
+}
+$this->tenantContext->setTenant($resolution->tenant);
+$this->bootstrapperChain->boot($resolution->tenant);
 $this->eventDispatcher->dispatch(
-    new TenantResolved($result['tenant'], $event->getRequest(), $result['resolvedBy'])
+    new TenantResolved($resolution->tenant, $event->getRequest(), $resolution->resolvedBy)
 );
 ```
+
+!!! warning "strict_mode is the security guardrail, not the resolver chain"
+    A public request that reaches a `#[TenantAware]` entity query still throws
+    `TenantMissingException` (strict_mode default: ON). The resolver chain no longer
+    globally 404s on no-match — `TenantAwareFilter` is the load-bearing guard.
 
 ---
 
@@ -117,7 +130,7 @@ Each bootstrapper's `boot(TenantInterface $tenant)` method is called in tag-prio
 
 | Bootstrapper | Responsibility |
 |---|---|
-| `DatabaseSwitchBootstrapper` | Calls `TenantConnection::switchTenant()` — swaps DBAL connection params |
+| `DatabaseSwitchBootstrapper` | Calls `$connection->close()` — DBAL lazy-reconnects through `TenantAwareDriver` on the next query (see [dbal-middleware.md](dbal-middleware.md)) |
 | `SharedDriver` | Injects `TenantContext` into `TenantAwareFilter` for shared-DB mode |
 | `DoctrineBootstrapper` | Clears the EntityManager identity map on each request |
 | `TenantAwareCacheAdapter` | Namespaces the cache pool with the tenant slug |
