@@ -79,7 +79,9 @@ The method follows a strict sequence. Order matters — particularly the schema 
    └─ TenantContext::setTenant($tenant)
 
 4. Run BootstrapperChain::boot()
-   └─ DatabaseSwitchBootstrapper::boot() → switchTenant() → close()
+   └─ DatabaseSwitchBootstrapper::boot() → $connection->close()
+      (next query lazy-reconnects through TenantAwareDriver::connect(),
+       which merges the synthetic tenant's config over placeholder params)
    └─ Other bootstrappers (cache namespace, etc.)
 
 5. Reset tenant EM + create schema
@@ -88,13 +90,15 @@ The method follows a strict sequence. Order matters — particularly the schema 
 ```
 
 !!! warning "Schema creation must happen AFTER boot()"
-    `DatabaseSwitchBootstrapper::boot()` calls `TenantConnection::switchTenant()` which calls
-    `close()`. On SQLite `:memory:` databases, `close()` **destroys the database**. Schema
-    creation must happen **after** `boot()` completes, not before. The trait enforces this order.
+    `DatabaseSwitchBootstrapper::boot()` calls `$connection->close()`. On SQLite
+    `:memory:` databases, `close()` followed by a new connect **opens a fresh empty
+    database** — the prior in-memory DB cannot be rediscovered. Schema creation must
+    happen **after** `boot()` completes, not before. The trait enforces this order.
 
-The `'path' => null` key in the connection config is explicit: it ensures `array_merge()` in
-`switchTenant()` nulls out any pre-existing `path` from the placeholder connection, because
-DBAL checks `isset($params['path'])` before checking the `memory` flag.
+The `'path' => null` key in the connection config is explicit: it ensures `array_merge()`
+in `TenantAwareDriver::connect()` nulls out any pre-existing `path` from the placeholder
+connection, because DBAL's SQLite driver checks `isset($params['path'])` before checking
+the `memory` flag.
 
 ## Available Methods
 

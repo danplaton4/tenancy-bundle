@@ -1,8 +1,8 @@
 # Database-per-Tenant Driver
 
-In database-per-tenant mode, each tenant gets its own physical database. The bundle switches the
-DBAL connection at runtime — zero application code changes required. This provides **maximum
-isolation**: one tenant's data is physically separate from another's.
+In database-per-tenant mode, each tenant gets its own physical database. The bundle switches
+the DBAL connection at runtime — zero application code changes required. This provides
+**maximum isolation**: one tenant's data is physically separate from another's.
 
 ## Overview
 
@@ -12,9 +12,11 @@ Two entity managers are configured:
 - **`tenant`** — the runtime-switched EM. All application queries go here. Switches database
   on every tenant request.
 
-When a request arrives, `DatabaseSwitchBootstrapper::boot()` calls
-`TenantConnection::switchTenant()` with the active tenant's connection config. On request end,
-`TenantConnection::reset()` restores the original placeholder connection.
+When a request arrives, `DatabaseSwitchBootstrapper::boot()` calls `$connection->close()` on
+the tenant DBAL connection. The bundle's `TenantDriverMiddleware` wraps the tenant
+connection's driver; on the next query, DBAL's lazy-reconnect path calls
+`TenantAwareDriver::connect()`, which merges the active tenant's `getConnectionConfig()` over
+the placeholder params and opens a fresh socket to the tenant database.
 
 ## Configuration
 
@@ -45,21 +47,30 @@ When a request arrives, `DatabaseSwitchBootstrapper::boot()` calls
 
 ### Doctrine Config
 
-Configure two connections and two entity managers:
+Configure two connections and two entity managers. The bundle registers its driver
+middleware on the `tenant` connection automatically when `tenancy.database.enabled: true`
+— no extra Doctrine configuration is required.
 
 === "YAML"
 
     ```yaml
-    # config/packages/doctrine.yaml
+    # config/packages/doctrine.yaml (example for MySQL tenants)
     doctrine:
         dbal:
             default_connection: landlord
             connections:
                 landlord:
-                    url: '%env(DATABASE_URL)%'
+                    url: '%env(DATABASE_URL)%'       # e.g. mysql://app:app@127.0.0.1:3306/landlord
                 tenant:
-                    url: 'sqlite:///:memory:'  # placeholder — switched at runtime
-                    wrapper_class: Tenancy\Bundle\DBAL\TenantConnection
+                    # Driver family MUST match your tenant databases (see callout below).
+                    # Connection params below are merged with the active tenant's
+                    # getConnectionConfig() at connect() time by TenantDriverMiddleware.
+                    # The 'dbname' below is a placeholder; it is overridden per-request.
+                    driver: pdo_mysql
+                    host: '%env(TENANT_DB_HOST)%'
+                    user: '%env(TENANT_DB_USER)%'
+                    password: '%env(TENANT_DB_PASSWORD)%'
+                    dbname: placeholder_tenant
 
         orm:
             default_entity_manager: landlord
@@ -91,8 +102,11 @@ Configure two connections and two entity managers:
             ->defaultConnection('landlord')
             ->connection('landlord')->url('%env(DATABASE_URL)%')
             ->connection('tenant')
-                ->url('sqlite:///:memory:')
-                ->wrapperClass(\Tenancy\Bundle\DBAL\TenantConnection::class);
+                ->driver('pdo_mysql')
+                ->host('%env(TENANT_DB_HOST)%')
+                ->user('%env(TENANT_DB_USER)%')
+                ->password('%env(TENANT_DB_PASSWORD)%')
+                ->dbname('placeholder_tenant');
 
         $doctrine->orm()
             ->defaultEntityManager('landlord')
@@ -113,10 +127,18 @@ Configure two connections and two entity managers:
     };
     ```
 
-!!! tip "Placeholder URL"
-    The tenant connection URL (`sqlite:///:memory:`) is a placeholder. It is never actually used
-    to open a real connection. `TenantConnection::switchTenant()` overwrites these params before
-    the first query executes.
+!!! warning "Driver family must match"
+    The tenant connection's `driver` parameter MUST match the driver family of your actual
+    tenant databases. `TenantDriverMiddleware` merges tenant params at `connect()` time,
+    but the driver itself is resolved from the placeholder config at container boot. If
+    your tenant databases are MySQL, the placeholder `driver:` must be `pdo_mysql`. If
+    they are PostgreSQL, use `pdo_pgsql`. You cannot mix driver families across tenants
+    within a single connection.
+
+!!! tip "Placeholder parameters"
+    The `dbname: placeholder_tenant` on the tenant connection is never actually used to
+    open a real connection during a tenant-scoped request. The middleware overrides it
+    with the active tenant's `getConnectionConfig()` before each connect.
 
 ## Tenant Entity and Connection Config
 
@@ -145,13 +167,20 @@ $landlordEm->persist($tenant);
 $landlordEm->flush();
 ```
 
-The `connectionConfig` array is passed directly to `TenantConnection::switchTenant()` and merged
-over the original placeholder params via `array_merge()`. Any DBAL connection parameter is valid
-here — `host`, `port`, `dbname`, `user`, `password`, `driver`, `charset`, etc.
+The `connectionConfig` array is merged by `TenantAwareDriver::connect()` over the
+placeholder params via `array_merge()` on every lazy reconnect. Any discrete DBAL
+connection parameter is valid here — `host`, `port`, `dbname`, `user`, `password`,
+`charset`, etc.
+
+!!! danger "Do not return a `url` key from getConnectionConfig()"
+    DBAL parses `url` at DriverManager time, **before** middlewares run. A `url` key in
+    the tenant's `getConnectionConfig()` return value is silently ignored. Return
+    discrete params only.
 
 ### Supported Drivers
 
-Any DBAL-supported driver works:
+Any DBAL-supported driver works, as long as every tenant uses the same driver family as
+the placeholder:
 
 | Driver | `driver` value |
 |--------|---------------|
@@ -161,62 +190,57 @@ Any DBAL-supported driver works:
 
 ## How It Works
 
-### The `wrapperClass` Pattern
+### The Middleware Pipeline
 
-`TenantConnection` is a subclass of Doctrine DBAL 4's `Connection` class, registered via the
-`wrapper_class` option. DBAL's `DriverManager` instantiates `TenantConnection` instead of the
-base `Connection`. This gives the bundle a place to intercept connection setup.
+1. **At container compile time** — `TenantDriverMiddleware` is registered on the `tenant`
+   connection via the `doctrine.middleware` tag with `connection: tenant`. DoctrineBundle
+   attaches it to the tenant connection's DBAL configuration automatically.
+2. **At connection construction** — DBAL's `DriverManager` resolves the driver from the
+   placeholder and walks the middleware chain. `TenantDriverMiddleware::wrap($driver)`
+   returns a `TenantAwareDriver`.
+3. **On first tenant query** — DBAL's lazy `Connection::connect()` calls
+   `$this->driver->connect($params)` which routes through `TenantAwareDriver::connect()`.
+   The middleware reads `TenantContext::getTenant()`, merges the active tenant's
+   `getConnectionConfig()` over `$params`, and delegates to the real driver's `connect()`.
+4. **On tenant switch** — `DatabaseSwitchBootstrapper::boot()` calls
+   `$connection->close()`, which nulls the internal driver-connection. The next query
+   re-enters step 3 with fresh `TenantContext` state.
 
-### `switchTenant()` Internals
-
-```php
-// src/DBAL/TenantConnection.php (simplified)
-public function switchTenant(array $tenantConnectionConfig): void
-{
-    // Merge tenant params over original placeholder params
-    $merged = array_merge($this->originalParams, $tenantConnectionConfig);
-
-    // Mutate DBAL 4's private $params via ReflectionProperty captured at construct time
-    $this->paramsReflector->setValue($this, $merged);
-
-    // Close the current connection — forces lazy reconnect on next query
-    $this->close();
-}
-```
-
-The `originalParams` are captured at construction time (from the placeholder URL). The
-`ReflectionProperty` is also created at construction, avoiding repeated reflection overhead on
-every tenant switch.
+See [Architecture: DBAL Driver-Middleware](../architecture/dbal-middleware.md) for the full
+pipeline, driver-immutability rationale, and the rejected alternative.
 
 ### Request Lifecycle
 
 1. Request arrives at `TenantContextOrchestrator` (priority 20 on `kernel.request`)
 2. Resolver chain identifies tenant → `TenantContext::setTenant()` called
-3. `BootstrapperChain::boot()` fires → `DatabaseSwitchBootstrapper::boot()` calls `switchTenant()`
-4. DBAL connection is now pointing at the tenant's database
-5. Application controller runs against tenant data
-6. Request ends → `BootstrapperChain::clear()` fires → `DatabaseSwitchBootstrapper::clear()` calls `reset()`
-7. DBAL connection restored to original placeholder
+3. `BootstrapperChain::boot()` fires → `DatabaseSwitchBootstrapper::boot()` calls
+   `$connection->close()`
+4. Application controller runs. On the first tenant query, DBAL reconnects through
+   `TenantAwareDriver::connect()` — new socket opens against the tenant database
+5. Request ends → `BootstrapperChain::clear()` fires → `DatabaseSwitchBootstrapper::clear()`
+   also calls `$connection->close()`; with `TenantContext` cleared, the next reconnect
+   opens a landlord socket (driven by placeholder params only)
 
 ### Entity Manager Isolation
 
-`EntityManagerResetListener` listens for `TenantContextCleared` and resets entity managers to
-prevent identity map pollution across tenant switches. The behavior depends on the active driver:
+`EntityManagerResetListener` listens for `TenantContextCleared` and resets entity managers
+to prevent identity map pollution across tenant switches. The behavior depends on the
+active driver:
 
 - **`database_per_tenant` mode**: Only the `tenant` EM is reset via `resetManager('tenant')`.
   The `landlord` EM is never reset — it remains stable across tenant switches.
 - **`shared_db` / single-EM mode**: The default EM is reset via `resetManager(null)`.
 
 !!! warning "Stale EM References"
-    `resetManager()` is called on every tenant switch. Any `EntityManagerInterface` reference
-    to the **tenant** EM obtained before the switch may be invalid after. Always retrieve the
-    tenant EM from the registry (e.g., `$doctrine->getManager('tenant')`) rather than caching
-    it as a class property. The `landlord` EM is not affected.
+    `resetManager()` is called on every tenant switch. Any `EntityManagerInterface`
+    reference to the **tenant** EM obtained before the switch may be invalid after. Always
+    retrieve the tenant EM from the registry (e.g., `$doctrine->getManager('tenant')`)
+    rather than caching it as a class property. The `landlord` EM is not affected.
 
 ## Migrations
 
-Use the `tenancy:migrate` command to run Doctrine Migrations for all tenants or a specific one.
-See [CLI Commands](cli-commands.md) for full documentation.
+Use the `tenancy:migrate` command to run Doctrine Migrations for all tenants or a specific
+one. See [CLI Commands](cli-commands.md) for full documentation.
 
 ```bash
 # Run migrations for all tenants
@@ -228,6 +252,8 @@ bin/console tenancy:migrate --tenant=acme
 
 ## See Also
 
+- [Architecture: DBAL Driver-Middleware](../architecture/dbal-middleware.md) — connection
+  switching internals
 - [Shared-DB Driver](shared-db.md) — single database, SQL filter isolation
 - [CLI Commands](cli-commands.md) — `tenancy:migrate`, `tenancy:run`
 - [Testing](testing.md) — `InteractsWithTenancy` trait for database-per-tenant tests
