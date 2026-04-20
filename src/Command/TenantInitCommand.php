@@ -139,5 +139,56 @@ final class TenantInitCommand extends Command
             'Run bin/console doctrine:schema:update or create migrations for the Tenant entity',
             'Visit https://github.com/danplaton4/tenancy-bundle for full documentation',
         ]);
+
+        $io->section('Sample doctrine.yaml (copy into config/packages/doctrine.yaml)');
+        $io->writeln($this->sampleDoctrineYaml());
+
+        $io->section('Driver family requirement');
+        $io->warning(
+            "The tenant connection's driver parameter MUST match the driver family of your tenant "
+            ."databases. TenantDriverMiddleware merges tenant params at connect() time, but the "
+            ."driver is resolved from the placeholder at container boot. Use pdo_mysql for MySQL, "
+            .'pdo_pgsql for PostgreSQL, pdo_sqlite for SQLite (testing).'
+        );
+    }
+
+    private function sampleDoctrineYaml(): string
+    {
+        return <<<'YAML'
+            # config/packages/doctrine.yaml (example for MySQL tenants)
+            doctrine:
+                dbal:
+                    default_connection: landlord
+                    connections:
+                        landlord:
+                            url: '%env(DATABASE_URL)%'
+                        tenant:
+                            # Driver family MUST match your tenant databases (see callout below).
+                            # Params below are merged with the active tenant's getConnectionConfig()
+                            # at connect() time by TenantDriverMiddleware.
+                            driver: pdo_mysql
+                            host: '%env(TENANT_DB_HOST)%'
+                            user: '%env(TENANT_DB_USER)%'
+                            password: '%env(TENANT_DB_PASSWORD)%'
+                            dbname: placeholder_tenant
+
+                orm:
+                    default_entity_manager: landlord
+                    entity_managers:
+                        landlord:
+                            connection: landlord
+                            mappings:
+                                App:
+                                    type: attribute
+                                    dir: '%kernel.project_dir%/src/Entity/Landlord'
+                                    prefix: 'App\Entity\Landlord'
+                        tenant:
+                            connection: tenant
+                            mappings:
+                                App:
+                                    type: attribute
+                                    dir: '%kernel.project_dir%/src/Entity/Tenant'
+                                    prefix: 'App\Entity\Tenant'
+            YAML;
     }
 }
