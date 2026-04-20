@@ -38,18 +38,27 @@ tenancy:
 
 ### Step 2 — Configure Doctrine with Two Entity Managers
 
-The bundle requires a **landlord** entity manager for its own `Tenant` entity, and a **tenant** entity manager that uses `TenantConnection` as its DBAL wrapper class.
+The bundle requires a **landlord** entity manager for its own `Tenant` entity, and a
+**tenant** entity manager for application data. When `tenancy.database.enabled: true`, the
+bundle automatically registers its `TenantDriverMiddleware` on the `tenant` connection via
+the `doctrine.middleware` tag — no additional Doctrine configuration is required.
 
 ```yaml
-# config/packages/doctrine.yaml
+# config/packages/doctrine.yaml (example for MySQL tenants)
 doctrine:
     dbal:
         connections:
             default:
                 url: '%env(DATABASE_URL)%'
             tenant:
-                url: '%env(DATABASE_URL)%'
-                wrapper_class: Tenancy\Bundle\DBAL\TenantConnection
+                # Driver family MUST match your tenant databases (see warning below).
+                # Params below are merged with the active tenant's getConnectionConfig()
+                # at connect() time by TenantDriverMiddleware.
+                driver: pdo_mysql
+                host: '%env(TENANT_DB_HOST)%'
+                user: '%env(TENANT_DB_USER)%'
+                password: '%env(TENANT_DB_PASSWORD)%'
+                dbname: placeholder_tenant
 
     orm:
         entity_managers:
@@ -68,7 +77,15 @@ doctrine:
 ```
 
 !!! note "Entity manager naming"
-    The landlord EM must be named `landlord`. The tenant EM is your default EM (named `default`). The bundle rewires `DoctrineTenantProvider` to the `landlord` EM automatically when `database.enabled: true`.
+    The landlord EM must be named `landlord`. The tenant EM is your default EM (named
+    `default`). The bundle rewires `DoctrineTenantProvider` to the `landlord` EM
+    automatically when `database.enabled: true`.
+
+!!! warning "Driver family must match"
+    The tenant connection's `driver` parameter MUST match the driver family of your actual
+    tenant databases. Use `pdo_mysql` for MySQL tenants, `pdo_pgsql` for PostgreSQL,
+    `pdo_sqlite` for SQLite (testing). The middleware merges tenant params at `connect()`
+    time, but the driver itself is resolved from the placeholder at container boot.
 
 ### Step 3 — Create the Tenant Record
 
@@ -121,7 +138,10 @@ With `app_domain: example.com` configured, a request to `acme.example.com` is au
 2. `HostResolver` extracts slug `acme` from the subdomain
 3. `DoctrineTenantProvider` loads the `Tenant` entity from the landlord DB
 4. `TenantResolved` event fires
-5. `DatabaseSwitchBootstrapper` calls `TenantConnection::switchTo($tenant)`, swapping the DBAL connection parameters to the tenant's database
+5. `DatabaseSwitchBootstrapper` calls `$connection->close()` on the tenant DBAL connection.
+   On the next query, DBAL's lazy reconnect routes through `TenantAwareDriver::connect()`,
+   which merges `acme`'s `getConnectionConfig()` over the placeholder params and opens a
+   socket to `tenant_acme`.
 6. Your controller runs — all Doctrine queries go to `tenant_acme`
 
 ---
@@ -210,13 +230,13 @@ ResolverChain.resolve()
     ├── HostResolver    (priority 30)  ← acme.example.com → slug: acme
     ├── HeaderResolver  (priority 20)  ← X-Tenant-ID: acme
     ├── QueryParamResolver (priority 10) ← ?_tenant=acme
-    └── (no match → TenantNotFoundException → request proceeds without tenant)
+    └── (no match → ResolverChain returns null → request proceeds with no tenant)
     |
 TenantResolved event
     |
 BootstrapperChain.boot()
     ├── DatabaseSwitchBootstrapper  (database_per_tenant mode)
-    │   └── TenantConnection::switchTo($tenant)
+    │   └── $connection->close()  (next query re-enters TenantAwareDriver::connect())
     ├── SharedDriver.boot()          (shared_db mode)
     │   └── TenantAwareFilter::setTenantContext(...)
     └── DoctrineBootstrapper

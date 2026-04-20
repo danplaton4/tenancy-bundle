@@ -31,11 +31,11 @@ The `host.app_domain` config tells the `HostResolver` to extract the slug from
 
 ## Step 2: Doctrine Configuration
 
-Configure two connections and two entity managers — one for the landlord (tenant registry) and
-one for the tenant (switched at runtime):
+Configure two connections and two entity managers — one for the landlord (tenant registry)
+and one for the tenant (switched at runtime by `TenantDriverMiddleware`):
 
 ```yaml
-# config/packages/doctrine.yaml
+# config/packages/doctrine.yaml (example for MySQL tenants)
 doctrine:
     dbal:
         default_connection: landlord
@@ -43,8 +43,14 @@ doctrine:
             landlord:
                 url: '%env(DATABASE_URL)%'
             tenant:
-                url: 'sqlite:///:memory:'   # placeholder — overwritten at runtime
-                wrapper_class: Tenancy\Bundle\DBAL\TenantConnection
+                # Driver family MUST match your tenant databases.
+                # Params below are merged with the active tenant's getConnectionConfig()
+                # at connect() time by TenantDriverMiddleware; dbname is a placeholder.
+                driver: pdo_mysql
+                host: '%env(TENANT_DB_HOST)%'
+                user: '%env(TENANT_DB_USER)%'
+                password: '%env(TENANT_DB_PASSWORD)%'
+                dbname: placeholder_tenant
 
     orm:
         default_entity_manager: landlord
@@ -65,9 +71,10 @@ doctrine:
                         prefix: App\Entity\Tenant
 ```
 
-!!! tip
-    The `sqlite:///:memory:` placeholder is never used to open a real connection.
-    `TenantConnection::switchTenant()` replaces it before the first query.
+!!! warning "Driver family must match"
+    The tenant connection's `driver` (e.g. `pdo_mysql`) must match the driver family of
+    your actual tenant databases. The middleware merges tenant params at `connect()`
+    time, but the driver itself is resolved from the placeholder at container boot.
 
 ---
 
@@ -335,7 +342,7 @@ class ProjectIsolationTest extends KernelTestCase
 | Concern | Implementation |
 |---------|---------------|
 | Tenant identification | `HostResolver` — extracts slug from subdomain |
-| Data isolation | `TenantConnection` — separate database per tenant |
+| Data isolation | `TenantDriverMiddleware` — per-tenant socket on the `tenant` DBAL connection |
 | Entity manager | `tenant` EM — auto-switched on every request |
 | Migrations | `tenancy:migrate` — per-tenant migration runner |
 | Local dev | `/etc/hosts` entries + `tenancy.yaml` override |
