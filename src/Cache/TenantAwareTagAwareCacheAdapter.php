@@ -31,11 +31,16 @@ final class TenantAwareTagAwareCacheAdapter extends TenantAwareCacheAdapter impl
         parent::__construct($inner, $tenantContext, $cachePrefixSeparator);
     }
 
-    public function invalidateTags(array $tags): bool
+    protected function pool(): TagAwareAdapterInterface&TagAwareCacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface
     {
         /** @var TagAwareAdapterInterface&TagAwareCacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface $pool */
-        $pool = $this->pool();
+        $pool = parent::pool();
 
-        return $pool->invalidateTags($tags);
+        return $pool;
+    }
+
+    public function invalidateTags(array $tags): bool
+    {
+        return $this->pool()->invalidateTags($tags);
     }
 }
