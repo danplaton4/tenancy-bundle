@@ -9,14 +9,18 @@ Container Build
     │
     ├── prependExtension()       ← prepend Doctrine entity mappings + filter config
     ├── loadExtension()          ← register base services + conditional services
+    │                                 (registers TenantDriverMiddleware on the tenant
+    │                                  connection when database.enabled: true)
     │
     └── Compiler Passes (BeforeOptimization phase)
-            ├── BootstrapperChainPass   (collects tenancy.bootstrapper tags)
-            ├── ResolverChainPass       (collects tenancy.resolver tags)
-            └── MessengerMiddlewarePass (priority 1, before MessengerPass)
+            ├── BootstrapperChainPass       (collects tenancy.bootstrapper tags)
+            ├── ResolverChainPass           (collects tenancy.resolver tags)
+            ├── CacheDecoratorContractPass  (asserts tenant cache decorators cover
+            │                                every Symfony\\* interface on cache.app)
+            └── MessengerMiddlewarePass     (priority 1, before MessengerPass)
 ```
 
-All three compiler passes are registered in `TenancyBundle::build()`:
+All four compiler passes are registered in `TenancyBundle::build()`:
 
 ```php
 public function build(ContainerBuilder $container): void
@@ -24,6 +28,7 @@ public function build(ContainerBuilder $container): void
     parent::build($container);
     $container->addCompilerPass(new BootstrapperChainPass());
     $container->addCompilerPass(new ResolverChainPass());
+    $container->addCompilerPass(new CacheDecoratorContractPass());
     if (interface_exists(MessageBusInterface::class)) {
         $container->addCompilerPass(
             new MessengerMiddlewarePass(),
@@ -33,6 +38,13 @@ public function build(ContainerBuilder $container): void
     }
 }
 ```
+
+`CacheDecoratorContractPass` is a compile-time guard (added in v0.2 / Phase 15-01): it
+inspects every Tenancy-owned cache decorator and its decorated target and throws
+`LogicException` at container compile if any `Symfony\\*` interface exposed by the
+decorated service is missing from the decorator's declared interface list. This prevents
+a regression of the Fix #5 class of bug (decorator that does not implement
+`CacheInterface`, for example) from ever re-landing.
 
 ---
 
@@ -263,7 +275,8 @@ This uses Doctrine's native filter mechanism so the filter participates in Doctr
 
 | Service | Purpose |
 |---------|---------|
-| `tenancy.database_switch_bootstrapper` | Calls `TenantConnection::switchTenant()` on boot |
+| `tenancy.database_switch_bootstrapper` | Calls `$connection->close()` on boot (DBAL lazy-reconnects through `TenantAwareDriver`) |
+| `tenancy.dbal.tenant_driver_middleware` | Tagged `doctrine.middleware` with `connection: tenant` — merges tenant params at `connect()` time |
 | DoctrineTenantProvider rewired | Reads from `doctrine.orm.landlord_entity_manager` |
 | `tenancy.command.migrate` | `tenancy:migrate` command (when doctrine/migrations present) |
 
@@ -292,7 +305,9 @@ The bundle's `configure()` validates that `shared_db` and `database.enabled: tru
 TenantContextOrchestrator
     ├── TenantContext
     ├── BootstrapperChain
-    │       ├── DatabaseSwitchBootstrapper → TenantConnectionInterface
+    │       ├── DatabaseSwitchBootstrapper → Doctrine\DBAL\Connection (tenant connection)
+    │       │       (socket rotation happens via TenantDriverMiddleware on the tenant
+    │       │        connection — see architecture/dbal-middleware.md)
     │       ├── SharedDriver → EntityManagerInterface + TenantContext
     │       ├── DoctrineBootstrapper → EntityManagerInterface
     │       └── TenantAwareCacheAdapter → CacheInterface

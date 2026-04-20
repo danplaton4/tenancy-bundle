@@ -67,7 +67,7 @@ That's it. Subdomain requests resolve tenants, database connections switch, cach
 
 | Feature | Description |
 |---------|-------------|
-| **Database-per-tenant** | DBAL connection switching at runtime via `wrapperClass` |
+| **Database-per-tenant** | DBAL connection switching at runtime via `Doctrine\DBAL\Driver\Middleware` |
 | **Shared-database** | Doctrine SQL filter with `#[TenantAware]` attribute |
 | **4 built-in resolvers** | Subdomain, `X-Tenant-ID` header, query param, CLI `--tenant` |
 | **Cache isolation** | Per-tenant cache namespace — no cross-tenant bleed |

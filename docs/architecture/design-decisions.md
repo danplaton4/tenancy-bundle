@@ -57,25 +57,40 @@ These decisions are not arbitrary. Many encode security defaults or practical co
 
 ---
 
-## 5. DBAL ReflectionProperty for Connection Switching
+## 5. DBAL Driver-Middleware for Connection Switching (reflection approach REJECTED)
 
-**What:** `TenantConnection::switchTenant()` uses `ReflectionProperty` to mutate the private `$params` property on `Doctrine\DBAL\Connection`.
+**What:** Tenant database switching routes through `Doctrine\DBAL\Driver\Middleware`.
+`TenantDriverMiddleware::wrap()` returns a `TenantAwareDriver` that merges the active
+tenant's `getConnectionConfig()` over the landlord placeholder params inside
+`connect()`. `DatabaseSwitchBootstrapper::boot()` is reduced to `$connection->close()` —
+DBAL's lazy-reconnect path re-enters the middleware with fresh `TenantContext` state.
 
-**Why:** DBAL 4 made `$params` private with no public setter. The alternative approaches:
+**Why:** DBAL 4 resolves the `Driver` implementation at `DriverManager::getConnection()`
+construction time and stores it immutably on the `Connection`. Only per-`connect()`
+parameter merging via a middleware can rotate the socket without mutating vendor internals.
 
-| Approach | Problem |
-|----------|---------|
-| New `Connection` instance per tenant | Invalidates all DI service references to the old connection |
-| DBAL event for parameter mutation | No such event exists in DBAL |
-| Proxy class with virtual params | Requires reimplementing the full `Connection` interface |
-| **ReflectionProperty mutation** | **Works, stable API surface** |
+**Alternatives considered:**
 
-Creating a new `Connection` instance is impractical — every service that holds `TenantConnection` would need to be re-instantiated or re-wired. The wrapperClass approach means one shared instance is mutated in place.
+| Approach | Disposition |
+|----------|-------------|
+| DBAL `Connection` subclass + private-property reflection mutation on `$params` | **REJECTED** (Phase 15, v0.2) |
+| New `Connection` instance per tenant | Rejected — invalidates all DI service references |
+| DBAL event for parameter mutation | Rejected — no such event exists in DBAL |
+| Bundle-managed connection pool | Rejected — over-engineered for the problem |
+| **`Doctrine\DBAL\Driver\Middleware` chain** | **Accepted — the documented DBAL 4 extension point** |
 
-**Trade-off:** Couples to DBAL's internal property layout. Mitigated by:
-- `$params` has existed on `Connection` since DBAL 2
-- The bundle's CI matrix tests against DBAL 3 and 4
-- `ReflectionProperty` is created once in the constructor (no repeated reflection overhead)
+**Private-property reflection on `Connection` — REJECTED.** DBAL 4 stores the resolved
+`Driver` immutably on `Connection` at construction time. A reflection trick can mutate
+`$params` but not `$driver`, making the approach viable only by coincidence (when the
+landlord placeholder and the tenant databases share a driver family). The approach also
+couples bundle correctness to a vendor implementation detail that is outside the
+documented DBAL contract. The mature architecture uses `Doctrine\DBAL\Driver\Middleware`
+instead — see [`dbal-middleware.md`](dbal-middleware.md) for the full pipeline.
+
+**Trade-off:** Tenant `getConnectionConfig()` **must** return discrete DBAL params — never a
+`url` key. DBAL parses `url` at DriverManager time, before middlewares run; tenant-side
+`url` keys in the merged array are effectively ignored. This constraint is documented in
+`TenantAwareDriver` and surfaced in `UPGRADE.md`.
 
 ---
 

@@ -32,7 +32,7 @@ vendor/bin/phpunit --testsuite unit
 vendor/bin/phpunit --testsuite integration
 
 # Single test file
-vendor/bin/phpunit tests/Integration/DatabaseSwitchIntegrationTest.php
+vendor/bin/phpunit tests/Integration/DBAL/DatabasePerTenantMiddlewareIntegrationTest.php
 ```
 
 All tests should pass before you start making changes. If they do not, open an issue.

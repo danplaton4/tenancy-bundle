@@ -58,7 +58,7 @@ method, which is expensive, and sidesteps PHPUnit risky-test warnings from kerne
 handler registration.
 
 ```php
-final class DatabaseSwitchIntegrationTest extends TestCase
+final class DatabasePerTenantMiddlewareIntegrationTest extends TestCase
 {
     private static DoctrineTestKernel $kernel;
 
@@ -169,17 +169,19 @@ The test kernels use file-based SQLite paths under `sys_get_temp_dir()`:
 ```
 /tmp/tenancy_test_landlord.db         # DoctrineTestKernel landlord EM
 /tmp/tenancy_test_placeholder.db      # DoctrineTestKernel tenant EM placeholder
-/tmp/tenancy_test_tenant_a.db         # DatabaseSwitchIntegrationTest — tenant A
-/tmp/tenancy_test_tenant_b.db         # DatabaseSwitchIntegrationTest — tenant B
+/tmp/tenancy_test_tenant_a.db         # DatabasePerTenantMiddlewareIntegrationTest — tenant A
+/tmp/tenancy_test_tenant_b.db         # DatabasePerTenantMiddlewareIntegrationTest — tenant B
 /tmp/tenancy_bootstrapper_test.db     # BootstrapperTestKernel
 /tmp/tenancy_test_shared_db.db        # SharedDbTestKernel
 /tmp/tenancy_testing_trait_landlord.db # TenancyTestKernel landlord EM
 ```
 
-`TenantConnection` uses a `wrapperClass` to intercept DBAL connection initialization and
-replace connection parameters at runtime — allowing one SQLite placeholder connection to
-be switched to any other SQLite file (representing "tenant A's database", "tenant B's
-database", etc.).
+`TenantDriverMiddleware` wraps the tenant connection's driver at container compile time
+via the `doctrine.middleware` tag (`connection: tenant`). On every `connect()`, its
+`TenantAwareDriver` merges the active tenant's `getConnectionConfig()` over the
+placeholder params — allowing one SQLite placeholder connection to be switched to any
+other SQLite file (representing "tenant A's database", "tenant B's database", etc.) with
+no extra Doctrine configuration in the test kernel.
 
 ## Running Tests by Category
 
@@ -197,8 +199,8 @@ vendor/bin/phpunit --testsuite integration
 vendor/bin/phpunit tests/Integration/Messenger/
 
 # Single test file
-vendor/bin/phpunit tests/Integration/DatabaseSwitchIntegrationTest.php
+vendor/bin/phpunit tests/Integration/DBAL/DatabasePerTenantMiddlewareIntegrationTest.php
 
 # Specific test method
-vendor/bin/phpunit --filter testSwitchToTenantA tests/Integration/DatabaseSwitchIntegrationTest.php
+vendor/bin/phpunit --filter testSwitchToTenantA tests/Integration/DBAL/DatabasePerTenantMiddlewareIntegrationTest.php
 ```

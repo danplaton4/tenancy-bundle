@@ -94,7 +94,7 @@ nav:
     - architecture/index.md
     - Event Lifecycle: architecture/event-lifecycle.md
     - DI Compilation Pipeline: architecture/di-compilation.md
-    - DBAL Wrapper Mechanics: architecture/dbal-wrapper.md
+    - DBAL Driver-Middleware: architecture/dbal-middleware.md
     - SQL Filter Internals: architecture/sql-filter.md
     - Messenger Stamp Lifecycle: architecture/messenger-lifecycle.md
     - Design Decisions: architecture/design-decisions.md
