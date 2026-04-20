@@ -35,6 +35,8 @@ final class DatabaseSwitchBootstrapper implements TenantDriverInterface
 
     public function clear(): void
     {
-        $this->connection->close();
+        if ($this->connection->isConnected()) {
+            $this->connection->close();
+        }
     }
 }

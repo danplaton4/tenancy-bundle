@@ -32,9 +32,17 @@ final class DatabaseSwitchBootstrapperTest extends TestCase
         $this->bootstrapper->boot($tenant);
     }
 
-    public function testClearClosesTheConnection(): void
+    public function testClearClosesTheConnectionWhenConnected(): void
     {
+        $this->connection->method('isConnected')->willReturn(true);
         $this->connection->expects($this->once())->method('close');
+        $this->bootstrapper->clear();
+    }
+
+    public function testClearSkipsCloseWhenNotConnected(): void
+    {
+        $this->connection->method('isConnected')->willReturn(false);
+        $this->connection->expects($this->never())->method('close');
         $this->bootstrapper->clear();
     }
 
