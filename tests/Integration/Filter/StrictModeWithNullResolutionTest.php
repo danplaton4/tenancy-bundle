@@ -107,7 +107,7 @@ final class StrictModeWithNullResolutionTest extends TestCase
         $this->expectException(TenantMissingException::class);
 
         $em->createQuery(
-            "SELECT p FROM Tenancy\\Bundle\\Tests\\Integration\\Support\\Entity\\TestTenantProduct p"
+            'SELECT p FROM Tenancy\\Bundle\\Tests\\Integration\\Support\\Entity\\TestTenantProduct p'
         )->getResult();
     }
 }
