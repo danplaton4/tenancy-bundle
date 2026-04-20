@@ -13,12 +13,7 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\NamespacedPoolInterface;
 use Tenancy\Bundle\Context\TenantContext;
 
-class TenantAwareCacheAdapter implements
-    AdapterInterface,
-    CacheInterface,
-    NamespacedPoolInterface,
-    PruneableInterface,
-    ResettableInterface
+class TenantAwareCacheAdapter implements AdapterInterface, CacheInterface, NamespacedPoolInterface, PruneableInterface, ResettableInterface
 {
     public function __construct(
         protected AdapterInterface&CacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface $inner,
