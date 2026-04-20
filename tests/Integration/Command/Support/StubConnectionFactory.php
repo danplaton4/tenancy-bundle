@@ -4,26 +4,25 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle\Tests\Integration\Command\Support;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use Tenancy\Bundle\DBAL\TenantConnection;
-use Tenancy\Bundle\DBAL\TenantConnectionInterface;
 
 /**
- * Factory that creates a minimal in-memory SQLite TenantConnection for use in
+ * Factory that creates a minimal in-memory SQLite DBAL Connection for use in
  * command DI wiring tests.
  *
- * We need a real TenantConnection instance because DatabaseSwitchBootstrapper
- * requires TenantConnectionInterface. Using wrapperClass ensures DriverManager
- * instantiates TenantConnection.
+ * Since v0.2, DatabaseSwitchBootstrapper accepts a plain Doctrine\DBAL\Connection
+ * (the per-tenant middleware rotates the underlying socket, not the Connection object).
+ * This factory returns a stock Connection with no wrapperClass — the middleware is
+ * registered separately via TenancyBundle::loadExtension() in the test kernel.
  */
 final class StubConnectionFactory
 {
-    public static function create(): TenantConnectionInterface
+    public static function create(): Connection
     {
         return DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
             'memory' => true,
-            'wrapperClass' => TenantConnection::class,
         ]);
     }
 }

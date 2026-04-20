@@ -18,6 +18,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\Command\TenantMigrateCommand;
+use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
@@ -106,6 +107,13 @@ class TenancyBundle extends AbstractBundle
             $services->set('tenancy.database_switch_bootstrapper', DatabaseSwitchBootstrapper::class)
                 ->args([service('doctrine.dbal.tenant_connection')])
                 ->tag('tenancy.bootstrapper');
+
+            // TenantDriverMiddleware — DBAL 4 driver-middleware that reads TenantContext on every
+            // Connection::connect() and merges the active tenant's params over the landlord placeholder.
+            // Scoped to the `tenant` connection only — landlord connection never sees tenant params.
+            $services->set('tenancy.dbal.tenant_driver_middleware', TenantDriverMiddleware::class)
+                ->args([service('tenancy.context')])
+                ->tag('doctrine.middleware', ['connection' => 'tenant']);
 
             // Rewire DoctrineTenantProvider to landlord EM (services.php is already imported above)
             $builder->getDefinition('tenancy.provider')
