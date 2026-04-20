@@ -89,6 +89,9 @@ jobs:
 
       - run: vendor/bin/php-cs-fixer check --diff --allow-risky=yes
 
+      - name: Docs lint (stale v0.1 term regression guard)
+        run: ./scripts/docs-lint.sh
+
   no-doctrine:
     runs-on: ubuntu-latest
     name: No Doctrine (guards check)
