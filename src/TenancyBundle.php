@@ -19,6 +19,7 @@ use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
 use Tenancy\Bundle\Driver\SharedDriver;
@@ -152,6 +153,7 @@ class TenancyBundle extends AbstractBundle
         parent::build($container);
         $container->addCompilerPass(new BootstrapperChainPass());
         $container->addCompilerPass(new ResolverChainPass());
+        $container->addCompilerPass(new CacheDecoratorContractPass());
         if (interface_exists(MessageBusInterface::class)) {
             // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
             $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
