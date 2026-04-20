@@ -7,7 +7,6 @@ namespace Tenancy\Bundle\Testing;
 use Doctrine\ORM\Tools\SchemaTool;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Context\TenantContext;
-use Tenancy\Bundle\DBAL\TenantConnection;
 use Tenancy\Bundle\Entity\Tenant;
 
 /**
@@ -33,7 +32,8 @@ use Tenancy\Bundle\Entity\Tenant;
  *
  * Requirements:
  *   - The test kernel must have `tenancy.database.enabled: true` (database-per-tenant mode).
- *   - The tenant DBAL connection must use TenantConnection as its `wrapper_class`.
+ *   - TenancyBundle automatically registers TenantDriverMiddleware on the `tenant` DBAL
+ *     connection when database.enabled is true (no wrapper_class configuration required).
  *   - The recommended kernel is TenancyTestKernel from the Testing\Support namespace.
  *
  * Each call to initializeTenant() creates a fresh :memory: SQLite schema for the tenant
@@ -49,18 +49,19 @@ trait InteractsWithTenancy
      *   2. Build a synthetic Tenant entity whose connectionConfig points to :memory: SQLite.
      *   3. Activate the synthetic tenant in TenantContext.
      *   4. Run all registered bootstrappers via BootstrapperChain::boot().
-     *      DatabaseSwitchBootstrapper::boot() will call switchTenant() with the :memory: config,
-     *      leaving the connection configured for :memory: after the boot completes.
+     *      DatabaseSwitchBootstrapper::boot() calls $connection->close(); the next query triggers
+     *      a lazy reconnect through TenantDriverMiddleware, which merges the tenant's
+     *      connectionConfig (:memory:) over the landlord placeholder params at connect() time.
      *   5. Reset the tenant EntityManager and create the schema on the (now :memory:) connection.
      *
-     * The schema must be created AFTER chain->boot() because DatabaseSwitchBootstrapper::boot()
-     * calls TenantConnection::switchTenant() which calls close(). Creating a new :memory: SQLite
-     * connection after close() yields a fresh empty database — so schema creation must happen last.
+     * The schema must be created AFTER chain->boot() because boot() calls close(). Creating a
+     * new :memory: SQLite connection after close() yields a fresh empty database — so schema
+     * creation must happen last.
      *
      * The 'path' => null key is set explicitly in the in-memory config so that array_merge() in
-     * TenantConnection::switchTenant() nulls out any pre-existing 'path' key from the original
-     * placeholder connection params. DBAL's SQLite driver checks isset($params['path']) first, so
-     * a non-null path would override the 'memory' flag.
+     * TenantAwareDriver::connect() nulls out any pre-existing 'path' key from the landlord
+     * placeholder params. DBAL's SQLite driver checks isset($params['path']) first, so a
+     * non-null path would override the 'memory' flag.
      */
     protected function initializeTenant(string $slug): void
     {
@@ -76,8 +77,8 @@ trait InteractsWithTenancy
         $chain->clear();
 
         // Step 2: Build a synthetic Tenant entity with in-memory SQLite connection config.
-        // DatabaseSwitchBootstrapper::boot() will call switchTenant() with these params,
-        // configuring the tenant DBAL connection for :memory: SQLite.
+        // TenantDriverMiddleware::connect() will merge these keys over the placeholder params
+        // on the next reconnect, configuring the tenant DBAL connection for :memory: SQLite.
         $tenant = new Tenant($slug, $slug);
         $tenant->setConnectionConfig(['driver' => 'pdo_sqlite', 'memory' => true, 'path' => null]);
 
@@ -85,14 +86,14 @@ trait InteractsWithTenancy
         $tenantContext->setTenant($tenant);
 
         // Step 4: Run all registered bootstrappers.
-        // This causes DatabaseSwitchBootstrapper::boot() to call switchTenant() with the :memory:
-        // config, then close() the prior connection. After this, the DBAL connection is configured
-        // for a fresh :memory: SQLite (the actual PDO connection is opened on next query).
+        // DatabaseSwitchBootstrapper::boot() calls $connection->close(). After this, the DBAL
+        // connection is closed; on the next query, TenantAwareDriver::connect() merges the
+        // tenant's :memory: config and opens a fresh PDO connection.
         $chain->boot($tenant);
 
         // Step 5: Reset tenant EM + create schema on the :memory: connection.
-        // resetManager() is required after switchTenant() to get an EntityManager whose UnitOfWork
-        // is tied to the new connection (not the stale one from before the boot).
+        // resetManager() is required after the close() so the EntityManager's UnitOfWork is
+        // tied to the new (re-opened) driver-connection, not the stale one from before boot().
         $registry = $container->get('doctrine');
         $em = $registry->resetManager('tenant');
         $schemaTool = new SchemaTool($em);
