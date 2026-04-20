@@ -101,10 +101,7 @@ class TenancyBundle extends AbstractBundle
 
         if ($databaseConfig['enabled'] ?? false) {
             if (!class_exists(\Doctrine\DBAL\Driver\Middleware::class)) {
-                throw new \LogicException(
-                    'tenancy.database.enabled: true requires doctrine/dbal and doctrine/doctrine-bundle. '
-                    .'Install them (composer require doctrine/doctrine-bundle) or switch to driver: shared_db.'
-                );
+                throw new \LogicException('tenancy.database.enabled: true requires doctrine/dbal and doctrine/doctrine-bundle. Install them (composer require doctrine/doctrine-bundle) or switch to driver: shared_db.');
             }
 
             $container->parameters()->set('tenancy.database.enabled', true);
