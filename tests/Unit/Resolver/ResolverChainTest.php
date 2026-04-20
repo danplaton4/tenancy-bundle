@@ -6,8 +6,8 @@ namespace Tenancy\Bundle\Tests\Unit\Resolver;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Resolver\ResolverChain;
+use Tenancy\Bundle\Resolver\TenantResolution;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
 use Tenancy\Bundle\TenantInterface;
 
@@ -20,6 +20,42 @@ final class ResolverChainTest extends TestCase
     {
         $this->request = Request::create('/');
         $this->chain = new ResolverChain();
+    }
+
+    // -------------------------------------------------------------------------
+    // TenantResolution value object
+    // -------------------------------------------------------------------------
+
+    public function testTenantResolutionIsConstructibleWithReadonlyFields(): void
+    {
+        $tenant = $this->createMock(TenantInterface::class);
+        $resolution = new TenantResolution($tenant, 'HostResolver');
+
+        $this->assertSame($tenant, $resolution->tenant);
+        $this->assertSame('HostResolver', $resolution->resolvedBy);
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolverChain::resolve()
+    // -------------------------------------------------------------------------
+
+    public function testResolveReturnsTenantResolutionWhenResolverMatches(): void
+    {
+        $tenant = $this->createMock(TenantInterface::class);
+
+        $resolver = $this->createMock(TenantResolverInterface::class);
+        $resolver->expects($this->once())
+            ->method('resolve')
+            ->with($this->request)
+            ->willReturn($tenant);
+
+        $this->chain->addResolver($resolver);
+
+        $resolution = $this->chain->resolve($this->request);
+
+        $this->assertInstanceOf(TenantResolution::class, $resolution);
+        $this->assertSame($tenant, $resolution->tenant);
+        $this->assertSame($resolver::class, $resolution->resolvedBy);
     }
 
     public function testResolveReturnsFirstNonNullResult(): void
@@ -39,10 +75,11 @@ final class ResolverChainTest extends TestCase
         $this->chain->addResolver($resolverA);
         $this->chain->addResolver($resolverB);
 
-        $result = $this->chain->resolve($this->request);
+        $resolution = $this->chain->resolve($this->request);
 
-        $this->assertSame($tenant, $result['tenant']);
-        $this->assertSame($resolverA::class, $result['resolvedBy']);
+        $this->assertInstanceOf(TenantResolution::class, $resolution);
+        $this->assertSame($tenant, $resolution->tenant);
+        $this->assertSame($resolverA::class, $resolution->resolvedBy);
     }
 
     public function testResolveSkipsNullResultsAndContinues(): void
@@ -64,13 +101,14 @@ final class ResolverChainTest extends TestCase
         $this->chain->addResolver($resolverA);
         $this->chain->addResolver($resolverB);
 
-        $result = $this->chain->resolve($this->request);
+        $resolution = $this->chain->resolve($this->request);
 
-        $this->assertSame($tenant, $result['tenant']);
-        $this->assertSame($resolverB::class, $result['resolvedBy']);
+        $this->assertInstanceOf(TenantResolution::class, $resolution);
+        $this->assertSame($tenant, $resolution->tenant);
+        $this->assertSame($resolverB::class, $resolution->resolvedBy);
     }
 
-    public function testResolveThrowsTenantNotFoundWhenAllResolversReturnNull(): void
+    public function testResolveReturnsNullWhenNoResolverMatches(): void
     {
         $resolverA = $this->createMock(TenantResolverInterface::class);
         $resolverA->method('resolve')->willReturn(null);
@@ -81,14 +119,12 @@ final class ResolverChainTest extends TestCase
         $this->chain->addResolver($resolverA);
         $this->chain->addResolver($resolverB);
 
-        $this->expectException(TenantNotFoundException::class);
-        $this->chain->resolve($this->request);
+        $this->assertNull($this->chain->resolve($this->request));
     }
 
-    public function testResolveThrowsTenantNotFoundWhenChainIsEmpty(): void
+    public function testResolveReturnsNullWhenChainIsEmpty(): void
     {
-        $this->expectException(TenantNotFoundException::class);
-        $this->chain->resolve($this->request);
+        $this->assertNull($this->chain->resolve($this->request));
     }
 
     public function testResolvedByCarriesCorrectFqcn(): void
@@ -100,11 +136,11 @@ final class ResolverChainTest extends TestCase
 
         $this->chain->addResolver($resolver);
 
-        $result = $this->chain->resolve($this->request);
+        $resolution = $this->chain->resolve($this->request);
 
-        $this->assertArrayHasKey('resolvedBy', $result);
-        $this->assertIsString($result['resolvedBy']);
-        $this->assertNotEmpty($result['resolvedBy']);
+        $this->assertInstanceOf(TenantResolution::class, $resolution);
+        $this->assertNotEmpty($resolution->resolvedBy);
+        $this->assertSame($resolver::class, $resolution->resolvedBy);
     }
 
     public function testAddResolverAppendsToInternalList(): void
