@@ -10,8 +10,11 @@ use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\Cache\PruneableInterface;
+use Symfony\Component\Cache\ResettableInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\NamespacedPoolInterface;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
 
@@ -73,6 +76,46 @@ final class CacheDecoratorContractPassTest extends TestCase
         (new CacheDecoratorContractPass())->process($container);
 
         $this->addToAssertionCount(1);
+    }
+
+    /**
+     * Regression guard for WR-03: the compile-time contract pass assumes that
+     * FilesystemAdapter (the concrete class behind cache.app's default parent
+     * chain) exposes a known Symfony\* interface set. If a future Symfony
+     * release alters the class hierarchy (e.g. renames or drops an interface
+     * on AbstractAdapter), this test will fail loudly instead of the pass
+     * silently relaxing its guarantees.
+     */
+    public function testFilesystemAdapterExposesExpectedSymfonyInterfaceSet(): void
+    {
+        $implemented = class_implements(FilesystemAdapter::class);
+        self::assertIsArray($implemented);
+
+        $symfonyInterfaces = array_values(array_filter(
+            $implemented,
+            static fn (string $i): bool => str_starts_with($i, 'Symfony\\'),
+        ));
+
+        $expected = [
+            AdapterInterface::class,
+            CacheInterface::class,
+            NamespacedPoolInterface::class,
+            PruneableInterface::class,
+            ResettableInterface::class,
+        ];
+
+        foreach ($expected as $interface) {
+            self::assertContains(
+                $interface,
+                $symfonyInterfaces,
+                sprintf(
+                    'FilesystemAdapter must implement %s — if this fails, a Symfony '
+                    .'upgrade changed the cache.app interface set and CacheDecoratorContractPass '
+                    .'(and TenantAwareCacheAdapter) needs to be updated.',
+                    $interface,
+                ),
+            );
+        }
     }
 }
 
