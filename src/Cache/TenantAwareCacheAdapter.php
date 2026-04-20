@@ -7,19 +7,22 @@ namespace Tenancy\Bundle\Cache;
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\CacheItem;
+use Symfony\Component\Cache\PruneableInterface;
+use Symfony\Component\Cache\ResettableInterface;
+use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\NamespacedPoolInterface;
 use Tenancy\Bundle\Context\TenantContext;
 
-final class TenantAwareCacheAdapter implements AdapterInterface, NamespacedPoolInterface
+class TenantAwareCacheAdapter implements AdapterInterface, CacheInterface, NamespacedPoolInterface, PruneableInterface, ResettableInterface
 {
     public function __construct(
-        private AdapterInterface&NamespacedPoolInterface $inner,
-        private readonly TenantContext $tenantContext,
-        private readonly string $cachePrefixSeparator = '.',
+        protected AdapterInterface&CacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface $inner,
+        protected readonly TenantContext $tenantContext,
+        protected readonly string $cachePrefixSeparator = '.',
     ) {
     }
 
-    private function pool(): AdapterInterface&NamespacedPoolInterface
+    protected function pool(): AdapterInterface&CacheInterface&NamespacedPoolInterface&PruneableInterface&ResettableInterface
     {
         $tenant = $this->tenantContext->getTenant();
         if (null !== $tenant) {
@@ -73,6 +76,29 @@ final class TenantAwareCacheAdapter implements AdapterInterface, NamespacedPoolI
     public function commit(): bool
     {
         return $this->pool()->commit();
+    }
+
+    /**
+     * @param array<array-key, mixed>|null $metadata
+     */
+    public function get(string $key, callable $callback, ?float $beta = null, ?array &$metadata = null): mixed
+    {
+        return $this->pool()->get($key, $callback, $beta, $metadata);
+    }
+
+    public function delete(string $key): bool
+    {
+        return $this->pool()->delete($key);
+    }
+
+    public function prune(): bool
+    {
+        return $this->inner->prune();
+    }
+
+    public function reset(): void
+    {
+        $this->inner->reset();
     }
 
     public function withSubNamespace(string $namespace): static

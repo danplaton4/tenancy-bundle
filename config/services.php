@@ -17,6 +17,7 @@ use Tenancy\Bundle\Resolver\HostResolver;
 use Tenancy\Bundle\Resolver\QueryParamResolver;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
+use Tenancy\Bundle\Cache\TenantAwareTagAwareCacheAdapter;
 use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
 use Tenancy\Bundle\Resolver\ResolverChain;
@@ -91,6 +92,14 @@ return function (ContainerConfigurator $container): void {
 
     $services->set('tenancy.cache_adapter', TenantAwareCacheAdapter::class)
         ->decorate('cache.app')
+        ->args([
+            service('.inner'),
+            service('tenancy.context'),
+            param('tenancy.cache_prefix_separator'),
+        ]);
+
+    $services->set('tenancy.cache_adapter.taggable', TenantAwareTagAwareCacheAdapter::class)
+        ->decorate('cache.app.taggable')
         ->args([
             service('.inner'),
             service('tenancy.context'),
