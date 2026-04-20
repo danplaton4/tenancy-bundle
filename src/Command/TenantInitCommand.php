@@ -146,8 +146,8 @@ final class TenantInitCommand extends Command
         $io->section('Driver family requirement');
         $io->warning(
             "The tenant connection's driver parameter MUST match the driver family of your tenant "
-            ."databases. TenantDriverMiddleware merges tenant params at connect() time, but the "
-            ."driver is resolved from the placeholder at container boot. Use pdo_mysql for MySQL, "
+            .'databases. TenantDriverMiddleware merges tenant params at connect() time, but the '
+            .'driver is resolved from the placeholder at container boot. Use pdo_mysql for MySQL, '
             .'pdo_pgsql for PostgreSQL, pdo_sqlite for SQLite (testing).'
         );
     }
