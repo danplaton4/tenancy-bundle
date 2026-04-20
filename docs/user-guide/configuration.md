@@ -14,7 +14,7 @@ All configuration lives under the `tenancy:` key in `config/packages/tenancy.yam
 
 Selects the tenant isolation strategy. Two values are supported:
 
-- `database_per_tenant` — Each tenant gets its own database. The DBAL connection is switched at runtime using `TenantConnection` (a DBAL `wrapperClass` subclass). Requires `doctrine/dbal` and `database.enabled: true`.
+- `database_per_tenant` — Each tenant gets its own database. The bundle routes through a `Doctrine\DBAL\Driver\Middleware` on the `tenant` connection; the middleware merges the active tenant's `getConnectionConfig()` at `connect()` time. Requires `doctrine/dbal` and `database.enabled: true`. See [Database-per-Tenant Driver](database-per-tenant.md) for the full pipeline.
 - `shared_db` — All tenants share one database. Queries are automatically scoped via the `tenancy_aware` Doctrine SQL filter on entities marked `#[TenantAware]`. Requires `doctrine/orm`.
 
 ---
@@ -84,9 +84,10 @@ The separator inserted between the tenant slug and the cache key when the cache 
 
 Set to `true` to activate the database-per-tenant driver. This:
 
-1. Registers `DatabaseSwitchBootstrapper` as a bootstrapper
-2. Rewires `DoctrineTenantProvider` to use the `landlord` entity manager
-3. Registers the `tenancy:migrate` command (if `doctrine/migrations` is installed)
+1. Registers `DatabaseSwitchBootstrapper` as a bootstrapper (calls `$connection->close()` on boot/clear)
+2. Registers `TenantDriverMiddleware` with the `doctrine.middleware` tag scoped to `connection: tenant`; the landlord connection is never tagged
+3. Rewires `DoctrineTenantProvider` to use the `landlord` entity manager
+4. Registers the `tenancy:migrate` command (if `doctrine/migrations` is installed)
 
 Must NOT be combined with `driver: shared_db` — see [Validation Rules](#validation-rules).
 

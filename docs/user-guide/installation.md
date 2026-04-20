@@ -56,7 +56,7 @@ The bundle uses `class_exists()` and `interface_exists()` guards throughout. Fea
 
 | Feature | Required Package | Notes |
 |---------|-----------------|-------|
-| Database-per-tenant driver | `doctrine/orm`, `doctrine/dbal`, `doctrine/doctrine-bundle` | DBAL `wrapperClass` connection switching at runtime |
+| Database-per-tenant driver | `doctrine/orm`, `doctrine/dbal`, `doctrine/doctrine-bundle` | `Doctrine\DBAL\Driver\Middleware`-based connection switching at runtime |
 | Shared-DB driver | `doctrine/orm`, `doctrine/dbal`, `doctrine/doctrine-bundle` | Doctrine SQL filter with `#[TenantAware]` attribute |
 | Tenant migrations | `doctrine/migrations` | `tenancy:migrate` command |
 | Messenger context propagation | `symfony/messenger` | `TenantStamp`, sending/worker middlewares — auto-enrolled in all buses |

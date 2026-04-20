@@ -13,7 +13,7 @@ New to the bundle? Start here:
 ## Features
 
 - [Resolvers](resolvers.md) — subdomain, header, query param, console, custom
-- [Database-per-Tenant](database-per-tenant.md) — DBAL wrapperClass connection switching
+- [Database-per-Tenant](database-per-tenant.md) — `Doctrine\DBAL\Driver\Middleware`-based connection switching
 - [Shared-DB Driver](shared-db.md) — SQL filter with `#[TenantAware]` attribute
 - [Cache Isolation](cache-isolation.md) — per-tenant cache namespace
 - [Messenger Integration](messenger.md) — TenantStamp, sending and worker middleware

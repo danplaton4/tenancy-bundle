@@ -33,7 +33,9 @@ TenantContextOrchestrator (kernel.request priority 20)
     |
     +-- BootstrapperChain.boot(tenant)
     |       |
-    |       +-- DatabaseSwitchBootstrapper  — swaps DBAL connection to tenant DB
+    |       +-- DatabaseSwitchBootstrapper  — closes the tenant connection; next query
+    |       |                                  lazy-reconnects through TenantAwareDriver
+    |       |                                  (see architecture/dbal-middleware.md)
     |       +-- DoctrineBootstrapper        — clears EntityManager identity map
     |       +-- SharedDriver                — injects TenantContext into TenantAwareFilter
     |       +-- (any custom bootstrapper)
@@ -97,7 +99,7 @@ The `src/` directory contains 40 files across 18 namespaces:
 | `Tenancy\Bundle\Cache` | `TenantAwareCacheAdapter` — decorates `cache.app` with per-tenant sub-namespace |
 | `Tenancy\Bundle\Command` | `TenantMigrateCommand`, `TenantRunCommand` — CLI commands for tenant operations |
 | `Tenancy\Bundle\Context` | `TenantContext` — zero-dependency value holder for the active tenant |
-| `Tenancy\Bundle\DBAL` | `TenantConnection`, `TenantConnectionInterface` — DBAL `wrapperClass` that switches connection params at runtime |
+| `Tenancy\Bundle\DBAL` | `TenantDriverMiddleware`, `TenantAwareDriver` — DBAL 4 `Doctrine\DBAL\Driver\Middleware` that merges tenant params at `connect()` time |
 | `Tenancy\Bundle\DependencyInjection\Compiler` | `BootstrapperChainPass`, `ResolverChainPass`, `MessengerMiddlewarePass` — the three compiler passes |
 | `Tenancy\Bundle\Driver` | `SharedDriver`, `TenantDriverInterface` — isolation driver abstraction |
 | `Tenancy\Bundle\Entity` | `Tenant` — the landlord-side Doctrine entity |
@@ -133,10 +135,15 @@ installed. Registered at priority 1 to run before Symfony's own `MessengerPass`
 The bundle ships two optional isolation strategies. Both implement
 `TenantBootstrapperInterface` and `TenantDriverInterface`:
 
-**`database_per_tenant`** (default) — `DatabaseSwitchBootstrapper` calls
-`TenantConnection::switchTenant()` on `boot()` and `TenantConnection::reset()` on
-`clear()`. Each tenant has its own SQLite / MySQL / PostgreSQL database. Requires
-`tenancy.database.enabled: true` in the bundle config.
+**`database_per_tenant`** (default) — `DatabaseSwitchBootstrapper::boot()` and `clear()`
+both call `$connection->close()` on the tenant DBAL connection. The bundle's
+`TenantDriverMiddleware` (tagged `doctrine.middleware` with `connection: tenant`) wraps
+the tenant connection's driver; DBAL's lazy reconnect path re-enters
+`TenantAwareDriver::connect()`, which merges the active tenant's `getConnectionConfig()`
+over the placeholder params on every fresh socket. Each tenant has its own SQLite /
+MySQL / PostgreSQL database. Requires `tenancy.database.enabled: true` in the bundle
+config. See [`architecture/dbal-middleware.md`](../architecture/dbal-middleware.md) for
+the full pipeline.
 
 **`shared_db`** — `SharedDriver` injects the active `TenantContext` into the
 `TenantAwareFilter` Doctrine SQL filter on `boot()`. Entities annotated with
