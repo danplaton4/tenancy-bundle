@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-21
+
+### Fixed
+
+- **DI bundle extension guard** (`TenancyBundle::loadExtension`): the `tenancy.database.enabled: true`
+  guard introduced in 0.2.0 (code-review finding WR-05) used `class_exists(\Doctrine\DBAL\Driver\Middleware::class)`
+  to detect DBAL presence. `Middleware` is an **interface**, and PHP's `class_exists()` returns `false` for
+  interfaces — so the guard fired unconditionally whenever `database.enabled: true` was set, throwing a
+  bogus `LogicException` even in environments where Doctrine DBAL was fully installed. Fixed by using
+  `interface_exists()` to match the actual symbol type. This broke container boot for all
+  database-per-tenant consumers in 0.2.0; upgrading to 0.2.1 is strongly recommended.
+
 ## [0.2.0] — 2026-04-20
 
 Retrospective: v1.0.0 was tagged on 2026-04-12 but retracted the same day after four
