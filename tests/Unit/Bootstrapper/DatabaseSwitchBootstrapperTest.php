@@ -18,6 +18,17 @@ final class DatabaseSwitchBootstrapperTest extends TestCase
     private Connection&MockObject $connection;
     private DatabaseSwitchBootstrapper $bootstrapper;
 
+    public static function setUpBeforeClass(): void
+    {
+        // DatabaseSwitchBootstrapper is only wired into the DI container when
+        // tenancy.database.enabled=true, which itself requires doctrine/dbal.
+        // The no-doctrine CI job removes DBAL from vendor/; this guard lets
+        // the test coexist with that job without pulling DBAL back in.
+        if (!class_exists(Connection::class)) {
+            self::markTestSkipped('Doctrine DBAL is not installed; DatabaseSwitchBootstrapper is unreachable without it.');
+        }
+    }
+
     protected function setUp(): void
     {
         $this->connection = $this->createMock(Connection::class);
