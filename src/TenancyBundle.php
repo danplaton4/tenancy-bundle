@@ -22,10 +22,12 @@ use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
+use Tenancy\Bundle\DependencyInjection\Compiler\OriginHeaderResolverConfigPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
+use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
 
 class TenancyBundle extends AbstractBundle
@@ -53,6 +55,34 @@ class TenancyBundle extends AbstractBundle
             ->addDefaultsIfNotSet()
             ->children()
             ->scalarNode('app_domain')->defaultNull()->end()
+            ->end()
+            ->end()
+            ->arrayNode('origin')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->arrayNode('allow_list')
+            ->defaultValue([])
+            ->beforeNormalization()
+                ->always(static function (mixed $v): array {
+                    if (!is_array($v)) {
+                        return [];
+                    }
+
+                    return array_map(
+                        static fn (mixed $entry): mixed => is_string($entry)
+                            ? ['origin' => $entry, 'slug' => null]
+                            : $entry,
+                        $v,
+                    );
+                })
+            ->end()
+            ->arrayPrototype()
+            ->children()
+            ->scalarNode('origin')->isRequired()->cannotBeEmpty()->end()
+            ->scalarNode('slug')->defaultNull()->end()
+            ->end()
+            ->end()
+            ->end()
             ->end()
             ->end()
             ->end()
@@ -92,6 +122,26 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.host.app_domain', $hostConfig['app_domain'])
             ->set('tenancy.resolvers', $config['resolvers'])
             ->set('tenancy.cache_prefix_separator', $config['cache_prefix_separator']);
+
+        /** @var list<string> $configuredResolvers */
+        $configuredResolvers = $config['resolvers'];
+        if (in_array('origin', $configuredResolvers, true)) {
+            /** @var array<string, mixed> $originConfig */
+            $originConfig = $config['origin'] ?? [];
+            /** @var list<array<string, mixed>> $rawAllowList */
+            $rawAllowList = $originConfig['allow_list'] ?? [];
+
+            $builder->setParameter('tenancy.origin.allow_list', $rawAllowList);
+
+            $services = $container->services();
+            $services->set('tenancy.resolver.origin', OriginHeaderResolver::class)
+                ->args([
+                    service('tenancy.provider')->nullOnInvalid(),
+                    service('logger')->nullOnInvalid(),
+                    param('tenancy.origin.allow_list'),
+                ])
+                ->tag('tenancy.resolver', ['priority' => 25]);
+        }
 
         // Always-on: EntityManagerResetListener (works in both driver modes after resetManager() fix)
         $services = $container->services();
@@ -166,6 +216,7 @@ class TenancyBundle extends AbstractBundle
         $container->addCompilerPass(new BootstrapperChainPass());
         $container->addCompilerPass(new ResolverChainPass());
         $container->addCompilerPass(new CacheDecoratorContractPass());
+        $container->addCompilerPass(new OriginHeaderResolverConfigPass());
         if (interface_exists(MessageBusInterface::class)) {
             // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
             $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
