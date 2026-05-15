@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tenancy\Bundle\Tests\Support;
 
 use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 
 /**
  * In-memory PSR-3 logger used by both Unit and Integration suites to assert
@@ -43,7 +44,12 @@ final class RecordingLogger extends AbstractLogger
     {
         return array_values(array_filter(
             $this->records,
-            static fn (array $r): bool => 'warning' === $r['level'],
+            // Compare against the PSR-3 constant so the filter stays correct
+            // even if callers switch to `LogLevel::WARNING` directly or if the
+            // PSR-3 spec ever changes the underlying value. `AbstractLogger::warning()`
+            // dispatches to `log(LogLevel::WARNING, ...)`, which is what
+            // `OriginHeaderResolver::resolve()` records here.
+            static fn (array $r): bool => LogLevel::WARNING === $r['level'],
         ));
     }
 }
