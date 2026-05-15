@@ -53,8 +53,6 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
     }
 
     /**
-     * @param mixed $entry
-     *
      * @return array{
      *     origin: string, host: string, scheme: string, port: int,
      *     is_wildcard: bool, wildcard_suffix: ?string, slug: ?string,
@@ -95,7 +93,7 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
         $wildcardSuffix = null;
         if (str_contains($host, '*')) {
             // Acceptable shape: exactly "*." followed by a label-bearing suffix, no further "*".
-            if (!str_starts_with($host, '*.') || substr_count($host, '*') !== 1) {
+            if (!str_starts_with($host, '*.') || 1 !== substr_count($host, '*')) {
                 throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a mid-string wildcard — only one leftmost label may be "*"', $raw));
             }
             $tail = substr($host, 2); // drop "*."
