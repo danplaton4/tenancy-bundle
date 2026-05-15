@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: Phase 17 complete — ready for `/gsd-discuss-phase 18`
-stopped_at: Phase 17 verified and shipped (2026-05-15)
-last_updated: "2026-05-15T13:00:00.000Z"
-last_activity: 2026-05-15 — Phase 17 OriginHeaderResolver complete (5 plans, 7 review-driven fix commits, verifier passed 17/17, 340/340 tests). Next up: Phase 18 tenancy:install (DX-06).
+status: completed
+stopped_at: Phase 18 context gathered
+last_updated: "2026-05-15T14:32:05.249Z"
+last_activity: 2026-05-15 — Phase 17 OriginHeaderResolver shipped (5 plans, 7 review-driven fix commits, 340/340 tests pass)
 progress:
-  total_phases: 21
-  completed_phases: 16
-  total_plans: 53
-  completed_plans: 53
-  percent: 76
+  total_phases: 6
+  completed_phases: 1
+  total_plans: 5
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -178,6 +178,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-15T09:07:44.449Z
-Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-origin-header-resolver/17-CONTEXT.md
+Last session: 2026-05-15T14:32:05.241Z
+Stopped at: Phase 18 context gathered
+Resume file: .planning/phases/18-tenancy-install/18-CONTEXT.md
