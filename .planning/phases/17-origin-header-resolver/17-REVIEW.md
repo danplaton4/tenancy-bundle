@@ -2,7 +2,7 @@
 phase: 17-origin-header-resolver
 reviewed: 2026-05-15T00:00:00Z
 depth: standard
-files_reviewed: 15
+files_reviewed: 16
 files_reviewed_list:
   - CHANGELOG.md
   - docs/user-guide/origin-header-resolver.md
@@ -15,278 +15,130 @@ files_reviewed_list:
   - tests/Integration/Resolver/Support/StubTenant.php
   - tests/Integration/Resolver/Support/StubTenantProvider.php
   - tests/Unit/DependencyInjection/Compiler/OriginHeaderResolverConfigPassTest.php
+  - tests/Unit/DependencyInjection/Compiler/ResolverChainPassTest.php
   - tests/Unit/Resolver/OriginHeaderResolverTest.php
   - tests/Unit/Resolver/Support/RecordingLogger.php
   - tests/bootstrap.php
   - .gitignore
 findings:
-  critical: 0
-  warning: 6
-  info: 5
-  total: 11
+  blocker: 0
+  warning: 3
+  total: 3
 status: issues_found
 ---
 
-# Phase 17: Code Review Report
+# Phase 17: Code Review Report (Re-Review)
 
 **Reviewed:** 2026-05-15
 **Depth:** standard
-**Files Reviewed:** 15
 **Status:** issues_found
 
 ## Summary
 
-The `OriginHeaderResolver` feature is well-scoped, defensively coded, and well-tested. CORS preflight is short-circuited, the empty-allow-list footgun is a compile-time error, the mismatch-warning shape is locked by both a unit test and an integration test, and the trust model is clearly documented.
+This re-review verifies the four fixes applied by `/gsd-code-review-fix 17` (commits 79749f6, 672bf3f, 904b009, 71e32c7) and re-examines the rest of the implementation adversarially.
 
-No security-critical or correctness-blocking defects were found. However, there are several quality issues — most notably a **silent-misconfiguration footgun** where supplying both an explicit `slug` and a wildcard origin causes the explicit slug to be discarded without error. There are also a few smaller defects in validation precision, test coverage of an unreachable branch, code duplication between two `RecordingLogger` copies, and one stale claim in the user-guide doc.
+**Verification of prior findings:**
 
----
+| Prior finding | Status | Notes |
+|---|---|---|
+| WR-01 (wildcard + explicit slug silently dropped) | FIXED | `OriginHeaderResolverConfigPass.php:120-122` now throws; new unit test `testThrowsOnWildcardEntryWithExplicitSlug` locks the behavior. |
+| WR-02 (misleading error for `https://*`) | FIXED | Pure-`*` host now produces "invalid wildcard suffix" message (line 102-104). Test `testThrowsOnPureStarWildcard` updated accordingly. |
+| WR-03 (autoload triggered on arbitrary strings) | FIXED | `ResolverChainPass.php:46-49` now gates `class_exists`/`interface_exists` behind an FQCN-shaped regex and throws loudly on unrecognized short names. New unit tests `testProcessThrowsOnUnknownShortName` and `testProcessThrowsOnNonFqcnShapedString` lock the behavior. |
+| WR-04 (`RecordingLogger::$records` public mutable) | FIXED | Both Unit and Integration `RecordingLogger.php` now declare `$records` private and expose `reset()` / `records()`. Integration test `setUp()` calls `$logger->reset()`. |
+
+**However — new findings (carry-overs from the prior review's Info section that the fix workflow did not address, plus one regression observation):**
+
+The previous review's five **Info** items were not in scope for the fix workflow (it ran WR-01..WR-04 only), so they remain. Several of them are upgraded here to **WARNING** because they materially affect maintainability and operator diagnosis, and one of them (test-helper duplication) is now actively drifting — the two `RecordingLogger.php` copies were touched independently for WR-04 and are still byte-identical, but the next divergent edit will be a silent bug.
+
+No BLOCKER issues found. The fixes are correct, minimally-scoped, and well-tested. The implementation is safe to ship subject to the WARNING items below.
 
 ## Warnings
 
-### WR-01: Wildcard entry silently drops user-supplied `slug` (config-pass footgun)
+### WR-01: Duplicate `RecordingLogger` implementations remain (drift risk amplified by WR-04 fix)
 
-**File:** `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php:108-124`
+**File:** `tests/Unit/Resolver/Support/RecordingLogger.php` and `tests/Integration/Resolver/Support/RecordingLogger.php`
+**Issue:** The two files are still byte-identical aside from the namespace and docblock. The WR-04 fix had to change BOTH files in lockstep (commit 71e32c7); the next person who only updates one of them will introduce a silent test-isolation bug. The previous review flagged this as Info (IN-01) on the assumption it would not actively drift — the WR-04 fix demonstrated it already needs lockstep maintenance, so the duplication is no longer hypothetical.
 
-**Issue:** When a user writes a wildcard entry with an explicit `slug`, e.g.
+This is a classic test-only DRY violation that only surfaces when the two copies diverge — at which point one suite will silently keep stale records between tests while the other will reset properly. By then the regression is invisible because tests still go green.
 
-```yaml
-- { origin: 'https://*.app.example.com', slug: 'pinned' }
+**Fix:** Promote a single `RecordingLogger` to a shared location and delete one copy. Two options:
+
+1. **Shared namespace** — move to `tests/Support/RecordingLogger.php` under `Tenancy\Bundle\Tests\Support\RecordingLogger` and import from both suites.
+2. **Canonical Unit copy** — keep `tests/Unit/Resolver/Support/RecordingLogger.php`, delete the Integration copy, and change `use Tenancy\Bundle\Tests\Integration\Resolver\Support\RecordingLogger;` in `OriginHeaderResolverIntegrationTest.php` (and `ReplaceLoggerPass::process()` line 65) to `use Tenancy\Bundle\Tests\Unit\Resolver\Support\RecordingLogger;`.
+
+Option 1 is cleaner. The bootstrap (`tests/bootstrap.php` line 11) already maps `Tenancy\Bundle\Tests\\` to `tests/`, so a `Tenancy\Bundle\Tests\Support\RecordingLogger` placed in `tests/Support/RecordingLogger.php` autoloads with zero composer.json changes.
+
+### WR-02: `OriginHeaderResolverConfigPass::describe()` discards index + value for non-string, non-array-with-origin entries
+
+**File:** `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php:48-50, 138-148`
+**Issue:** When an allow-list entry is neither a string nor a `['origin' => string, …]` shape, `describe()` returns `get_debug_type($entry)` — so the error message becomes:
+
+```
+tenancy.origin.allow_list entry "array" is unparseable — must be an absolute origin URL (scheme://host[:port])
 ```
 
-the pass passes all validation (the `slug` is a non-empty string, and the entry is a wildcard so the "requires explicit slug" check is also skipped) and then unconditionally drops the user's slug on line 123:
+…or `"int"`, `"bool"`, etc. The user has no way to know **which index** in their YAML is bad or **what value** they actually passed. In a 20-entry production allow-list, this turns a 30-second fix into a search-and-replace exercise. The whole point of compile-time validation is to give the operator actionable feedback.
+
+This was flagged as IN-04 in the prior review but not addressed. Re-classifying to WARNING because the bundle's failure mode for misconfiguration is one of its advertised features — every other validation path names the offending value precisely; this one is the lone gap.
+
+**Fix:** Thread the index through `normalizeEntry()`:
 
 ```php
-'slug' => $isWildcard ? null : $slug,
-```
-
-The runtime resolver then derives slug from the leftmost label of the matched Origin, completely ignoring the user's intent. This is exactly the class of silent-misconfiguration footgun the pass was designed to prevent — see the class-level docblock on lines 17-21. The CHANGELOG (line 17) and user-guide (`origin-header-resolver.md` § Configuration) both describe `{origin, slug}` and wildcard shorthand as separate, exclusive forms, so a user combining them is misconfigured.
-
-**Fix:** Reject combined wildcard+slug at compile time:
-
-```php
-$slug = $entry['slug'] ?? null;
-if (null !== $slug && (!is_string($slug) || '' === $slug)) {
-    throw new \InvalidArgumentException(...);
+foreach ($allowList as $index => $entry) {
+    $normalized[] = $this->normalizeEntry($entry, $index);
 }
-if ($isWildcard && null !== $slug) {
-    throw new \InvalidArgumentException(sprintf(
-        'tenancy.origin.allow_list entry "%s" combines a wildcard origin with an explicit slug — wildcard entries derive their slug from the matched label at runtime; remove "slug" or replace the wildcard with an explicit origin',
-        $raw,
-    ));
+
+private function normalizeEntry(mixed $entry, int $index): array
+{
+    if (!is_array($entry) || !isset($entry['origin']) || !is_string($entry['origin']) || '' === $entry['origin']) {
+        throw new \InvalidArgumentException(sprintf(
+            'tenancy.origin.allow_list[%d] (%s) is unparseable — must be an absolute origin URL (scheme://host[:port])',
+            $index,
+            $this->describe($entry),
+        ));
+    }
+    // … and so on for every throw in this method
 }
-if (!$isWildcard && null === $slug) {
-    throw new \InvalidArgumentException(...);
-}
 ```
 
-Then add a unit test in `OriginHeaderResolverConfigPassTest` for the new failure mode, and remove the now-redundant `$isWildcard ? null : $slug` ternary on line 123 in favor of just `$slug` (or `null` when wildcard, asserted above).
+Also enrich `describe()` to render scalar values via `var_export($entry, true)` truncated to ~80 chars rather than just `get_debug_type` — so `"int"` becomes `"int(42)"` and `"array"` becomes a serialized preview.
 
----
+### WR-03: `RecordingLogger::log()` accepts `mixed $level` but `warnings()` only matches the string `'warning'`
 
-### WR-02: `ResolverChainPass` filter logic is order-dependent and double-checks unnecessarily
+**File:** `tests/Unit/Resolver/Support/RecordingLogger.php:22, 43` and `tests/Integration/Resolver/Support/RecordingLogger.php:22, 41`
+**Issue:** `log($level, …)` types `$level` as `mixed` (per PSR-3 `LoggerInterface::log()` which uses `mixed`). The `warnings()` filter does `'warning' === $r['level']` — strict string comparison. If anyone logs with the PSR-3 constant `Psr\Log\LogLevel::WARNING` (which equals the string `'warning'`) the filter matches. But if a future change in the resolver uses `LogLevel::warning()` style or an enum, the filter silently misses.
 
-**File:** `src/DependencyInjection/Compiler/ResolverChainPass.php:55-74`
+More importantly: `OriginHeaderResolver::resolve()` line 79 calls `$this->logger->warning(...)` — `AbstractLogger::warning()` dispatches to `log(LogLevel::WARNING, …)` where `LogLevel::WARNING === 'warning'`. So today's behavior is correct, but the test helper's filter is needlessly fragile to PSR-3 conventions and obscures what it's really doing.
 
-**Issue:** The filter loop only skips a tagged resolver if its FQCN is **in** `BUILT_IN_RESOLVER_MAP` **and** not in `$allowedFqcns`. Custom resolvers (FQCN not in the built-in map) pass through unconditionally — that part is documented and intentional. However:
-
-1. `$allowedFqcns` is populated from the configured short-names via the map, OR by accepting names that exist as classes/interfaces (line 46). If a user accidentally configures the FQCN of a **built-in** resolver under `tenancy.resolvers` (e.g. `'Tenancy\\Bundle\\Resolver\\OriginHeaderResolver'` rather than `'origin'`), it would be appended to `$allowedFqcns` by line 48 and accepted. That's permissive but technically inconsistent with the documented short-name interface.
-2. The filter is only applied to resolvers tagged with `tenancy.resolver`. The `OriginHeaderResolver` service is registered conditionally in `TenancyBundle::loadExtension` (line 128) only when `'origin'` is in the configured resolvers. So the filter check on line 65 for `OriginHeaderResolver::class` is dead code in practice — if `'origin'` is not in the config, the service is never tagged.
-
-The dead-code path is harmless but creates a maintenance footgun if the conditional registration is ever moved/removed: the filter would silently allow the resolver because it was never registered, and someone may later remove the filter assuming it has no callers.
-
-**Fix:** Either (a) register `OriginHeaderResolver` unconditionally and rely solely on `ResolverChainPass` filtering (matching `HostResolver`/`HeaderResolver` pattern), or (b) drop `OriginHeaderResolver::class` from `BUILT_IN_RESOLVER_MAP` since it doesn't follow the always-registered pattern. Pick one and document the chosen invariant in the pass docblock.
-
----
-
-### WR-03: Doc claim about "no extra DB roundtrip" is contradicted by the implementation
-
-**File:** `src/Resolver/OriginHeaderResolver.php:75-85`
-
-**Issue:** The inline comment on line 75 reads:
+**Fix:** Compare case-insensitively or use the PSR-3 constant explicitly:
 
 ```php
-// D-11: peek X-Tenant-ID; warn on mismatch (Origin wins, no extra DB roundtrip).
-```
+use Psr\Log\LogLevel;
 
-The implementation does **not** do an extra DB lookup for the header slug — correct. But the warning context (line 82) reports `header_slug` as the **raw, unvalidated** value from `X-Tenant-ID`. If the comment intends to convey "we don't validate the header_slug exists," that should be in the doc-comment, not the inline. More importantly, the user-guide doc says:
-
-> "Slug comparison is case-insensitive — `acme` and `ACME` are treated as the same tenant for the purposes of this check."
-
-But case-insensitive `strcasecmp` does **not** mean they are "the same tenant" — it means the warning suppression is case-insensitive. The wording in the doc could mislead an operator into thinking the resolver normalizes tenant slugs. Clarify the doc:
-
-```
-Slug comparison for *mismatch detection* is case-insensitive — `acme` and
-`ACME` do not produce a warning. Slug resolution itself uses whatever the
-allow-list and provider configure (typically lowercase).
-```
-
-**Fix:** Update `docs/user-guide/origin-header-resolver.md` § Mismatch Warning to clarify that case-insensitivity applies to the *warning* check, not to tenant identity.
-
----
-
-### WR-04: Mismatch-warning context logs attacker-controlled `header_slug` unsanitized
-
-**File:** `src/Resolver/OriginHeaderResolver.php:79-84`
-
-**Issue:** `$headerSlug` is taken directly from `$request->headers->get('X-Tenant-ID')` and emitted as a PSR-3 log context value. PSR-3 implementations vary in their handling of structured context — most pass it through as-is to a JSON encoder (safe) but some line-formatters interpolate context values into the message line. If a malicious client sends:
-
-```
-X-Tenant-ID: foo\nlevel=error msg="fake admin event"
-```
-
-a line-based log formatter could produce a forged log entry. Same concern applies to `$origin` (line 80), though Symfony's `HeaderBag` strips CR/LF from header values on construction, mitigating this for browser-set headers — but the value still reaches log output unsanitized.
-
-This is a defense-in-depth issue, not a confirmed exploit (Monolog's `JsonFormatter` and `LineFormatter` both escape control characters). Worth a note and a length cap.
-
-**Fix:** Cap the logged header value at a reasonable length and strip control characters before logging:
-
-```php
-$safeHeaderSlug = preg_replace('/[\x00-\x1F\x7F]/', '', substr($headerSlug, 0, 128));
-$this->logger->warning('Origin/X-Tenant-ID mismatch — Origin wins', [
-    'origin' => $origin,
-    'origin_slug' => $tenant->getSlug(),
-    'header_slug' => $safeHeaderSlug,
-    'winner' => 'origin',
-]);
-```
-
-Update `testMismatchWithXTenantIdLogsWarningAtWarningLevelWithStructuredContext` to assert sanitization.
-
----
-
-### WR-05: `OriginHeaderResolverConfigPass::normalizeEntry` accepts `userinfo`-shaped errors under wrong message
-
-**File:** `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php:78-83`
-
-**Issue:** The conditional bundles together five distinct failure modes (`path`, `query`, `fragment`, `user`, `pass`) under a single error message:
-
-```
-contains a path/query — origin URLs must be bare authorities
-```
-
-The unit test `testThrowsOnUserInfoInOrigin` (line 127) asserts this same message for the userinfo case. The message is misleading when the actual problem is `https://user:pass@host` (no path, no query) — an operator reading the error would not know to remove the `user:pass@` segment.
-
-**Fix:** Split the validation into two messages, or generalize the message to "contains path/query/fragment/userinfo":
-
-```php
-$disallowed = [];
-if (isset($parts['path']) && '' !== $parts['path']) { $disallowed[] = 'path'; }
-if (isset($parts['query']) && '' !== $parts['query']) { $disallowed[] = 'query'; }
-if (isset($parts['fragment']) && '' !== $parts['fragment']) { $disallowed[] = 'fragment'; }
-if (isset($parts['user']) || isset($parts['pass'])) { $disallowed[] = 'userinfo'; }
-if ([] !== $disallowed) {
-    throw new \InvalidArgumentException(sprintf(
-        'tenancy.origin.allow_list entry "%s" contains disallowed components (%s) — origin URLs must be bare authorities (scheme://host[:port])',
-        $raw,
-        implode(', ', $disallowed),
+public function warnings(): array
+{
+    return array_values(array_filter(
+        $this->records,
+        static fn (array $r): bool => LogLevel::WARNING === $r['level'],
     ));
 }
 ```
 
-Update the test to assert the new wording.
+This is minor on its own, but the same pattern probably wants to grow `errors()` / `notices()` helpers later, and pinning the comparison to the PSR-3 constant prevents one whole class of "test passes locally, fails when someone uppercases the level" bugs.
 
----
+## Notes on items NOT re-flagged
 
-### WR-06: `testReturnsNullWhenOriginHeaderEmpty` likely exercises the `null` branch, not the `''` branch
+The prior review's IN-02 (wildcard slug regex validation), IN-03 (log-amplification rate-limiting), and IN-05 (parameter-setter style inconsistency in `TenancyBundle::loadExtension`) are real but acceptable for v1 — they remain as-is. They do not warrant blocking the phase; they are appropriate follow-up issues for a separate hardening pass.
 
-**File:** `tests/Unit/Resolver/OriginHeaderResolverTest.php:42-48`
+The four fixes themselves were verified against the source and tests:
 
-**Issue:** The test calls:
-
-```php
-$request = Request::create('/', 'GET', [], [], [], ['HTTP_ORIGIN' => '']);
-```
-
-Symfony's `HeaderBag` stores the empty string but `$request->headers->get('Origin')` will return `''` only if the bag actually retains the empty value. In several Symfony versions / SAPI shims, empty-string headers passed through `$_SERVER` are filtered. The test asserts the resolver returns `null`, which is true in both branches (`null === $origin` and `'' === $origin`) — so the test passes regardless of which branch fires.
-
-To actually cover the `'' === $origin` branch on line 58 of `OriginHeaderResolver.php`, set the header explicitly on the request:
-
-**Fix:**
-
-```php
-public function testReturnsNullWhenOriginHeaderEmpty(): void
-{
-    $this->provider->expects($this->never())->method('findBySlug');
-
-    $request = Request::create('/', 'GET');
-    $request->headers->set('Origin', '');
-    self::assertSame('', $request->headers->get('Origin'), 'header bag retains empty string');
-    $this->assertNull($this->resolver->resolve($request));
-}
-```
-
-Otherwise the `'' === $origin` arm of the OR check is genuinely uncovered.
-
----
-
-## Info
-
-### IN-01: `RecordingLogger` is duplicated across unit and integration test trees
-
-**File:** `tests/Unit/Resolver/Support/RecordingLogger.php`, `tests/Integration/Resolver/Support/RecordingLogger.php`
-
-**Issue:** Both files are functionally identical (same `records` array, same `warnings()` filter, same docblock anchoring to D-11). Only the namespace differs.
-
-**Fix:** Consolidate into a single shared test support class (e.g., `tests/Support/RecordingLogger.php` under namespace `Tenancy\Bundle\Tests\Support`) and import from both unit and integration tests. Less drift risk if the schema of recorded records ever changes.
-
----
-
-### IN-02: User-guide mentions `nelmio/cors-bundle` without a links/refs section
-
-**File:** `docs/user-guide/origin-header-resolver.md:150`
-
-**Issue:** The CORS preflight section recommends `nelmio/cors-bundle` but doesn't link to it or mention version compatibility. Minor doc polish.
-
-**Fix:** Add an inline link `[nelmio/cors-bundle](https://github.com/nelmio/NelmioCorsBundle)` or a Resources section.
-
----
-
-### IN-03: `matchOrigin()` silently rejects malformed wildcard suffixes — duplicated validation
-
-**File:** `src/Resolver/OriginHeaderResolver.php:115-122`
-
-**Issue:** Lines 116 (`null === $suffix`) and 120 (`'' === $label || str_contains($label, '.')`) duplicate validation already enforced by `OriginHeaderResolverConfigPass`. This is defense-in-depth and fine, but the resolver silently `continue`s rather than logging/asserting — if a malformed entry ever sneaks past the compile pass (e.g., the parameter is overwritten by another bundle at runtime), the resolver will silently fail to match instead of surfacing the bug. Consider a single `assert()` for development environments:
-
-```php
-assert(null !== $suffix, 'wildcard entry without suffix — config pass invariant violated');
-```
-
-**Fix:** Optional — add `assert()` calls for invariants guaranteed by the config pass.
-
----
-
-### IN-04: CHANGELOG entry omits the wildcard slug case
-
-**File:** `CHANGELOG.md:16-17`
-
-**Issue:** The Added bullet says "Supports explicit `{origin, slug}` map entries and wildcard shorthand `'https://*.app.example.com'` (slug = leftmost label)." This is correct, but does not warn about WR-01 (combining the two forms silently discards the explicit slug). Once WR-01 is fixed, no change is needed; if WR-01 is rejected, the CHANGELOG should explicitly call out the precedence rule.
-
-**Fix:** After deciding WR-01, ensure CHANGELOG matches the chosen semantics.
-
----
-
-### IN-05: Tests use class-name md5 for cache dir but do not clean up on failure
-
-**File:** `tests/Integration/Resolver/OriginHeaderResolverIntegrationTest.php:114-122, 156-164`
-
-**Issue:** `getCacheDir()` and `getLogDir()` use `sys_get_temp_dir().'/tenancy_origin_test_'.md5(static::class)`. The two test kernels generate distinct paths (good for isolation) but no `tearDown`/`tearDownAfterClass` removes the temp dirs. Successive test runs accumulate stale caches in `/tmp`.
-
-**Fix:** Add cleanup in `tearDownAfterClass`:
-
-```php
-public static function tearDownAfterClass(): void
-{
-    self::$kernel->shutdown();
-    // Best-effort cleanup; ignore errors so test failures aren't masked.
-    @exec('rm -rf ' . escapeshellarg(self::$kernel->getCacheDir() . '/..'));
-}
-```
-
-Or use Symfony's `Filesystem::remove()`.
+- **commit 79749f6 (WR-01)** — `OriginHeaderResolverConfigPass.php:120-122` correctly throws before reaching the array assembly. Test `testThrowsOnWildcardEntryWithExplicitSlug` exercises it.
+- **commit 672bf3f (WR-02)** — `OriginHeaderResolverConfigPass.php:101-110` splits the bare-wildcard branch from the mid-string-wildcard branch with distinct messages. Tests `testThrowsOnPureStarWildcard` and `testThrowsOnWildcardWithSingleLabelSuffix` cover the new message; `testThrowsOnMidStringWildcard` and `testThrowsOnMultiLabelWildcard` still cover the original.
+- **commit 904b009 (WR-03)** — Regex `/^[A-Z][A-Za-z0-9_]*(\\\\[A-Z][A-Za-z0-9_]*)+$/` requires at least one namespace separator and PascalCase segments. This rejects bare class names (e.g. `MyResolver`) — that may surprise users with single-namespace classes but is the safer default. Tests `testProcessThrowsOnUnknownShortName`, `testProcessThrowsOnNonFqcnShapedString`, `testProcessAcceptsFqcnShapedCustomResolverName` collectively prove the new branching.
+- **commit 71e32c7 (WR-04)** — Both `RecordingLogger.php` files have private `$records`, public `reset()` and `records()`. Integration test `setUp()` calls `$logger->reset()` correctly. No callers in either suite touch `$records` directly.
 
 ---
 
 _Reviewed: 2026-05-15_
 _Reviewer: Claude (gsd-code-reviewer)_
-_Depth: standard_
+_Depth: standard (re-review)_
