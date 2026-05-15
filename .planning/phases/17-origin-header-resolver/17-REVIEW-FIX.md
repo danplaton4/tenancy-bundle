@@ -2,79 +2,109 @@
 phase: 17-origin-header-resolver
 fixed_at: 2026-05-15T00:00:00Z
 review_path: .planning/phases/17-origin-header-resolver/17-REVIEW.md
-iteration: 1
-findings_in_scope: 4
-fixed: 4
+iteration: 2
+findings_in_scope: 3
+fixed: 3
 skipped: 0
 status: all_fixed
 ---
 
-# Phase 17: Code Review Fix Report
+# Phase 17: Code Review Fix Report (Iteration 2)
 
 **Fixed at:** 2026-05-15
 **Source review:** `.planning/phases/17-origin-header-resolver/17-REVIEW.md`
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 4 (all WR-* warnings; IN-* findings deferred per `fix_scope: critical_warning`)
-- Fixed: 4
+- Findings in scope: 3 (WR-01, WR-02, WR-03 — all Warning; no Blocker)
+- Fixed: 3
 - Skipped: 0
 
-After each fix the full quality gate suite was rerun in an isolated worktree:
-`vendor/bin/php-cs-fixer check`, `vendor/bin/phpstan analyse --memory-limit=512M`,
-`vendor/bin/phpunit`. Final test count: **338 tests, 835 assertions, all green**
-(up from 333; +5 new tests added for the regressions fixed below).
-
-The local git `pre-commit` hook ran PHPStan without a memory limit and crashed at
-the default 128M ceiling — unrelated to the changes (PHPStan reports `[OK] No errors`
-when invoked with `--memory-limit=512M`, matching the Claude `pre-commit-quality.sh`
-hook). Commits were created with `--no-verify` after all gates passed externally,
-which is the documented behavior for parallel worktree agents per the project's
-own pre-commit hook (`# Skip if --no-verify is present (parallel worktree agents)`).
+All three new warnings from the re-review are addressed. The full PHPUnit
+suite is green after each commit (338 -> 340 tests, +2 new test cases
+covering the WR-02 enriched error wording). PHPStan level 9 is clean
+and `php-cs-fixer` reports no remaining issues. Iteration 1's REVIEW-FIX
+report (which covered WR-01..WR-04 of the original review) is fully
+superseded by this file.
 
 ## Fixed Issues
 
-### WR-01: Wildcard entries silently discard user-provided `slug`
+### WR-01: Duplicate `RecordingLogger` implementations remain (drift risk amplified by WR-04 fix)
 
-**Files modified:** `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php`, `tests/Unit/DependencyInjection/Compiler/OriginHeaderResolverConfigPassTest.php`
-**Commit:** `79749f6`
-**Applied fix:** Added an explicit guard in `normalizeEntry()` — when an entry is detected as a wildcard (`$isWildcard === true`) and a non-null `slug` is also supplied, throw `InvalidArgumentException` with a message explaining that wildcard entries derive their slug from the matched label at runtime and the two concepts are mutually exclusive. Added a covering unit test `testThrowsOnWildcardEntryWithExplicitSlug` that feeds `['origin' => 'https://*.app.example.com', 'slug' => 'global-tenant']` and asserts the new exception message.
+**Files modified:**
+- `tests/Support/RecordingLogger.php` (new — canonical shared copy under `Tenancy\Bundle\Tests\Support`)
+- `tests/Unit/Resolver/Support/RecordingLogger.php` (deleted)
+- `tests/Integration/Resolver/Support/RecordingLogger.php` (deleted)
+- `tests/Unit/Resolver/OriginHeaderResolverTest.php` (import updated)
+- `tests/Integration/Resolver/OriginHeaderResolverIntegrationTest.php` (import updated; imports also auto-reordered by php-cs-fixer)
 
-### WR-02: Misleading error message for `https://*` and similar bare-wildcard inputs
+**Commit:** `be0ff4c`
 
-**Files modified:** `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php`, `tests/Unit/DependencyInjection/Compiler/OriginHeaderResolverConfigPassTest.php`
-**Commit:** `672bf3f`
-**Applied fix:** Restructured the wildcard-detection branch to distinguish three failure modes:
-  1. Multiple `*` characters → "mid-string wildcard" (unchanged).
-  2. Lone `*` host (`https://*`) → "has an invalid wildcard suffix — wildcard must be \"*.\" followed by at least two labels".
-  3. `*.` prefix with a degenerate suffix (`*.com`, `*.`, `*..foo`) → same "invalid wildcard suffix" message.
+**Applied fix:** Took option 1 from the review (cleaner, no composer.json changes
+required). Created a single shared `Tenancy\Bundle\Tests\Support\RecordingLogger`
+at `tests/Support/RecordingLogger.php`. The `tests/bootstrap.php` already maps
+`Tenancy\Bundle\Tests\\` to `tests/`, so autoloading works in both suites
+without any composer or PHPUnit configuration change. Removed both duplicate
+copies and updated the two consumers' `use` statements. The
+`ReplaceLoggerPass::process()` in the integration test now constructs the
+shared class via its new namespace.
 
-Updated `testThrowsOnPureStarWildcard` to assert the new, accurate message (previously it locked in the misleading message). Added `testThrowsOnWildcardWithSingleLabelSuffix` to cover the `https://*.com` branch.
+The now-empty `tests/Unit/Resolver/Support/` directory was removed.
 
-### WR-03: `ResolverChainPass` triggers autoload on arbitrary user-supplied strings
+### WR-02: `OriginHeaderResolverConfigPass::describe()` discards index + value for non-string, non-array-with-origin entries
 
-**Files modified:** `src/DependencyInjection/Compiler/ResolverChainPass.php`, `tests/Unit/DependencyInjection/Compiler/ResolverChainPassTest.php`
-**Commit:** `904b009`
-**Applied fix:** Restricted the `class_exists()`/`interface_exists()` fallback to strings that match an FQCN-shaped regex (`/^[A-Z][A-Za-z0-9_]*(\\[A-Z][A-Za-z0-9_]*)+$/`). Anything that is neither a built-in short name nor an FQCN-shaped string now throws `InvalidArgumentException` listing the available built-in short names — eliminating both the silent-typo failure mode (`'orgin'`) and the autoload-on-arbitrary-string vector. Added three tests: `testProcessThrowsOnUnknownShortName` (typo), `testProcessThrowsOnNonFqcnShapedString` (non-FQCN garbage), `testProcessAcceptsFqcnShapedCustomResolverName` (positive path).
+**Files modified:**
+- `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php`
+- `tests/Unit/DependencyInjection/Compiler/OriginHeaderResolverConfigPassTest.php`
 
-### WR-04: `RecordingLogger::$records` exposed as a mutable public array
+**Commit:** `37f5068`
 
-**Files modified:** `tests/Unit/Resolver/Support/RecordingLogger.php`, `tests/Integration/Resolver/Support/RecordingLogger.php`, `tests/Integration/Resolver/OriginHeaderResolverIntegrationTest.php`
-**Commit:** `71e32c7`
-**Applied fix:** Made `$records` private in both `RecordingLogger` copies and added explicit `reset(): void` and `records(): array` accessor methods. Updated `OriginHeaderResolverIntegrationTest::setUp()` to call `$logger->reset()` instead of writing `$logger->records = []` directly. The (now-duplicated) duplication identified in IN-01 is unchanged — that consolidation is deferred to its own follow-up since it is in `Info` scope.
+**Applied fix:** Threaded the array index through `normalizeEntry(mixed $entry, int $index)`
+and rewrote every `\InvalidArgumentException` message in the method to follow
+the format `tenancy.origin.allow_list[%d] ("%s") <reason>` (or
+`tenancy.origin.allow_list[%d] (%s) <reason>` for the type-fallback path).
+Enriched `describe()` so:
 
-## Deferred (out of scope: `Info` findings)
+- Strings render as `"value"` (quoted)
+- Arrays with a string `origin` key render as `"origin-value"` (quoted)
+- Everything else renders as `<type>: <var_export>` truncated to 80 chars
+  (e.g. `int: 42`)
 
-The following findings were identified in REVIEW.md but not addressed this iteration because the fix scope is `critical_warning`. They remain valid follow-ups:
+Added two new unit tests:
+- `testErrorMessageIncludesIndexAndQuotedOrigin` — verifies a wildcard-with-explicit-slug
+  error at index 1 reports `tenancy.origin.allow_list[1] ("https://*.app.example.com")`.
+- `testErrorMessageForNonArrayEntryShowsTypeAndValue` — verifies a raw `42` entry at
+  index 0 reports `tenancy.origin.allow_list[0] (int: 42) is unparseable`.
 
-- **IN-01:** Duplicate `RecordingLogger` implementations (Unit and Integration copies are still byte-similar after WR-04 — could be consolidated to a shared `tests/Support/`).
-- **IN-02:** Stricter slug-label validation in `OriginHeaderResolver::resolve()` before calling `findBySlug()`.
-- **IN-03:** Log-amplification mitigation for mismatch warnings (documentation or dedup map).
-- **IN-04:** Include array index in `OriginHeaderResolverConfigPass` error messages.
-- **IN-05:** Use `$container->parameters()` consistently in `TenancyBundle::loadExtension()` for `tenancy.origin.allow_list`.
+All 13 pre-existing `OriginHeaderResolverConfigPassTest` tests still pass
+because they use substring matching on the `<reason>` portion of each message
+(e.g. `'is unparseable'`, `'contains a mid-string wildcard'`), which is
+unchanged by the new prefix. The integration-test assertion on
+`'tenancy.origin.allow_list is empty but "origin" is configured in tenancy.resolvers'`
+also still matches — that top-level error is generated before the
+`normalizeEntry()` loop.
+
+### WR-03: `RecordingLogger::log()` accepts `mixed $level` but `warnings()` only matches the string `'warning'`
+
+**Files modified:**
+- `tests/Support/RecordingLogger.php`
+
+**Commit:** `3026663`
+
+**Applied fix:** Imported `Psr\Log\LogLevel` and replaced the bare string
+`'warning'` in `warnings()` with `LogLevel::WARNING`. Behaviour-equivalent
+today because `AbstractLogger::warning()` dispatches via
+`log(LogLevel::WARNING, ...)` and `LogLevel::WARNING === 'warning'`. The
+test now reads as "match warning-level records" rather than "match this
+magic string." Added an inline comment explaining the PSR-3 contract so
+the next maintainer does not revert the constant back to a literal.
+
+All four pre-existing assertions that depend on `warnings()` continue to pass:
+- `OriginHeaderResolverTest::testMismatchWithXTenantIdLogsWarningAtWarningLevelWithStructuredContext` (count + level + context)
+- `OriginHeaderResolverIntegrationTest::testMismatchWithXTenantIdLogsWarning` (count + context)
 
 ---
 
 _Fixed: 2026-05-15_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
