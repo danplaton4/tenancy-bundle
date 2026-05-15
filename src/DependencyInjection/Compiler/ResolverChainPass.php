@@ -43,9 +43,12 @@ final class ResolverChainPass implements CompilerPassInterface
             foreach ($configuredResolvers as $name) {
                 if (isset(self::BUILT_IN_RESOLVER_MAP[$name])) {
                     $allowedFqcns[] = self::BUILT_IN_RESOLVER_MAP[$name];
-                } elseif (class_exists($name) || interface_exists($name)) {
-                    // If name is not in the map, it could be an FQCN — add directly
+                } elseif (preg_match('/^[A-Z][A-Za-z0-9_]*(\\\\[A-Z][A-Za-z0-9_]*)+$/', $name)
+                    && (class_exists($name) || interface_exists($name))) {
+                    // FQCN-shaped fallback: only trigger autoload on namespaced PascalCase strings.
                     $allowedFqcns[] = $name;
+                } else {
+                    throw new \InvalidArgumentException(sprintf('tenancy.resolvers entry "%s" is neither a built-in short name (%s) nor a recognizable FQCN', $name, implode(', ', array_keys(self::BUILT_IN_RESOLVER_MAP))));
                 }
             }
         }

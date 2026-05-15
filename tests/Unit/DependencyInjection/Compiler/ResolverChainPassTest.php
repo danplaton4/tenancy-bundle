@@ -110,6 +110,65 @@ final class ResolverChainPassTest extends TestCase
         $this->assertSame(HostResolver::class, (string) $methodCalls[0][1][0]);
     }
 
+    public function testProcessThrowsOnUnknownShortName(): void
+    {
+        $container = new ContainerBuilder();
+
+        $chainDefinition = new Definition(ResolverChain::class);
+        $container->setDefinition(ResolverChain::class, $chainDefinition);
+
+        // A typo like 'orgin' is neither a built-in nor an FQCN — must fail loudly,
+        // not silently drop the entry.
+        $container->setParameter('tenancy.resolvers', ['orgin']);
+
+        $pass = new ResolverChainPass();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('tenancy.resolvers entry "orgin" is neither a built-in short name');
+
+        $pass->process($container);
+    }
+
+    public function testProcessThrowsOnNonFqcnShapedString(): void
+    {
+        $container = new ContainerBuilder();
+
+        $chainDefinition = new Definition(ResolverChain::class);
+        $container->setDefinition(ResolverChain::class, $chainDefinition);
+
+        // 'some/path' is not a built-in, not FQCN-shaped, so it must not trigger autoload.
+        $container->setParameter('tenancy.resolvers', ['some/path']);
+
+        $pass = new ResolverChainPass();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('is neither a built-in short name');
+
+        $pass->process($container);
+    }
+
+    public function testProcessAcceptsFqcnShapedCustomResolverName(): void
+    {
+        $container = new ContainerBuilder();
+
+        $chainDefinition = new Definition(ResolverChain::class);
+        $container->setDefinition(ResolverChain::class, $chainDefinition);
+
+        // A real class — Tenancy\Bundle\Resolver\HostResolver — referenced as an FQCN.
+        $container->setParameter('tenancy.resolvers', [HostResolver::class]);
+
+        $hostDef = new Definition(HostResolver::class);
+        $hostDef->addTag('tenancy.resolver', ['priority' => 30]);
+        $container->setDefinition(HostResolver::class, $hostDef);
+
+        $pass = new ResolverChainPass();
+        $pass->process($container);
+
+        $methodCalls = $chainDefinition->getMethodCalls();
+        $this->assertCount(1, $methodCalls);
+        $this->assertSame(HostResolver::class, (string) $methodCalls[0][1][0]);
+    }
+
     public function testProcessAllowsCustomResolversEvenWhenFiltering(): void
     {
         $container = new ContainerBuilder();
