@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
+use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\QueryParamResolver;
 use Tenancy\Bundle\Resolver\ResolverChain;
 
@@ -20,6 +21,7 @@ final class ResolverChainPass implements CompilerPassInterface
     private const BUILT_IN_RESOLVER_MAP = [
         'host' => HostResolver::class,
         'header' => HeaderResolver::class,
+        'origin' => OriginHeaderResolver::class,
         'query_param' => QueryParamResolver::class,
         'console' => ConsoleResolver::class,
     ];
