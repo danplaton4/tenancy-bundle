@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`OriginHeaderResolver`** — SPA-friendly tenant resolver that reads the browser-set
+  `Origin` HTTP header, matches it against a configurable allow-list under
+  `tenancy.origin.allow_list`, and resolves the tenant. Registered in the resolver chain
+  at priority 25 (above `HeaderResolver` 20, below `HostResolver` 30). Opt-in via
+  `tenancy.resolvers: ['…', 'origin']`. Supports explicit `{origin, slug}` map entries
+  and wildcard shorthand `'https://*.app.example.com'` (slug = leftmost label).
+  CORS preflight (`OPTIONS`) requests pass through cleanly; mismatches with
+  `X-Tenant-ID` are recorded as `warning`-level PSR-3 log entries with structured
+  context. See `docs/user-guide/origin-header-resolver.md` § Trust Model — Origin is
+  a routing hint, not an authentication credential.
+- **`OriginHeaderResolverConfigPass`** — compile-time guard that rejects empty
+  allow-lists, unparseable origin URLs, mid-string wildcards, multi-label wildcards,
+  path/query/fragment-bearing origins, and non-wildcard entries missing an explicit
+  slug. Misconfiguration fails at container build, not at runtime.
+
 ## [0.2.1] — 2026-04-21
 
 ### Fixed
