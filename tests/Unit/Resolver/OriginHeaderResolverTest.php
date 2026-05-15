@@ -12,7 +12,7 @@ use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\TenantInterface;
-use Tenancy\Bundle\Tests\Unit\Resolver\Support\RecordingLogger;
+use Tenancy\Bundle\Tests\Support\RecordingLogger;
 
 final class OriginHeaderResolverTest extends TestCase
 {
