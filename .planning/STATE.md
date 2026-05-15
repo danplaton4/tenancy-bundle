@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: milestone_complete
-stopped_at: Phase 17 context gathered
-last_updated: "2026-05-15T10:32:37.780Z"
-last_activity: 2026-05-15 -- Phase 17 execution started
+status: Phase 17 complete — ready for `/gsd-discuss-phase 18`
+stopped_at: Phase 17 verified and shipped (2026-05-15)
+last_updated: "2026-05-15T13:00:00.000Z"
+last_activity: 2026-05-15 — Phase 17 OriginHeaderResolver complete (5 plans, 7 review-driven fix commits, verifier passed 17/17, 340/340 tests). Next up: Phase 18 tenancy:install (DX-06).
 progress:
-  total_phases: 16
+  total_phases: 21
   completed_phases: 16
   total_plans: 53
-  completed_plans: 48
-  percent: 100
+  completed_plans: 53
+  percent: 76
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 17 — origin-header-resolver
+**Current focus:** Phase 18 — tenancy:install (DX-06)
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-15
+Phase: 18 (next up)
+Plan: —
+Status: Phase 17 complete — ready for `/gsd-discuss-phase 18` or `/gsd-plan-phase 18`
+Last activity: 2026-05-15 — Phase 17 OriginHeaderResolver shipped (5 plans, 7 review-driven fix commits, 340/340 tests pass)
 
 ## Performance Metrics
 

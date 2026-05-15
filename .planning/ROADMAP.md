@@ -49,6 +49,98 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 
 **Explicit non-goal:** Symfony Flex recipe. Setup command is the supported onboarding path; revisit `symfony/recipes-contrib` only when install volume justifies the maintenance cost.
 
+#### Phase Details (v0.3)
+
+### Phase 17: OriginHeaderResolver
+
+**Goal:** Ship a SPA-friendly tenant resolver that reads the `Origin` HTTP header, sits in the resolver chain at priority 25 (above `HeaderResolver`, below `HostResolver`), and exposes its trust model honestly in docs.
+
+**Requirements:** RESV-06
+
+**Success criteria:**
+1. A request with a known `Origin` header value (matched against the configured allow-list) resolves the tenant from the chain
+2. A `CORS` preflight (`OPTIONS`) request with `Origin` set does NOT throw — resolver returns `null` and chain falls through
+3. Container compilation fails with a clear error message when `OriginHeaderResolver` is configured with an empty allow-list or with mid-string wildcards (`OriginHeaderResolverConfigPass`)
+4. When both `Origin` and `X-Tenant-ID` resolve to different tenants in the same request, `Origin` wins and a `warning`-level log entry records the conflict
+5. User-facing docs include a dedicated "Trust Model" section explaining `Origin` is browser-protected cross-origin but spoofable from non-browser clients
+
+**Status:** ✅ Complete (2026-05-15) — 5 plans, 7 review-driven fix commits, 340/340 tests pass.
+
+### Phase 18: tenancy:install
+
+**Goal:** A first-time user runs `composer require danplaton4/tenancy-bundle && bin/console tenancy:install` and the bundle is registered, configured, and ready — no manual `config/bundles.php` editing on the install path.
+
+**Requirements:** DX-06
+
+**Research needed (limited):** Assemble a `bundles.php` fixture corpus of ≥6 real-project shapes (standard skeleton, API Platform, Sulu, DDD-with-`registerBundles()`-override, project-with-comments, project-with-env-conditionals). Confirm `nikic/php-parser` API for preserving the file's existing formatting (or accept reformatting + idempotency over byte-for-byte preservation).
+
+**Success criteria:**
+1. `bin/console tenancy:install` on a fresh Symfony skeleton results in `TenancyBundle::class` registered in `config/bundles.php` AND `config/packages/tenancy.yaml` written by the delegated `tenancy:init` call — single command, no manual edits
+2. Re-running `bin/console tenancy:install` is idempotent (bundle already present → exits 0 with informational message, no file mutation)
+3. `bin/console tenancy:install --dry-run` prints the proposed mutation to stdout without writing
+4. On any of the 6 fixture-corpus shapes the command either (a) succeeds, OR (b) refuses to mutate and prints a clean manual snippet — never produces an invalid `bundles.php` (post-mutation `php -l` check enforces this; `.bak` restore on failure)
+5. `nikic/php-parser` is in `require-dev` only and loaded lazily (its absence from `require` is verified by a test on the bundle's runtime container)
+
+### Phase 19: Profiler Tab
+
+**Goal:** When the developer hits any page in dev mode and the request has resolved a tenant, the Web Debug Toolbar shows a "Tenancy" panel with the tenant's identity, the resolver that picked it, the active driver, and the bootstrappers that ran.
+
+**Requirements:** DX-02
+
+**Success criteria:**
+1. Open the demo app (or any dev-profile app) in a browser → the WDT shows a Tenancy icon with the active tenant slug visible at a glance
+2. Click the Tenancy panel → see active slug, tenant ID, driver, connection name, resolved-by FQCN, list of bootstrappers run for the request
+3. A null-resolution request (public/landlord/health-check route) shows the Tenancy panel in its "no tenant" state — does not throw, does not hide silently
+4. Reloading a stored Profiler dump (after the request has terminated) renders the same panel state — no serialization errors from `$this->data`
+5. The Tenancy data collector is registered ONLY when `kernel.debug = true` — production container compilation does not include it (verified by a CI check)
+
+### Phase 20: Mailer Bootstrapper
+
+**Goal:** A tenant with a `mailerDsn` configured sends mail from that DSN with the tenant's `From`/`Reply-To` headers — correct under BOTH synchronous Mailer dispatch AND Messenger-routed async dispatch.
+
+**Requirements:** BOOT-04
+
+**Research needed (substantial):** Validate `X-Transport` header survival across all Messenger transports the bundle supports (Doctrine, AMQP, JSON-redis); design the `TenantTransportProviderInterface` fallback for tenants not enumerable at compile time; calibrate the per-tenant transport LRU cache bound; design the DSN-sanitizing exception wrapper; draft the landlord schema migration recipe for adding the `mailerDsn` column.
+
+**Success criteria:**
+1. Sync dispatch: in tenant A's HTTP context, `$mailer->send()` delivers via tenant A's SMTP DSN with tenant A's `From` header — verified by a `Mailer\Test\TransportListener` capture
+2. Async dispatch (the canary test): dispatch an email in tenant A's HTTP context with Mailer routed to Messenger; the Messenger worker runs in a clean context; the worker-side capture asserts tenant A's SMTP DSN was used — NOT the landlord DSN
+3. Container compilation fails with a clear error when the Mailer bootstrapper is enabled but no transport strategy is configured (`MailerTransportContractPass`); additionally fails when Mailer is routed async but the strategy is not `x_transport`
+4. An existing user's custom `Tenant` entity (without `mailerDsn` field) breaks compilation with a clear migration path: `use TenantMailerConfigTrait;` or implement `getMailerDsn(): ?string` — documented in `UPGRADE.md`
+5. A thrown `TransportException` during send does NOT leak the DSN's password component in its message or trace (sanitization wrapper)
+6. After `TenantContextCleared` event, the per-tenant transport cache is cleared (verified by a long-running-worker simulation test that processes messages for 100 distinct tenants without unbounded socket growth)
+
+### Phase 21: Demo App
+
+**Goal:** A new user runs `git clone … && cd examples/saas && docker compose up` and within 2 minutes can hit two tenant subdomains in a browser (or curl) and see isolated tenant data. The same script runs in CI on every push to `master` and blocks the merge on failure.
+
+**Requirements:** DEMO-01
+
+**Research needed (limited):** Document the `caddy trust` UX (internal CA acceptance step for browsers); confirm `*.tenancy.localhost` resolves correctly on macOS Chrome + Safari, Linux Firefox + Chromium, Windows WSL2 + Chrome; design the per-tenant fixtures pattern (Doctrine fixtures? raw SQL on container init?); finalize the CI smoke script using `Host:` header.
+
+**Success criteria:**
+1. `docker compose up` on a fresh clone (macOS Chrome or Linux Chromium) brings up the demo and `https://tenant1.tenancy.localhost` + `https://tenant2.tenancy.localhost` serve clearly distinct content
+2. `bin/smoke.sh` (in the demo directory) makes `curl -H "Host: tenant1.tenancy.localhost"` + `Host: tenant2.tenancy.localhost` requests against `localhost:443` and verifies isolation — DNS-independent, works in CI
+3. README's three-step fallback ladder (curl with `Host:` → `/etc/hosts` → browser-native `*.localhost`) is documented with copy-paste snippets
+4. `.github/workflows/demo-smoke.yml` runs `bin/smoke.sh` on every push to `master`; smoke failure blocks merge
+5. The demo's `composer.json` references the bundle via path repository so a developer can modify bundle source and rebuild the demo container to see changes immediately
+
+### Phase 22: Docs Refresh
+
+**Goal:** Docs match what v0.3 actually shipped. Install page mentions only `tenancy:install`. New user-guide pages for resolver/profiler/mailer/demo. Public roadmap page on the docs site. UPGRADE 0.2→0.3 explains the only BC break (the Mailer trait migration).
+
+**Requirements:** DOC-19
+
+**Success criteria:**
+1. `docs/user-guide/installation.md` says "run `bin/console tenancy:install`" — zero references to manually editing `bundles.php` on the install path
+2. New pages exist and are linked from `docs/index.md` nav: `user-guide/origin-header-resolver.md` (with Trust Model section), `user-guide/profiler-tab.md` (with screenshots from Phase 19/21), `user-guide/mailer-bootstrapper.md` (with X-Transport strategy + async failure-mode warning + migration recipe)
+3. `docs/examples/saas-demo.md` walks through the Phase 21 demo end-to-end
+4. `docs/roadmap.md` mirrors repo-root `ROADMAP.md`; both linked from `docs/index.md` + `README.md`
+5. `UPGRADE.md` 0.2 → 0.3 section explains `TenantInterface::getMailerDsn()` BC break and the `TenantMailerConfigTrait` mitigation
+6. `scripts/docs-lint.sh` extended with a check that fails on any `bundles.php` install-path reference outside the UPGRADE / Migration sections
+
+> Full v0.3 phase-summary table and dependency notes live in `.planning/milestones/v0.3-ROADMAP.md`.
+
 ### 📋 Later Milestones
 
 | Milestone | Theme | Key items |
@@ -63,7 +155,9 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 
 ## Progress
 
-| Milestone | Phases | Plans | Status   | Shipped    |
-| --------- | ------ | ----- | -------- | ---------- |
-| v0.2      | 1–15   | 48/48 | Complete | 2026-04-20 |
-| v0.3      | 16–22  | 0/7   | Planning | —          |
+| Milestone | Phases | Plans | Status      | Shipped    |
+| --------- | ------ | ----- | ----------- | ---------- |
+| v0.2      | 1–15   | 48/48 | Complete    | 2026-04-20 |
+| v0.3      | 16–22  | 5/?   | In Progress | —          |
+
+*v0.3: Phase 16 skipped (non-functional gate). Phase 17 complete (5 plans). Phases 18–22 not yet planned — plan counts derived once `/gsd-plan-phase` runs for each.*
