@@ -84,7 +84,7 @@ Living retrospective. One section per shipped milestone. Patterns, lessons, and 
 
 ### Retrospective Action Items (carry forward)
 
-1. Add plan↔summary parity to `audit-open` so missing SUMMARY.md is caught inside the phase, not at milestone close.
-2. Add a 72-hour TTL to `human_needed` VERIFICATION status — auto-escalate to gap-closure planning after expiry.
+1. ⊘ ~~Add plan↔summary parity to `audit-open` so missing SUMMARY.md is caught inside the phase, not at milestone close.~~ **Acknowledged as a known gap (2026-05-15) but not actioned.** Originally captured as GOV-01 / Phase 16; skipped as non-functional. We don't own `@gsd-build/sdk` and a parallel local audit tool isn't worth the maintenance cost relative to bundle-user value. Mitigation: humans watching this retrospective.
+2. ⊘ ~~Add a 72-hour TTL to `human_needed` VERIFICATION status — auto-escalate to gap-closure planning after expiry.~~ **Acknowledged as a known gap (2026-05-15) but not actioned.** Same reasoning as #1. Mitigation: humans watching this retrospective; treat any new `human_needed` as code-level testability debt to resolve in the same phase, not as a future-self problem.
 3. Reconsider whether `.planning/` should remain gitignored for future milestones.
 4. Root-cause the executor sandbox denial seen in plan 15-01.

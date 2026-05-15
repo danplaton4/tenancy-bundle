@@ -1,12 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.2
-milestone_name: milestone
-status: v0.2 milestone complete
-stopped_at: Phase 10 context gathered
-last_updated: "2026-04-20T21:29:44.477Z"
+milestone: v0.3
+milestone_name: Adoption Surface
+status: Phase 16 skipped (non-functional). Ready for `/gsd-discuss-phase 17` or `/gsd-plan-phase 17`
+stopped_at: Phase 16 skipped — non-functional gate (GOV-01)
+last_updated: "2026-05-15T08:30:00.000Z"
+last_activity: 2026-05-15 — Phase 16 / GOV-01 skipped; next up Phase 17 (OriginHeaderResolver)
 progress:
-  total_phases: 15
+  total_phases: 22
   completed_phases: 15
   total_plans: 48
   completed_plans: 48
@@ -20,12 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 15 — architectural-fixes-v0-2
+**Current focus:** Phase 17 — OriginHeaderResolver (Phase 16 / GOV-01 skipped — non-functional process gate)
 
 ## Current Position
 
-Phase: 15
-Plan: Not started
+Phase: 17 — OriginHeaderResolver (next up)
+Plan: —
+Status: Ready for `/gsd-discuss-phase 17` or `/gsd-plan-phase 17`
+Last activity: 2026-05-15 — Phase 16 / GOV-01 skipped (non-functional). Items 1 & 2 from RETROSPECTIVE.md acknowledged as known gaps.
 
 ## Performance Metrics
 
@@ -174,6 +177,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-10T14:44:40.962Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-dependency-compatibility-audit/10-CONTEXT.md
+Last session: 2026-05-15T08:26:14.012Z
+Stopped at: Phase 16 context gathered
+Resume file: .planning/phases/16-governance-carry-forward/16-CONTEXT.md
