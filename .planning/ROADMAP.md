@@ -38,7 +38,7 @@
 Goal: lower install friction + ship the highest-leverage missing features. 6 active phases, 6 active requirements. Phase 16 / GOV-01 skipped as a non-functional gate (see below). See `.planning/REQUIREMENTS.md` for full acceptance criteria and `.planning/research/SUMMARY.md` for the research synthesis.
 
 - ⊘ **Phase 16: Governance Carry-Forward** — **SKIPPED.** Non-functional process tooling (`audit-open` extension). Retrospective items #1 (plan↔summary parity) and #2 (`human_needed` 72h TTL) acknowledged as gaps in `RETROSPECTIVE.md` but intentionally not enforced via tooling. Bundle-user value is zero; the v0.2 retrospective surfaces the lessons humans need without machine enforcement. Phase number retained for stable references; downstream phase numbers (17–22) unchanged.
-- [ ] **Phase 17: OriginHeaderResolver** — SPA-friendly resolver at priority 25, allow-list config, `OriginHeaderResolverConfigPass` guard (RESV-06)
+- [x] **Phase 17: OriginHeaderResolver** — SPA-friendly resolver at priority 25, allow-list config, `OriginHeaderResolverConfigPass` guard (RESV-06) (completed 2026-05-15)
 - [ ] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06)
 - [ ] **Phase 19: Profiler Tab** — `TenantDataCollector` + Twig template, dev-only, three render states (resolved/null/error), stored-profile reload tested (DX-02)
 - [ ] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04)
