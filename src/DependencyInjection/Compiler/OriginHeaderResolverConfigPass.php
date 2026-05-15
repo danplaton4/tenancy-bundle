@@ -92,14 +92,22 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
         $isWildcard = false;
         $wildcardSuffix = null;
         if (str_contains($host, '*')) {
-            // Acceptable shape: exactly "*." followed by a label-bearing suffix, no further "*".
-            if (!str_starts_with($host, '*.') || 1 !== substr_count($host, '*')) {
+            // Reject any extra '*' beyond the single leftmost label.
+            if (substr_count($host, '*') > 1) {
+                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a mid-string wildcard — only one leftmost label may be "*"', $raw));
+            }
+            // A lone '*' or '*' anywhere other than the leftmost label is a mid-string wildcard.
+            // Bare-suffix issues (e.g. '*' alone, '*.com', '*.', '*..foo') are reported separately.
+            if (!str_starts_with($host, '*.')) {
+                if ('*' === $host) {
+                    throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels (e.g. "*.example.com")', $raw));
+                }
                 throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a mid-string wildcard — only one leftmost label may be "*"', $raw));
             }
             $tail = substr($host, 2); // drop "*."
             if ('' === $tail || str_starts_with($tail, '.') || !str_contains($tail, '.')) {
-                // Examples rejected: "*", "*.", "*.com" with empty/degenerate suffix, "*..foo"
-                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a mid-string wildcard — only one leftmost label may be "*"', $raw));
+                // Examples rejected: "*.", "*.com" with empty/degenerate suffix, "*..foo"
+                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels (e.g. "*.example.com")', $raw));
             }
             $isWildcard = true;
             $wildcardSuffix = '.'.$tail;
