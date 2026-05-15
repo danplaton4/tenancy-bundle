@@ -164,6 +164,33 @@ final class OriginHeaderResolverConfigPassTest extends TestCase
         (new OriginHeaderResolverConfigPass())->process($container);
     }
 
+    public function testErrorMessageIncludesIndexAndQuotedOrigin(): void
+    {
+        $container = $this->containerWith([
+            ['origin' => 'https://acme.app.example.com', 'slug' => 'acme'],
+            ['origin' => 'https://*.app.example.com', 'slug' => 'global-tenant'],
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        // The wildcard-with-explicit-slug error must name BOTH the index (1) and the quoted offending origin.
+        $this->expectExceptionMessage('tenancy.origin.allow_list[1] ("https://*.app.example.com") is a wildcard entry but specifies an explicit slug');
+
+        (new OriginHeaderResolverConfigPass())->process($container);
+    }
+
+    public function testErrorMessageForNonArrayEntryShowsTypeAndValue(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('tenancy.resolvers', ['host', 'origin']);
+        // Non-array, non-string entry at index 0 — exercises describe()'s var_export branch.
+        $container->setParameter('tenancy.origin.allow_list', [42]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('tenancy.origin.allow_list[0] (int: 42) is unparseable');
+
+        (new OriginHeaderResolverConfigPass())->process($container);
+    }
+
     public function testValidMixedAllowListIsNormalized(): void
     {
         $container = $this->containerWith([

@@ -45,8 +45,8 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
         }
 
         $normalized = [];
-        foreach ($allowList as $entry) {
-            $normalized[] = $this->normalizeEntry($entry);
+        foreach ($allowList as $index => $entry) {
+            $normalized[] = $this->normalizeEntry($entry, (int) $index);
         }
 
         $container->setParameter('tenancy.origin.allow_list', $normalized);
@@ -58,33 +58,33 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
      *     is_wildcard: bool, wildcard_suffix: ?string, slug: ?string,
      * }
      */
-    private function normalizeEntry(mixed $entry): array
+    private function normalizeEntry(mixed $entry, int $index): array
     {
         if (!is_array($entry) || !isset($entry['origin']) || !is_string($entry['origin']) || '' === $entry['origin']) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" is unparseable — must be an absolute origin URL (scheme://host[:port])', $this->describe($entry)));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] (%s) is unparseable — must be an absolute origin URL (scheme://host[:port])', $index, $this->describe($entry)));
         }
 
         $raw = $entry['origin'];
         $parts = parse_url($raw);
         if (false === $parts || !isset($parts['scheme'], $parts['host'])) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" is unparseable — must be an absolute origin URL (scheme://host[:port])', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") is unparseable — must be an absolute origin URL (scheme://host[:port])', $index, $raw));
         }
 
         $scheme = strtolower((string) $parts['scheme']);
         if ('http' !== $scheme && 'https' !== $scheme) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" is unparseable — must be an absolute origin URL (scheme://host[:port])', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") is unparseable — must be an absolute origin URL (scheme://host[:port])', $index, $raw));
         }
 
         if ((isset($parts['path']) && '' !== $parts['path'])
             || (isset($parts['query']) && '' !== $parts['query'])
             || (isset($parts['fragment']) && '' !== $parts['fragment'])
             || isset($parts['user']) || isset($parts['pass'])) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a path/query — origin URLs must be bare authorities', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") contains a path/query — origin URLs must be bare authorities', $index, $raw));
         }
 
         $host = strtolower((string) $parts['host']);
         if ('' === $host) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" is unparseable — must be an absolute origin URL (scheme://host[:port])', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") is unparseable — must be an absolute origin URL (scheme://host[:port])', $index, $raw));
         }
 
         $port = isset($parts['port']) ? (int) $parts['port'] : ('https' === $scheme ? 443 : 80);
@@ -94,20 +94,20 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
         if (str_contains($host, '*')) {
             // Reject any extra '*' beyond the single leftmost label.
             if (substr_count($host, '*') > 1) {
-                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a mid-string wildcard — only one leftmost label may be "*"', $raw));
+                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") contains a mid-string wildcard — only one leftmost label may be "*"', $index, $raw));
             }
             // A lone '*' or '*' anywhere other than the leftmost label is a mid-string wildcard.
             // Bare-suffix issues (e.g. '*' alone, '*.com', '*.', '*..foo') are reported separately.
             if (!str_starts_with($host, '*.')) {
                 if ('*' === $host) {
-                    throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels (e.g. "*.example.com")', $raw));
+                    throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels (e.g. "*.example.com")', $index, $raw));
                 }
-                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" contains a mid-string wildcard — only one leftmost label may be "*"', $raw));
+                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") contains a mid-string wildcard — only one leftmost label may be "*"', $index, $raw));
             }
             $tail = substr($host, 2); // drop "*."
             if ('' === $tail || str_starts_with($tail, '.') || !str_contains($tail, '.')) {
                 // Examples rejected: "*.", "*.com" with empty/degenerate suffix, "*..foo"
-                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels (e.g. "*.example.com")', $raw));
+                throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels (e.g. "*.example.com")', $index, $raw));
             }
             $isWildcard = true;
             $wildcardSuffix = '.'.$tail;
@@ -115,13 +115,13 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
 
         $slug = $entry['slug'] ?? null;
         if (null !== $slug && (!is_string($slug) || '' === $slug)) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" has an invalid slug — must be a non-empty string or null (wildcard entries derive slug at runtime)', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") has an invalid slug — must be a non-empty string or null (wildcard entries derive slug at runtime)', $index, $raw));
         }
         if ($isWildcard && null !== $slug) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" is a wildcard entry but specifies an explicit slug — wildcard entries derive the slug from the matched label at runtime; either remove the wildcard or remove the slug', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") is a wildcard entry but specifies an explicit slug — wildcard entries derive the slug from the matched label at runtime; either remove the wildcard or remove the slug', $index, $raw));
         }
         if (!$isWildcard && null === $slug) {
-            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" requires an explicit slug when the origin contains no wildcard label', $raw));
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list[%d] ("%s") requires an explicit slug when the origin contains no wildcard label', $index, $raw));
         }
 
         return [
@@ -135,15 +135,28 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
         ];
     }
 
+    /**
+     * Render a configuration value for inclusion in an error message.
+     *
+     * Strings are wrapped in quotes; arrays containing a string `origin` key fall
+     * back to that origin; everything else is rendered via `var_export()` and
+     * truncated to ~80 characters so the operator sees the actual offending
+     * value rather than just `"int"` or `"array"`.
+     */
     private function describe(mixed $entry): string
     {
         if (is_string($entry)) {
-            return $entry;
+            return sprintf('"%s"', $entry);
         }
         if (is_array($entry) && isset($entry['origin']) && is_string($entry['origin'])) {
-            return $entry['origin'];
+            return sprintf('"%s"', $entry['origin']);
         }
 
-        return get_debug_type($entry);
+        $rendered = var_export($entry, true);
+        if (strlen($rendered) > 80) {
+            $rendered = substr($rendered, 0, 77).'...';
+        }
+
+        return sprintf('%s: %s', get_debug_type($entry), $rendered);
     }
 }
