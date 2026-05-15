@@ -99,7 +99,17 @@ final class OriginHeaderResolverConfigPassTest extends TestCase
         $container = $this->containerWith([['origin' => 'https://*', 'slug' => null]]);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('contains a mid-string wildcard');
+        $this->expectExceptionMessage('has an invalid wildcard suffix — wildcard must be "*." followed by at least two labels');
+
+        (new OriginHeaderResolverConfigPass())->process($container);
+    }
+
+    public function testThrowsOnWildcardWithSingleLabelSuffix(): void
+    {
+        $container = $this->containerWith([['origin' => 'https://*.com', 'slug' => null]]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('has an invalid wildcard suffix');
 
         (new OriginHeaderResolverConfigPass())->process($container);
     }
