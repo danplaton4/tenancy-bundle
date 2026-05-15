@@ -13,7 +13,7 @@ use Psr\Log\AbstractLogger;
 final class RecordingLogger extends AbstractLogger
 {
     /** @var list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */
-    public array $records = [];
+    private array $records = [];
 
     /**
      * @param array<mixed> $context
@@ -21,6 +21,17 @@ final class RecordingLogger extends AbstractLogger
     public function log($level, string|\Stringable $message, array $context = []): void
     {
         $this->records[] = ['level' => $level, 'message' => $message, 'context' => $context];
+    }
+
+    public function reset(): void
+    {
+        $this->records = [];
+    }
+
+    /** @return list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */
+    public function records(): array
+    {
+        return $this->records;
     }
 
     /** @return list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */

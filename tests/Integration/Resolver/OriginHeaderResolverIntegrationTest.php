@@ -191,7 +191,7 @@ final class OriginHeaderResolverIntegrationTest extends TestCase
         // Reset the RecordingLogger between tests so warning assertions are isolated.
         $logger = self::$kernel->getContainer()->get('logger');
         if ($logger instanceof RecordingLogger) {
-            $logger->records = [];
+            $logger->reset();
         }
     }
 
