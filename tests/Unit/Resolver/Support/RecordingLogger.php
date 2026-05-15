@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tenancy\Bundle\Tests\Unit\Resolver\Support;
 
 use Psr\Log\AbstractLogger;
-use Stringable;
 
 /**
  * In-memory PSR-3 logger that records every log() call.
@@ -14,18 +13,18 @@ use Stringable;
  */
 final class RecordingLogger extends AbstractLogger
 {
-    /** @var list<array{level: mixed, message: string|Stringable, context: array<mixed>}> */
+    /** @var list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */
     public array $records = [];
 
     /**
      * @param array<mixed> $context
      */
-    public function log($level, string|Stringable $message, array $context = []): void
+    public function log($level, string|\Stringable $message, array $context = []): void
     {
         $this->records[] = ['level' => $level, 'message' => $message, 'context' => $context];
     }
 
-    /** @return list<array{level: mixed, message: string|Stringable, context: array<mixed>}> */
+    /** @return list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */
     public function warnings(): array
     {
         return array_values(array_filter(
