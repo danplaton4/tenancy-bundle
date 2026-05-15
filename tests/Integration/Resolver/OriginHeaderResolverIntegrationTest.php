@@ -17,9 +17,9 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\ResolverChain;
 use Tenancy\Bundle\TenancyBundle;
-use Tenancy\Bundle\Tests\Integration\Resolver\Support\RecordingLogger;
 use Tenancy\Bundle\Tests\Integration\Resolver\Support\StubTenant;
 use Tenancy\Bundle\Tests\Integration\Resolver\Support\StubTenantProvider;
+use Tenancy\Bundle\Tests\Support\RecordingLogger;
 
 /**
  * Compiler pass exposing tenancy.resolver_chain (+ ResolverChain alias) as public for test access.
