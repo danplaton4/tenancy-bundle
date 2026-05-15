@@ -109,6 +109,9 @@ final class OriginHeaderResolverConfigPass implements CompilerPassInterface
         if (null !== $slug && (!is_string($slug) || '' === $slug)) {
             throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" has an invalid slug — must be a non-empty string or null (wildcard entries derive slug at runtime)', $raw));
         }
+        if ($isWildcard && null !== $slug) {
+            throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" is a wildcard entry but specifies an explicit slug — wildcard entries derive the slug from the matched label at runtime; either remove the wildcard or remove the slug', $raw));
+        }
         if (!$isWildcard && null === $slug) {
             throw new \InvalidArgumentException(sprintf('tenancy.origin.allow_list entry "%s" requires an explicit slug when the origin contains no wildcard label', $raw));
         }
