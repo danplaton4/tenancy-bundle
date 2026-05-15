@@ -134,6 +134,16 @@ final class OriginHeaderResolverConfigPassTest extends TestCase
         (new OriginHeaderResolverConfigPass())->process($container);
     }
 
+    public function testThrowsOnWildcardEntryWithExplicitSlug(): void
+    {
+        $container = $this->containerWith([['origin' => 'https://*.app.example.com', 'slug' => 'global-tenant']]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('is a wildcard entry but specifies an explicit slug');
+
+        (new OriginHeaderResolverConfigPass())->process($container);
+    }
+
     public function testThrowsOnNonWildcardEntryMissingSlug(): void
     {
         $container = $this->containerWith([['origin' => 'https://acme.app.example.com', 'slug' => null]]);
