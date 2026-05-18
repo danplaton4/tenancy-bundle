@@ -17,27 +17,24 @@ use PHPUnit\Framework\TestCase;
  */
 final class ComposerJsonContractTest extends TestCase
 {
-    /**
-     * @return array{require?: array<string,string>, require-dev?: array<string,string>, suggest?: array<string,string>}
-     */
+    /** @return array<string, mixed> */
     private function manifest(): array
     {
         $path = __DIR__.'/../../../composer.json';
         self::assertFileExists($path);
-        /** @var array<string,mixed> $decoded */
         $decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         self::assertIsArray($decoded);
 
-        /** @var array{require?: array<string,string>, require-dev?: array<string,string>, suggest?: array<string,string>} $decoded */
         return $decoded;
     }
 
     public function testNikicPhpParserIsAbsentFromRuntimeRequire(): void
     {
         $manifest = $this->manifest();
+        $require = \is_array($manifest['require'] ?? null) ? $manifest['require'] : [];
         self::assertArrayNotHasKey(
             'nikic/php-parser',
-            $manifest['require'] ?? [],
+            $require,
             'nikic/php-parser must NEVER appear in composer.json `require` — it is a dev-only dependency for tenancy:install.'
         );
     }
@@ -45,10 +42,13 @@ final class ComposerJsonContractTest extends TestCase
     public function testNikicPhpParserIsPresentInRequireDev(): void
     {
         $manifest = $this->manifest();
-        self::assertArrayHasKey('nikic/php-parser', $manifest['require-dev'] ?? []);
+        $requireDev = \is_array($manifest['require-dev'] ?? null) ? $manifest['require-dev'] : [];
+        self::assertArrayHasKey('nikic/php-parser', $requireDev);
+        $version = $requireDev['nikic/php-parser'];
+        self::assertIsString($version);
         self::assertMatchesRegularExpression(
             '/^\^5\./',
-            $manifest['require-dev']['nikic/php-parser'],
+            $version,
             'nikic/php-parser must be pinned to ^5.x (the v5 namespace shape is what BundlesPhpInstaller targets).'
         );
     }
@@ -56,9 +56,10 @@ final class ComposerJsonContractTest extends TestCase
     public function testNikicPhpParserIsSuggestedWithRationale(): void
     {
         $manifest = $this->manifest();
-        self::assertArrayHasKey('nikic/php-parser', $manifest['suggest'] ?? []);
+        $suggest = \is_array($manifest['suggest'] ?? null) ? $manifest['suggest'] : [];
+        self::assertArrayHasKey('nikic/php-parser', $suggest);
         self::assertNotEmpty(
-            $manifest['suggest']['nikic/php-parser'],
+            $suggest['nikic/php-parser'],
             'nikic/php-parser suggest entry must include a rationale string so `composer suggest` users see why.'
         );
     }
