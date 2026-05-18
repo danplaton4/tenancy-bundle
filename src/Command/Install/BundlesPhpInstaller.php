@@ -11,38 +11,45 @@ use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\ParserFactory;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Process\PhpExecutableFinder;
+use Symfony\Component\Process\Process;
 
 /**
- * Detects, classifies, and mutates a project's `config/bundles.php` file to register
- * {@see \Tenancy\Bundle\TenancyBundle}. Backs the `tenancy:install` console command.
+ * Detects, classifies, and mutates a project's `config/bundles.php` to register
+ * {@see \Tenancy\Bundle\TenancyBundle}.
  *
- * The detection algorithm refuses to mutate any shape that deviates from the Symfony
- * Flex standard (single top-level `return [Class::class => ['env' => true], ...]`).
- * Refusal is a clean exit — the command prints a manual snippet and exits 0 — NOT
- * a tool failure (security-by-default per D-14).
+ * Detection rules per CONTEXT.md D-02 (exhaustive). Write path per D-04 (string-
+ * template at AST byte offset), D-05 (atomic dumpFile), D-06 (timestamped .bak),
+ * D-07 (php -l + restore on failure). Refusal of non-standard shapes is a clean
+ * exit (security-by-default per D-14) — the command prints a manual snippet and
+ * exits 0, NOT a tool failure.
  *
- * Write logic (string-template insertion, atomic dumpFile, .bak, php -l, restore) is
- * implemented in Plan 18-04. This class is constructed in two halves to keep diffs
- * surgically reviewable.
- *
- * @see https://github.com/nikic/PHP-Parser/blob/master/doc/component/Walking_the_AST.markdown
+ * Threats mitigated:
+ *   T-INSTALL-01 — string-template insertion produces malformed bundles.php
+ *     -> php -l post-write + automatic restore from .bak.
+ *   T-INSTALL-02 — .bak lost during restore path
+ *     -> restore uses Filesystem::copy() (NOT rename); .bak survives every path.
+ *   T-INSTALL-04 — non-standard bundles.php silently rewritten
+ *     -> detect() refuses any shape that deviates from the Flex-canonical
+ *        single-`Return_`-of-`Array_`-of-`ClassConstFetch::class`-keys form.
  */
 final class BundlesPhpInstaller
 {
     public const TENANCY_BUNDLE_FQCN = 'Tenancy\\Bundle\\TenancyBundle';
 
-    public function __construct(
-        private readonly Filesystem $filesystem = new Filesystem(),
-    ) {
-    }
+    /** @var \Closure(string, string): array{passed: bool, error: string} */
+    private \Closure $lintRunner;
 
     /**
-     * Top-level entry point.
-     *
-     * Plan 03 scope: the WROTE branch throws LogicException (write logic shipped in Plan 04).
-     * The three terminal branches (devDependencyMissing, alreadyRegistered,
-     * refusedNonStandard) are fully implemented.
+     * @param (\Closure(string, string): array{passed: bool, error: string})|null $lintRunner optional; tests can inject a forced-failure runner
      */
+    public function __construct(
+        private readonly Filesystem $filesystem = new Filesystem(),
+        ?\Closure $lintRunner = null,
+    ) {
+        $this->lintRunner = $lintRunner ?? self::defaultLintRunner();
+    }
+
     public function install(string $bundlesPhpPath, bool $dryRun = false): InstallResult
     {
         if (!class_exists(ParserFactory::class)) {
@@ -59,14 +66,43 @@ final class BundlesPhpInstaller
             return InstallResult::refusedNonStandard($detection->reason ?? 'non-standard shape');
         }
 
+        if ('missing' === $detection->status) {
+            return InstallResult::refusedNonStandard($detection->reason ?? 'file missing');
+        }
+
         if (in_array(self::TENANCY_BUNDLE_FQCN, $detection->registeredFqcns, true)) {
             return InstallResult::alreadyRegistered();
         }
 
-        // The write branch is implemented in Plan 18-04. This is INTENTIONAL —
-        // see the plan annotation. The LogicException is the contract between
-        // this plan and the next.
-        throw new \LogicException('BundlesPhpInstaller write branch not yet implemented (scheduled for plan 18-04). Use `detect()` directly to exercise the AST classification path in tests.');
+        // ----- write path -----
+        $source = (string) file_get_contents($bundlesPhpPath);
+        \assert(null !== $detection->endPos, 'detect() returned standard without endPos');
+        $newSource = $this->buildMutatedSource($source, $detection->endPos);
+        $diff = $this->buildDiff($bundlesPhpPath);
+
+        if ($dryRun) {
+            return InstallResult::dryRun($diff);
+        }
+
+        $bakPath = $bundlesPhpPath.'.bak.'.gmdate('Ymd-His');
+        $this->filesystem->copy($bundlesPhpPath, $bakPath);
+        $this->filesystem->dumpFile($bundlesPhpPath, $newSource);
+
+        $php = (new PhpExecutableFinder())->find();
+        if (false === $php) {
+            $this->filesystem->copy($bakPath, $bundlesPhpPath); // restore — copy, not rename
+
+            return InstallResult::lintFailedRestored($bakPath, 'PHP binary not found by PhpExecutableFinder');
+        }
+
+        $lint = ($this->lintRunner)($php, $bundlesPhpPath);
+        if (!$lint['passed']) {
+            $this->filesystem->copy($bakPath, $bundlesPhpPath); // restore — copy, not rename
+
+            return InstallResult::lintFailedRestored($bakPath, $lint['error']);
+        }
+
+        return InstallResult::wrote($bakPath);
     }
 
     /**
@@ -154,5 +190,58 @@ final class BundlesPhpInstaller
         }
 
         return $fqcns;
+    }
+
+    private function buildMutatedSource(string $source, int $endPos): string
+    {
+        // Find the last non-whitespace character before the closing ] to determine if a comma is needed.
+        $prevNonSpace = $endPos - 1;
+        while ($prevNonSpace >= 0 && ctype_space($source[$prevNonSpace])) {
+            --$prevNonSpace;
+        }
+        $prevChar = $prevNonSpace >= 0 ? $source[$prevNonSpace] : '';
+
+        $lineEnding = str_contains(substr($source, 0, 4096), "\r\n") ? "\r\n" : "\n";
+        $entry = '    '.self::TENANCY_BUNDLE_FQCN."::class => ['all' => true],";
+
+        // If the previous existing entry ends with `,` no leading comma is needed.
+        // If the array is empty (previous non-whitespace char is `[`), also no leading comma.
+        // Otherwise (e.g., previous entry has no trailing comma), prepend `,`.
+        if (',' === $prevChar || '[' === $prevChar) {
+            $prefix = '';
+        } else {
+            $prefix = ','.$lineEnding;
+        }
+
+        // Insert at endPos (the `]` character). The `\n` already present before `]` in the source
+        // is preserved, producing: ...last_entry,\n{entry}\n];\n  plus a normalized trailing \n.
+        return substr($source, 0, $endPos).$prefix.$entry.$lineEnding.substr($source, $endPos).$lineEnding;
+    }
+
+    private function buildDiff(string $bundlesPhpPath): string
+    {
+        return sprintf(
+            "--- %s (current)\n+++ %s (proposed)\n@@ insertion before closing ']' @@\n+    %s::class => ['all' => true],\n",
+            $bundlesPhpPath,
+            $bundlesPhpPath,
+            self::TENANCY_BUNDLE_FQCN,
+        );
+    }
+
+    /**
+     * @return \Closure(string, string): array{passed: bool, error: string}
+     */
+    private static function defaultLintRunner(): \Closure
+    {
+        return static function (string $php, string $path): array {
+            $process = new Process([$php, '-l', $path]);
+            $process->setTimeout(10.0);
+            $process->run();
+
+            return [
+                'passed' => $process->isSuccessful(),
+                'error' => $process->getErrorOutput() ?: $process->getOutput(),
+            ];
+        };
     }
 }

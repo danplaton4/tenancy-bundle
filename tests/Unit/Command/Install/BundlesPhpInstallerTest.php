@@ -14,24 +14,24 @@ final class BundlesPhpInstallerTest extends TestCase
     private const FIXTURES_DIR = __DIR__.'/../../../Fixtures/BundlesPhpCorpus';
 
     /**
-     * Maps fixture slug to (expected detect status, expected install status when Tenancy bundle is absent from input).
+     * Maps fixture slug to (expected detect status, expected install status, expected baseline path).
      *
-     * @return iterable<string, array{0: string, 1: 'standard'|'non_standard', 2: InstallStatus|null}>
+     * @return iterable<string, array{0: string, 1: 'standard'|'non_standard', 2: InstallStatus, 3: string|null}>
      */
     public static function fixturesProvider(): iterable
     {
-        // Tuple: [slug, expectedDetectStatus, expectedInstallStatusOrNullForThrows]
-        yield 'skeleton' => ['skeleton', 'standard', null];                  // null = install() should throw LogicException (Plan 04 stub)
-        yield 'api-platform' => ['api-platform', 'standard', null];
-        yield 'sulu' => ['sulu', 'standard', null];
-        yield 'with-comments' => ['with-comments', 'standard', null];
-        yield 'ddd-override' => ['ddd-override', 'non_standard', InstallStatus::REFUSED_NON_STANDARD];
-        yield 'env-conditional' => ['env-conditional', 'non_standard', InstallStatus::REFUSED_NON_STANDARD];
-        yield 'malformed' => ['malformed', 'non_standard', InstallStatus::REFUSED_NON_STANDARD];
+        $base = self::FIXTURES_DIR;
+        yield 'skeleton' => ['skeleton', 'standard', InstallStatus::WROTE, $base.'/.expected/skeleton/bundles.php'];
+        yield 'api-platform' => ['api-platform', 'standard', InstallStatus::WROTE, $base.'/.expected/api-platform/bundles.php'];
+        yield 'sulu' => ['sulu', 'standard', InstallStatus::WROTE, $base.'/.expected/sulu/bundles.php'];
+        yield 'with-comments' => ['with-comments', 'standard', InstallStatus::WROTE, $base.'/.expected/with-comments/bundles.php'];
+        yield 'ddd-override' => ['ddd-override', 'non_standard', InstallStatus::REFUSED_NON_STANDARD, null];
+        yield 'env-conditional' => ['env-conditional', 'non_standard', InstallStatus::REFUSED_NON_STANDARD, null];
+        yield 'malformed' => ['malformed', 'non_standard', InstallStatus::REFUSED_NON_STANDARD, null];
     }
 
     #[DataProvider('fixturesProvider')]
-    public function testDetect(string $slug, string $expectedDetectStatus, ?InstallStatus $unused): void
+    public function testDetect(string $slug, string $expectedDetectStatus, InstallStatus $unused, ?string $unusedBaseline): void
     {
         $installer = new BundlesPhpInstaller();
         $result = $installer->detect(self::FIXTURES_DIR.'/'.$slug.'/bundles.php');
@@ -53,22 +53,44 @@ final class BundlesPhpInstallerTest extends TestCase
     }
 
     #[DataProvider('fixturesProvider')]
-    public function testInstallTerminalBranches(string $slug, string $expectedDetectStatus, ?InstallStatus $expectedStatus): void
+    public function testInstall(string $slug, string $expectedDetectStatus, InstallStatus $expectedStatus, ?string $expectedBaseline): void
     {
         $tmpPath = $this->copyFixtureToTmp($slug);
 
         try {
             $installer = new BundlesPhpInstaller();
+            $result = $installer->install($tmpPath);
+            self::assertSame($expectedStatus, $result->status, "install() classified '$slug' wrong");
 
-            if (null === $expectedStatus) {
-                // Standard-shape fixture WITHOUT the Tenancy class — write branch should throw LogicException in Plan 03 (filled in by Plan 04).
-                $this->expectException(\LogicException::class);
-                $this->expectExceptionMessage('not yet implemented (scheduled for plan 18-04)');
-                $installer->install($tmpPath);
-            } else {
-                $result = $installer->install($tmpPath);
-                self::assertSame($expectedStatus, $result->status, "install() classified '$slug' wrong");
+            if (InstallStatus::WROTE === $expectedStatus) {
+                self::assertNotNull($result->backupPath);
+                self::assertFileExists((string) $result->backupPath);
+                self::assertMatchesRegularExpression('/\.bak\.\d{8}-\d{6}$/', (string) $result->backupPath);
+                self::assertNotNull($expectedBaseline);
+                self::assertStringEqualsFile($expectedBaseline, (string) file_get_contents($tmpPath));
             }
+        } finally {
+            $this->cleanUp(dirname($tmpPath));
+        }
+    }
+
+    public function testDryRunDoesNotWrite(): void
+    {
+        $tmpPath = $this->copyFixtureToTmp('skeleton');
+        $originalBytes = (string) file_get_contents($tmpPath);
+
+        try {
+            $installer = new BundlesPhpInstaller();
+            $result = $installer->install($tmpPath, dryRun: true);
+
+            self::assertSame(InstallStatus::WROTE, $result->status);
+            self::assertNotNull($result->diff);
+            self::assertStringContainsString('TenancyBundle::class', (string) $result->diff);
+            self::assertSame($originalBytes, (string) file_get_contents($tmpPath), 'dry-run must NOT modify bundles.php');
+
+            // No .bak files in the tmp dir
+            $bakFiles = glob(dirname($tmpPath).'/*.bak.*') ?: [];
+            self::assertSame([], $bakFiles, 'dry-run must NOT create a .bak sidecar');
         } finally {
             $this->cleanUp(dirname($tmpPath));
         }
