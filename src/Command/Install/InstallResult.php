@@ -30,6 +30,11 @@ final readonly class InstallResult
         return new self(InstallStatus::WROTE, backupPath: $backupPath);
     }
 
+    public static function dryRun(string $diff): self
+    {
+        return new self(InstallStatus::WROTE, diff: $diff);
+    }
+
     public static function alreadyRegistered(): self
     {
         return new self(InstallStatus::ALREADY_REGISTERED);
