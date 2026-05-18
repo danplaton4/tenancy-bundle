@@ -118,6 +118,9 @@ class TenancyInstallCommand extends Command
                 $io->note('Tenancy\\Bundle\\TenancyBundle is already registered in config/bundles.php — no changes made.');
 
                 return $this->delegateToTenancyInit($input, $output, $io);
+
+            default:
+                throw new \LogicException('Unhandled InstallStatus: '.$result->status->value);
         }
     }
 
