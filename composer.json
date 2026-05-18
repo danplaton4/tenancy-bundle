@@ -34,6 +34,7 @@
         "doctrine/migrations": "^3.9",
         "doctrine/orm": "^3.3",
         "friendsofphp/php-cs-fixer": "^3.0",
+        "nikic/php-parser": "^5.0",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.0",
         "symfony/framework-bundle": "^7.4||^8.0",
@@ -45,6 +46,7 @@
         "doctrine/doctrine-bundle": "Required for Doctrine integration (^2.13||^3.0)",
         "doctrine/orm": "Required for Tenant entity (^3.3)",
         "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
+        "nikic/php-parser": "Required to run bin/console tenancy:install (one-shot installer; not needed at runtime)",
         "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)"
     },
     "autoload": {
