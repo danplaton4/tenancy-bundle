@@ -97,11 +97,16 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 **Plans:** 7 plans
 
 Plans:
+**Wave 1**
 - [ ] 19-00-PLAN.md — Wave 0: composer deps + test dirs + ProfilerTestKernel
 - [ ] 19-01-PLAN.md — TenantProfilerStash (event-time capture + reset)
 - [ ] 19-02-PLAN.md — TenantDataCollector (8-key data shape + DSN defence)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 19-03-PLAN.md — Twig templates (tenant.html.twig + _icon.svg.twig)
 - [ ] 19-04-PLAN.md — DI registration + kernel.debug compile-out guard
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 19-05-PLAN.md — Integration tests: compile-out + serialization + source layout
 - [ ] 19-06-PLAN.md — WDT functional integration test (3 panel states)
 

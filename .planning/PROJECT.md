@@ -4,6 +4,22 @@
 
 **Shipped:** v0.2.0 (2026-04-20) — Packagist-published at `danplaton4/tenancy-bundle`. 15 phases, 48 plans, 304 tests (739 assertions), PHPStan level 9 clean. All four v0.2 post-release architectural fixes (FIX-01–04, issues #5–#8) resolved; retroactive v1.0 tag was retracted and line restarted at v0.1.0 before reaching stable at v0.2.0.
 
+**In progress:** v0.3 Adoption Surface — see [Current Milestone](#current-milestone--v03-adoption-surface) below.
+
+## Current Milestone — v0.3 Adoption Surface
+
+**Goal:** Lower install friction and ship the highest-leverage missing features. v0.2 shipped to two self-installs / zero external dependents; v0.3 attacks the install funnel.
+
+**Target features:**
+- `tenancy:install` single-command setup (auto-registers bundle, runs `tenancy:init`)
+- Demo app in `examples/` — two tenants, docker-compose, subdomain routing
+- Symfony Profiler "Tenancy" WDT tab
+- Mailer bootstrapper (per-tenant SMTP + From)
+- `OriginHeaderResolver` (SPA-friendly)
+- Docs refresh + public ROADMAP.md page
+
+**Key context:** No Symfony Flex recipe (revisit when install volume justifies cost). No v1.0 tag (deferred until external adoption signals validation). Tight scope on purpose — ~6 phases, ship in weeks not months.
+
 ## What This Is
 
 A definitive multi-tenancy bundle for Symfony that treats tenancy as a first-class citizen of the Symfony kernel — not just a database switcher, but a **Context Orchestrator**. When a tenant is identified, the entire application state (database, cache, messenger) automatically follows suit. Published on Packagist as the Symfony equivalent of `stancl/tenancy` for Laravel.
@@ -94,26 +110,54 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 ### Active
 
-*(No active requirements — all v1 scope shipped under v0.2. Next-milestone candidates below.)*
+*(No active requirements — all v1 scope shipped under v0.2. v0.3 scope below.)*
 
-### Next Milestone Goals (candidates)
+### Next Milestone — v0.3 Adoption Surface
 
-- [ ] **DX-02** Symfony Profiler "Tenancy" WDT tab (active tenant, ID, DB connection)
-- [ ] **DX-03** PHPStan extension enforcing `#[TenantAware]` usage correctness
-- [ ] **SHARE-01..03** Shared entity replication (sync + async via Messenger)
-- [ ] **OPS-01** Tenant-level maintenance mode
-- [ ] **OPS-02** Health check / MonitorBundle integration
-- [ ] **RESV-06** `OriginHeaderResolver` (SPA-friendly alternative to `X-Tenant-ID`)
-- [ ] Parallel tenant migrations via `symfony/process`
-- [ ] Tenant-aware Mailer bootstrapper
+Goal: turn a Packagist page into a successful first install. v0.2 shipped two self-installs / zero external dependents; v0.3 attacks the install funnel and ships the highest-leverage missing features. Tight scope on purpose.
 
-### Out of Scope
+- [x] **DX-06** `tenancy:install` command — auto-registers bundle in `config/bundles.php`, runs `tenancy:init`, prints next steps. Single-command setup; no Flex. Validated in Phase 18.
+- [ ] **DEMO-01** Demo app in `examples/` — two tenants, `docker compose up`, subdomain routing works out of the box. Doubles as integration test.
+- [ ] **DX-02** Symfony Profiler "Tenancy" WDT tab — active tenant, ID, connection, resolved-by
+- [ ] **BOOT-04** Mailer bootstrapper — per-tenant SMTP transport + From headers
+- [x] **RESV-06** `OriginHeaderResolver` — SPA-friendly alternative to `X-Tenant-ID`. Validated in Phase 17.
+- [ ] **DOC-19** Docs refresh — install page (no manual `bundles.php` step), demo walkthrough, Mailer + Profiler guides, public ROADMAP.md page
+- [ ] Retro carry-forward: plan↔summary parity check in `audit-open` tooling
 
-- **Per-tenant middleware pipelines** — powerful but complex; reserved for later once core adoption is proven
-- **PostgreSQL Row-Level Security (RLS)** — native RLS support deferred; shared-DB driver covers the use case
-- **DNS TXT resolver** — niche; custom resolver interface covers the use case
-- **Non-SQL isolation targets** (Redis, MongoDB, etc.) — v2+
-- **Symfony Flex recipe** — removed in Phase 14; `tenancy:init` is the supported onboarding path
+Explicit non-goals: Symfony Flex recipe (see Future / By Demand), v1.0 tag (deferred until external adoption signals validation).
+
+### Later Milestones (planned, scope subject to v0.3 telemetry)
+
+**v0.4 — Storage & Shared Entities** *(make a real SaaS work)*
+- **BOOT-03** Filesystem (Flysystem) bootstrapper — per-tenant uploads
+- **SHARE-01/02** Shared entity sync mode via Doctrine events
+- **SHARE-03** Async shared entities via Messenger fan-out
+- **DX-03** PHPStan extension for `#[TenantAware]` correctness
+- Docs refresh: sharing model, filesystem guide, PHPStan rules
+- Retro: 72-hour TTL on `human_needed` VERIFICATION status
+
+**v0.5 — Operations & Scale** *(production-readiness)*
+- **OPS-01** Tenant-level maintenance mode
+- **OPS-02** Health check / MonitorBundle integration
+- **ISOL-07** Parallel `tenancy:migrate` via `symfony/process`
+- New ops docs section: deploy guide, runbook patterns
+- Retro: root-cause executor sandbox denial seen in plan 15-01
+
+**v0.6 — Advanced Isolation** *(demand-gated)*
+- **ISOL-06** PostgreSQL Row-Level Security driver
+- Advanced isolation docs + when-to-pick-which-driver matrix
+- Candidate for v1.0 tag if external adoption signals validate the line
+
+### Future / By Demand
+
+Tracked but not scheduled. **Open an issue to request prioritization** — these are outside the v0.3–v0.6 cadence but are not rejected outright. Public roadmap mirrors this list for user visibility.
+
+- Per-tenant middleware pipelines — powerful but complex; reserved for post-adoption validation
+- DNS TXT resolver — custom `TenantResolverInterface` covers it today
+- Non-SQL primary isolation targets (Redis, MongoDB) — v2+ territory
+- Tenant-aware job scheduler — Messenger covers async context propagation today
+- Multi-region / sharding — infrastructure concern outside bundle scope
+- Symfony Flex recipe / `symfony/recipes-contrib` submission — adopt when install volume justifies the contrib-submission maintenance cost
 
 ## Context
 
@@ -147,4 +191,4 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 | Retract v1.0.0, restart at v0.1.0, graduate to v0.2.0 | Four defects (#5–#8) surfaced in downstream demo projects post-tag; architectural fixes rather than patches | ✓ Good (Phase 15 — semver integrity) |
 
 ---
-*Last updated: 2026-04-21 — v0.2.0 shipped*
+*Last updated: 2026-05-18 — Phase 18 complete: `tenancy:install` command shipped, DX-06 validated*
