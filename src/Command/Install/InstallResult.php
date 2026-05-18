@@ -54,15 +54,4 @@ final readonly class InstallResult
     {
         return new self(InstallStatus::DEV_DEPENDENCY_MISSING);
     }
-
-    /**
-     * Convenience: was this a write outcome (WROTE or ALREADY_REGISTERED)?
-     * Used by the command to decide whether to delegate to tenancy:init.
-     */
-    public function isSuccessOutcome(): bool
-    {
-        return InstallStatus::WROTE === $this->status
-            || InstallStatus::ALREADY_REGISTERED === $this->status
-            || InstallStatus::REFUSED_NON_STANDARD === $this->status;
-    }
 }
