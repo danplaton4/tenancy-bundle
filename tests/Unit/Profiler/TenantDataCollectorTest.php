@@ -187,13 +187,12 @@ final class TenantDataCollectorTest extends TestCase
                 continue;
             }
             if (is_scalar($value)) {
-                self::assertIsScalar($value, "Key {$key} should be scalar or null");
-
+                // Scalar branch — confirmed by the type guard above.
                 continue;
             }
-            self::assertIsArray($value, "Key {$key} should be array if not null/scalar");
+            self::assertIsArray($value, "Key {$key} should be null, scalar, or array (no objects allowed)");
             foreach ($value as $sub) {
-                self::assertIsString($sub, "Sub-value under {$key} must be string, got: ".gettype($sub));
+                self::assertTrue(is_string($sub), "Sub-value under {$key} must be string, got: ".gettype($sub));
             }
         }
     }
@@ -211,8 +210,5 @@ final class TenantDataCollectorTest extends TestCase
 
         self::assertSame(['X\\B1', 'Y\\B2'], $bootstrappers, 'bootstrappers must be array_values + array_map strval');
         self::assertSame([0, 1], array_keys($bootstrappers));
-        foreach ($bootstrappers as $b) {
-            self::assertIsString($b);
-        }
     }
 }
