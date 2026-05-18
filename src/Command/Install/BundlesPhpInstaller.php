@@ -33,7 +33,7 @@ use Symfony\Component\Process\Process;
  *     -> detect() refuses any shape that deviates from the Flex-canonical
  *        single-`Return_`-of-`Array_`-of-`ClassConstFetch::class`-keys form.
  */
-final class BundlesPhpInstaller
+final class BundlesPhpInstaller implements BundlesPhpInstallerInterface
 {
     public const TENANCY_BUNDLE_FQCN = 'Tenancy\\Bundle\\TenancyBundle';
 
