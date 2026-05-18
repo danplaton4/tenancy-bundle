@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: completed
-stopped_at: Phase 18 context gathered
-last_updated: "2026-05-15T14:32:05.249Z"
-last_activity: 2026-05-15 — Phase 17 OriginHeaderResolver shipped (5 plans, 7 review-driven fix commits, 340/340 tests pass)
+status: executing
+stopped_at: Phase 19 context gathered
+last_updated: "2026-05-18T19:30:46.806Z"
+last_activity: 2026-05-18 -- Phase 19 execution started
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  completed_phases: 2
+  total_plans: 19
+  completed_plans: 12
+  percent: 63
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 18 — tenancy:install (DX-06)
+**Current focus:** Phase 19 — profiler-tab
 
 ## Current Position
 
-Phase: 18 (next up)
-Plan: —
-Status: Phase 17 complete — ready for `/gsd-discuss-phase 18` or `/gsd-plan-phase 18`
-Last activity: 2026-05-15 — Phase 17 OriginHeaderResolver shipped (5 plans, 7 review-driven fix commits, 340/340 tests pass)
+Phase: 19 (profiler-tab) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 19
+Last activity: 2026-05-18 -- Phase 19 execution started
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 25
+- Total plans completed: 32
 - Average duration: ~5 min
 - Total execution time: ~0.5 hours
 
@@ -51,6 +51,7 @@ Last activity: 2026-05-15 — Phase 17 OriginHeaderResolver shipped (5 plans, 7 
 | 14 | 2 | - | - |
 | 15 | 4 | - | - |
 | 17 | 5 | - | - |
+| 18 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -178,6 +179,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-15T14:32:05.241Z
-Stopped at: Phase 18 context gathered
-Resume file: .planning/phases/18-tenancy-install/18-CONTEXT.md
+Last session: 2026-05-18T15:43:02.683Z
+Stopped at: Phase 19 context gathered
+Resume file: .planning/phases/19-profiler-tab/19-CONTEXT.md

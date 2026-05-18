@@ -10,7 +10,7 @@ For prior-milestone (v0.2) requirements, see `.planning/milestones/v0.2-REQUIREM
 
 ### Adoption / Onboarding
 
-- [ ] **DX-06**: `bin/console tenancy:install` performs a one-command bundle setup — auto-registers `TenancyBundle::class` in `config/bundles.php`, invokes `tenancy:init` programmatically (forwarding `--force`), and prints next-step guidance. The user runs `composer require` then `tenancy:install` and the bundle is ready; no manual `bundles.php` editing.
+- [x] **DX-06**: `bin/console tenancy:install` performs a one-command bundle setup — auto-registers `TenancyBundle::class` in `config/bundles.php`, invokes `tenancy:init` programmatically (forwarding `--force`), and prints next-step guidance. The user runs `composer require` then `tenancy:install` and the bundle is ready; no manual `bundles.php` editing.
   - Acceptance: idempotent on re-run (detects bundle already present, exits 0)
   - Acceptance: `--dry-run` mode prints the proposed mutation without writing
   - Acceptance: detects `bundles.php` via `nikic/php-parser` AST walk (`require-dev`, lazy-loaded)
@@ -109,7 +109,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 |-------------|-------|--------|
 | GOV-01 | Phase 16 — Governance Carry-Forward | ⊘ Skipped (non-functional, 2026-05-15) |
 | RESV-06 | Phase 17 — OriginHeaderResolver | Pending |
-| DX-06 | Phase 18 — tenancy:install | Pending |
+| DX-06 | Phase 18 — tenancy:install | Complete |
 | DX-02 | Phase 19 — Profiler Tab | Pending |
 | BOOT-04 | Phase 20 — Mailer Bootstrapper | Pending |
 | DEMO-01 | Phase 21 — Demo App | Pending |

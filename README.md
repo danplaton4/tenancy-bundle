@@ -110,6 +110,10 @@ A data leak across tenants is a security incident, not a config mistake — so s
 - Symfony `^7.4` or `^8.0`
 - Optional: `doctrine/orm`, `doctrine/dbal`, `doctrine/migrations`, `symfony/messenger`
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for what's coming and what you can request — open an issue if you want something prioritized.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
