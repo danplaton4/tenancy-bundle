@@ -39,7 +39,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 
 - ⊘ **Phase 16: Governance Carry-Forward** — **SKIPPED.** Non-functional process tooling (`audit-open` extension). Retrospective items #1 (plan↔summary parity) and #2 (`human_needed` 72h TTL) acknowledged as gaps in `RETROSPECTIVE.md` but intentionally not enforced via tooling. Bundle-user value is zero; the v0.2 retrospective surfaces the lessons humans need without machine enforcement. Phase number retained for stable references; downstream phase numbers (17–22) unchanged.
 - [x] **Phase 17: OriginHeaderResolver** — SPA-friendly resolver at priority 25, allow-list config, `OriginHeaderResolverConfigPass` guard (RESV-06) (completed 2026-05-15)
-- [ ] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06)
+- [x] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06) (completed 2026-05-18)
 - [ ] **Phase 19: Profiler Tab** — `TenantDataCollector` + Twig template, dev-only, three render states (resolved/null/error), stored-profile reload tested (DX-02)
 - [ ] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04)
 - [ ] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01)
@@ -93,6 +93,17 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 3. A null-resolution request (public/landlord/health-check route) shows the Tenancy panel in its "no tenant" state — does not throw, does not hide silently
 4. Reloading a stored Profiler dump (after the request has terminated) renders the same panel state — no serialization errors from `$this->data`
 5. The Tenancy data collector is registered ONLY when `kernel.debug = true` — production container compilation does not include it (verified by a CI check)
+
+**Plans:** 7 plans
+
+Plans:
+- [ ] 19-00-PLAN.md — Wave 0: composer deps + test dirs + ProfilerTestKernel
+- [ ] 19-01-PLAN.md — TenantProfilerStash (event-time capture + reset)
+- [ ] 19-02-PLAN.md — TenantDataCollector (8-key data shape + DSN defence)
+- [ ] 19-03-PLAN.md — Twig templates (tenant.html.twig + _icon.svg.twig)
+- [ ] 19-04-PLAN.md — DI registration + kernel.debug compile-out guard
+- [ ] 19-05-PLAN.md — Integration tests: compile-out + serialization + source layout
+- [ ] 19-06-PLAN.md — WDT functional integration test (3 panel states)
 
 ### Phase 20: Mailer Bootstrapper
 
