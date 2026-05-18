@@ -48,6 +48,7 @@ class TestKernel extends Kernel
                 'http_method_override' => false,
                 'handle_all_throwables' => true,
                 'php_errors' => ['log' => true],
+                'cache' => ['app' => 'cache.adapter.array'],
             ]);
         });
     }
