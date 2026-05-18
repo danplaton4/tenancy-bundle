@@ -23,6 +23,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   allow-lists, unparseable origin URLs, mid-string wildcards, multi-label wildcards,
   path/query/fragment-bearing origins, and non-wildcard entries missing an explicit
   slug. Misconfiguration fails at container build, not at runtime.
+- **`tenancy:install` console command** — one-command bundle setup for fresh
+  Symfony apps. Runs `composer require danplaton4/tenancy-bundle && bin/console
+  tenancy:install` and the bundle is registered + configured with zero manual
+  `config/bundles.php` editing. Uses `nikic/php-parser` (declared `require-dev`
+  + `suggest` only — never `require`) to AST-detect a Flex-canonical
+  `bundles.php` shape; refuses to mutate non-standard shapes (DDD
+  `registerBundles()` override, env-conditional registration, parser-rejected
+  files) and prints a clean copy-paste snippet — refusal is a clean exit, not a
+  tool failure. On the standard shape: takes a timestamped
+  `config/bundles.php.bak.YYYYMMDD-HHMMSS` sidecar BEFORE write, atomic write
+  via `Symfony\Component\Filesystem\Filesystem::dumpFile()`, post-mutation
+  `php -l` syntax check, automatic restore via `Filesystem::copy()` (NOT
+  `rename` — the `.bak` outlives every failure path) on lint failure. Then
+  programmatically delegates to `tenancy:init` (forwarding `--force`) for a
+  single continuous transcript. Supports `--dry-run` (preview-only; no write,
+  no `tenancy:init` invocation) and `--force` (forwarded to `tenancy:init` to
+  permit overwrite of an existing `tenancy.yaml`); the two flags are mutually
+  exclusive (exit code 2 on conflict). Fixture corpus of ≥6 real-world
+  `bundles.php` shapes (Symfony skeleton, API Platform, Sulu CMS,
+  DDD-override, with-comments, env-conditional) plus a malformed sample
+  gates the AST detector in CI. Implements DEC-INST-01 (programmatic
+  delegation) and DEC-INST-02 (nikic-detect + refuse-on-nonstandard). Closes
+  DX-06.
+- **`BundlesPhpInstaller`** — `final` collaborator powering `tenancy:install`.
+  Pure value-returning detector + writer with a typed `InstallResult`
+  (`WROTE` / `ALREADY_REGISTERED` / `REFUSED_NON_STANDARD` /
+  `LINT_FAILED_RESTORED` / `DEV_DEPENDENCY_MISSING` enum cases). Unit-testable
+  against the fixture corpus without a kernel boot.
 
 ## [0.2.1] — 2026-04-21
 
