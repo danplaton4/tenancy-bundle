@@ -204,13 +204,22 @@ final class BundlesPhpInstaller implements BundlesPhpInstallerInterface
         $lineEnding = str_contains(substr($source, 0, 4096), "\r\n") ? "\r\n" : "\n";
         $entry = '    '.self::TENANCY_BUNDLE_FQCN."::class => ['all' => true],";
 
-        // If the previous existing entry ends with `,` no leading comma is needed.
-        // If the array is empty (previous non-whitespace char is `[`), also no leading comma.
-        // Otherwise (e.g., previous entry has no trailing comma), prepend `,`.
-        if (',' === $prevChar || '[' === $prevChar) {
+        // Three cases:
+        //   `,` — last entry already has a trailing comma; no comma needed, no extra newline.
+        //   `[` — empty array; no comma needed, but a newline is required to open the array body.
+        //   else — last entry has no trailing comma; insert comma right after it (not at the
+        //          insertion point, which would land the comma on column 0 of a new line).
+        if (',' === $prevChar) {
             $prefix = '';
+        } elseif ('[' === $prevChar) {
+            // Empty array: open the body with a newline, no comma.
+            $prefix = $lineEnding;
         } else {
-            $prefix = ','.$lineEnding;
+            // No trailing comma on the last entry: splice it in immediately after that entry,
+            // then shift endPos by one byte to account for the inserted character.
+            $source = substr($source, 0, $prevNonSpace + 1).','.substr($source, $prevNonSpace + 1);
+            ++$endPos;
+            $prefix = '';
         }
 
         // Insert at endPos (the `]` character). The `\n` already present before `]` in the source

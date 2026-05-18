@@ -25,6 +25,8 @@ final class BundlesPhpInstallerTest extends TestCase
         yield 'api-platform' => ['api-platform', 'standard', InstallStatus::WROTE, $base.'/.expected/api-platform/bundles.php'];
         yield 'sulu' => ['sulu', 'standard', InstallStatus::WROTE, $base.'/.expected/sulu/bundles.php'];
         yield 'with-comments' => ['with-comments', 'standard', InstallStatus::WROTE, $base.'/.expected/with-comments/bundles.php'];
+        yield 'empty-array' => ['empty-array', 'standard', InstallStatus::WROTE, $base.'/.expected/empty-array/bundles.php'];
+        yield 'no-trailing-comma' => ['no-trailing-comma', 'standard', InstallStatus::WROTE, $base.'/.expected/no-trailing-comma/bundles.php'];
         yield 'ddd-override' => ['ddd-override', 'non_standard', InstallStatus::REFUSED_NON_STANDARD, null];
         yield 'env-conditional' => ['env-conditional', 'non_standard', InstallStatus::REFUSED_NON_STANDARD, null];
         yield 'malformed' => ['malformed', 'non_standard', InstallStatus::REFUSED_NON_STANDARD, null];
@@ -41,11 +43,14 @@ final class BundlesPhpInstallerTest extends TestCase
         if ('standard' === $expectedDetectStatus) {
             self::assertNotNull($result->endPos, "standard fixture '$slug' must carry an endPos");
             self::assertGreaterThan(0, $result->endPos);
-            self::assertContains(
-                'Symfony\\Bundle\\FrameworkBundle\\FrameworkBundle',
-                $result->registeredFqcns,
-                "standard fixture '$slug' must contain FrameworkBundle in its FQCN list"
-            );
+            // The empty-array fixture has no entries by design; all other standard fixtures contain FrameworkBundle.
+            if ('empty-array' !== $slug) {
+                self::assertContains(
+                    'Symfony\\Bundle\\FrameworkBundle\\FrameworkBundle',
+                    $result->registeredFqcns,
+                    "standard fixture '$slug' must contain FrameworkBundle in its FQCN list"
+                );
+            }
         } else {
             self::assertNull($result->endPos);
             self::assertNotNull($result->reason);
