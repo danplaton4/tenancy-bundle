@@ -90,14 +90,14 @@ final class BundlesPhpInstaller
 
         $php = (new PhpExecutableFinder())->find();
         if (false === $php) {
-            $this->filesystem->copy($bakPath, $bundlesPhpPath); // restore — copy, not rename
+            $this->filesystem->copy($bakPath, $bundlesPhpPath, true); // restore — copy, not rename; overwrite always
 
             return InstallResult::lintFailedRestored($bakPath, 'PHP binary not found by PhpExecutableFinder');
         }
 
         $lint = ($this->lintRunner)($php, $bundlesPhpPath);
         if (!$lint['passed']) {
-            $this->filesystem->copy($bakPath, $bundlesPhpPath); // restore — copy, not rename
+            $this->filesystem->copy($bakPath, $bundlesPhpPath, true); // restore — copy, not rename; overwrite always
 
             return InstallResult::lintFailedRestored($bakPath, $lint['error']);
         }
