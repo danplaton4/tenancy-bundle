@@ -29,6 +29,18 @@ class Tenant implements TenantInterface
     #[ORM\Column(type: 'boolean')]
     private bool $isActive = true;
 
+    // Mailer config (Phase 20 / BOOT-04).
+    // Users with a custom Tenant entity can equivalently `use \Tenancy\Bundle\Mailer\TenantMailerConfigTrait;`
+    // instead of inlining these 3 columns. See UPGRADE.md §0.2→0.3.
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $mailerDsn = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $mailerFrom = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $mailerReplyTo = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -83,6 +95,42 @@ class Tenant implements TenantInterface
     public function setDomain(?string $domain): self
     {
         $this->domain = $domain;
+
+        return $this;
+    }
+
+    public function getMailerDsn(): ?string
+    {
+        return $this->mailerDsn;
+    }
+
+    public function setMailerDsn(?string $mailerDsn): self
+    {
+        $this->mailerDsn = $mailerDsn;
+
+        return $this;
+    }
+
+    public function getMailerFrom(): ?string
+    {
+        return $this->mailerFrom;
+    }
+
+    public function setMailerFrom(?string $mailerFrom): self
+    {
+        $this->mailerFrom = $mailerFrom;
+
+        return $this;
+    }
+
+    public function getMailerReplyTo(): ?string
+    {
+        return $this->mailerReplyTo;
+    }
+
+    public function setMailerReplyTo(?string $mailerReplyTo): self
+    {
+        $this->mailerReplyTo = $mailerReplyTo;
 
         return $this;
     }
