@@ -126,6 +126,26 @@ Plans:
 5. A thrown `TransportException` during send does NOT leak the DSN's password component in its message or trace (sanitization wrapper)
 6. After `TenantContextCleared` event, the per-tenant transport cache is cleared (verified by a long-running-worker simulation test that processes messages for 100 distinct tenants without unbounded socket growth)
 
+**Plans:** 9 plans
+
+Plans:
+**Wave 0**
+- [ ] 20-00-PLAN.md — Test scaffolding: stub PHPUnit classes + MailerTestKernel + SpyTransport + symfony/mailer require-dev
+**Wave 1** *(blocked on Wave 0)*
+- [ ] 20-01-PLAN.md — Extend TenantInterface (BC break) + Tenant entity columns + TenantMailerConfigTrait + UPGRADE.md
+- [ ] 20-02-PLAN.md — Mailer primitives: DsnSanitizer + LruTransportCache + SanitizingMailerDecorator + TenantSanitizedTransportException
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 20-03-PLAN.md — Mailer wiring: MailerBootstrapper + TenantMessageDecorator + TenantAwareTransportsDecorator
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 20-04-PLAN.md — DI + compiler pass: MailerTransportContractPass + TenancyBundle configure/loadExtension/build + services.php registrations
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 20-05-PLAN.md — TenantContextClearedListener + 100-tenant long-running worker simulation test
+- [ ] 20-06-PLAN.md — AsyncCanaryTest: sync + async dispatch correctness (the headline differentiator)
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 20-07-PLAN.md — Profiler mailer subsection (D-08) — TenantDataCollector + tenant.html.twig
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 20-08-PLAN.md — tenancy:install --with-mailer (D-09) — MailerSetupStep + AST entity edit + migration scaffold
+
 ### Phase 21: Demo App
 
 **Goal:** A new user runs `git clone … && cd examples/saas && docker compose up` and within 2 minutes can hit two tenant subdomains in a browser (or curl) and see isolated tenant data. The same script runs in CI on every push to `master` and blocks the merge on failure.
