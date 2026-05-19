@@ -38,7 +38,9 @@
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.0",
         "symfony/framework-bundle": "^7.4||^8.0",
+        "symfony/mailer": "^7.4||^8.0",
         "symfony/messenger": "^7.4||^8.0",
+        "symfony/mime": "^7.4||^8.0",
         "symfony/phpunit-bridge": "^7.4||^8.0",
         "symfony/twig-bundle": "^7.4||^8.0",
         "symfony/web-profiler-bundle": "^7.4||^8.0"
@@ -49,6 +51,7 @@
         "doctrine/orm": "Required for Tenant entity (^3.3)",
         "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
         "nikic/php-parser": "Required to run bin/console tenancy:install (one-shot installer; not needed at runtime)",
+        "symfony/mailer": "Required for per-tenant mailer bootstrapper (Phase 20) (^7.4||^8.0)",
         "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)",
         "symfony/web-profiler-bundle": "Adds a 'Tenancy' panel to the Symfony Profiler / WDT in dev — shows tenant slug, label, driver, resolver, bootstrappers, error state. Auto-registered only when kernel.debug=true; never loaded in prod. Most Symfony skeleton apps already have this in require-dev."
     },
