@@ -4,8 +4,8 @@ milestone: v0.3
 milestone_name: Adoption Surface
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-05-19T19:56:45.944Z"
-last_activity: 2026-05-19 -- Phase 20 planning complete
+last_updated: "2026-05-19T21:35:19.330Z"
+last_activity: 2026-05-19 -- Phase 20 execution started
 progress:
   total_phases: 6
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 19 — profiler-tab
+**Current focus:** Phase 20 — mailer-bootstrapper
 
 ## Current Position
 
-Phase: 20
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 20 planning complete
+Phase: 20 (mailer-bootstrapper) — EXECUTING
+Plan: 1 of 9
+Status: Executing Phase 20
+Last activity: 2026-05-19 -- Phase 20 execution started
 
 ## Performance Metrics
 
