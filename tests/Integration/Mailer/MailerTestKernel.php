@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
 use Tenancy\Bundle\TenancyBundle;
+use Tenancy\Bundle\Tests\Integration\Support\ReplaceTenancyProviderPass;
 
 /**
  * Minimal Symfony kernel for Mailer + Messenger integration tests (Phase 20).
@@ -43,6 +44,11 @@ class MailerTestKernel extends Kernel
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
+        // Replace real tenancy.provider (needs Doctrine EM + cache) with NullTenantProvider —
+        // mirrors tests/Integration/TestKernel so the container compiles without Doctrine
+        // ORM/DBAL bundles configured. Plan 06 (async canary) may add a real StubTenantProvider
+        // override that runs at a later compiler-pass priority.
+        $container->addCompilerPass(new ReplaceTenancyProviderPass());
         $container->addCompilerPass(new MakeMailerServicesPublicPass());
     }
 
