@@ -107,6 +107,21 @@ final class CacheBootstrapperIntegrationTest extends TestCase
             {
                 return true;
             }
+
+            public function getMailerDsn(): ?string
+            {
+                return null;
+            }
+
+            public function getMailerFrom(): ?string
+            {
+                return null;
+            }
+
+            public function getMailerReplyTo(): ?string
+            {
+                return null;
+            }
         };
     }
 
