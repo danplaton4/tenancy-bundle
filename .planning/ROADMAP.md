@@ -126,11 +126,11 @@ Plans:
 5. A thrown `TransportException` during send does NOT leak the DSN's password component in its message or trace (sanitization wrapper)
 6. After `TenantContextCleared` event, the per-tenant transport cache is cleared (verified by a long-running-worker simulation test that processes messages for 100 distinct tenants without unbounded socket growth)
 
-**Plans:** 9 plans
+**Plans:** 1/9 plans executed
 
 Plans:
 **Wave 0**
-- [ ] 20-00-PLAN.md — Test scaffolding: stub PHPUnit classes + MailerTestKernel + SpyTransport + symfony/mailer require-dev
+- [x] 20-00-PLAN.md — Test scaffolding: stub PHPUnit classes + MailerTestKernel + SpyTransport + symfony/mailer require-dev
 **Wave 1** *(blocked on Wave 0)*
 - [ ] 20-01-PLAN.md — Extend TenantInterface (BC break) + Tenant entity columns + TenantMailerConfigTrait + UPGRADE.md
 - [ ] 20-02-PLAN.md — Mailer primitives: DsnSanitizer + LruTransportCache + SanitizingMailerDecorator + TenantSanitizedTransportException
