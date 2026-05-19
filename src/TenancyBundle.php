@@ -32,26 +32,6 @@ use Tenancy\Bundle\Resolver\TenantResolverInterface;
 
 class TenancyBundle extends AbstractBundle
 {
-    /**
-     * Override AbstractBundle::getPath() so TwigBundle auto-discovers
-     * `src/Resources/views/` as the `@Tenancy` namespace.
-     *
-     * AbstractBundle defaults `getPath()` to `dirname($reflectedFile, 2)` (project root),
-     * which assumes the modern layout where templates live at `<root>/templates/`.
-     * This bundle ships templates inside the source tree (`src/Resources/views/`), so we
-     * point getPath() at the `src/` dir; TwigBundle's `getBundleTemplatePaths()` then
-     * registers `src/Resources/views` automatically — see
-     * vendor/symfony/twig-bundle/DependencyInjection/TwigExtension.php::getBundleTemplatePaths()
-     * (`file_exists($dir = $bundle['path'].'/Resources/views') || ... '/templates'`).
-     *
-     * Without this override the `@Tenancy/Collector/tenant.html.twig` profiler template
-     * cannot be rendered — confirmed empirically in Phase 19 plan 06.
-     */
-    public function getPath(): string
-    {
-        return __DIR__;
-    }
-
     public function configure(DefinitionConfigurator $definition): void
     {
         $definition->rootNode()
@@ -297,6 +277,14 @@ class TenancyBundle extends AbstractBundle
                             'enabled' => true,
                         ],
                     ],
+                ],
+            ]);
+        }
+
+        if ($builder->hasExtension('twig')) {
+            $builder->prependExtensionConfig('twig', [
+                'paths' => [
+                    __DIR__.'/Resources/views' => 'Tenancy',
                 ],
             ]);
         }
