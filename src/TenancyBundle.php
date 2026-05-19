@@ -102,7 +102,7 @@ class TenancyBundle extends AbstractBundle
     {
         $container->import('../config/services.php');
 
-        if (true === $builder->getParameter('kernel.debug')) {
+        if ($builder->hasParameter('kernel.debug') && (bool) $builder->getParameter('kernel.debug')) {
             $container->import('../config/services_dev.php');
         }
 
