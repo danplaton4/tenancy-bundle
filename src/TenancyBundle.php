@@ -21,6 +21,7 @@ use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\MailerTransportContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\OriginHeaderResolverConfigPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
@@ -85,6 +86,19 @@ class TenancyBundle extends AbstractBundle
             ->end()
             ->end()
             ->end()
+            ->arrayNode('mailer')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->integerNode('transport_cache_size')->defaultValue(32)->min(1)->end()
+            ->scalarNode('async')
+                ->defaultValue('auto')
+                ->validate()
+                    ->ifNotInArray(['auto', 'true', 'false'])
+                    ->thenInvalid('tenancy.mailer.async must be one of "auto", "true", "false". Got %s')
+                ->end()
+            ->end()
+            ->end()
+            ->end()
             ->end()
             ->validate()
                 ->ifTrue(function (array $v): bool {
@@ -118,6 +132,12 @@ class TenancyBundle extends AbstractBundle
         /** @var array<string, mixed> $databaseConfig */
         $databaseConfig = $config['database'] ?? [];
 
+        /** @var array<string, mixed> $mailerConfig */
+        $mailerConfig = $config['mailer'] ?? [];
+        $mailerCacheSize = $mailerConfig['transport_cache_size'] ?? 32;
+        $mailerAsyncRaw = $mailerConfig['async'] ?? 'auto';
+        $mailerAsync = is_scalar($mailerAsyncRaw) ? (string) $mailerAsyncRaw : 'auto';
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
@@ -125,7 +145,9 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.tenant_entity_class', $config['tenant_entity_class'])
             ->set('tenancy.host.app_domain', $hostConfig['app_domain'])
             ->set('tenancy.resolvers', $config['resolvers'])
-            ->set('tenancy.cache_prefix_separator', $config['cache_prefix_separator']);
+            ->set('tenancy.cache_prefix_separator', $config['cache_prefix_separator'])
+            ->set('tenancy.mailer.transport_cache_size', $mailerCacheSize)
+            ->set('tenancy.mailer.async', $mailerAsync);
 
         /** @var list<string> $configuredResolvers */
         $configuredResolvers = $config['resolvers'];
@@ -224,6 +246,9 @@ class TenancyBundle extends AbstractBundle
         if (interface_exists(MessageBusInterface::class)) {
             // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
             $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
+        }
+        if (interface_exists(\Symfony\Component\Mailer\MailerInterface::class)) {
+            $container->addCompilerPass(new MailerTransportContractPass());
         }
     }
 
