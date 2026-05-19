@@ -69,7 +69,7 @@ final class TenantMailerConfigTraitTest extends TestCase
             self::assertTrue($rp->isPrivate(), "Property {$prop} should be private");
             $type = $rp->getType();
             self::assertNotNull($type, "Property {$prop} should be typed");
-            /** @var \ReflectionNamedType $type */
+            /* @var \ReflectionNamedType $type */
             self::assertSame('string', $type->getName(), "Property {$prop} should be typed string");
             self::assertTrue($type->allowsNull(), "Property {$prop} should allow null");
             self::assertTrue($rp->hasDefaultValue(), "Property {$prop} should have a default");
