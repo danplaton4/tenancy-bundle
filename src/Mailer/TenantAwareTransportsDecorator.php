@@ -80,11 +80,7 @@ final class TenantAwareTransportsDecorator implements TransportInterface
         // worker before TenantWorkerMiddleware restores context) bypass this guard.
         $activeTenant = $this->context->getTenant();
         if (null !== $activeTenant && $activeTenant->getSlug() !== $slug) {
-            throw new \RuntimeException(sprintf(
-                'tenancy: refusing to route mail — message X-Transport "tenant_%s" does not match active tenant "%s". Possible cross-tenant message leak.',
-                $slug,
-                $activeTenant->getSlug()
-            ));
+            throw new \RuntimeException(sprintf('tenancy: refusing to route mail — message X-Transport "tenant_%s" does not match active tenant "%s". Possible cross-tenant message leak.', $slug, $activeTenant->getSlug()));
         }
 
         $transport = $this->cache->get($slug) ?? $this->buildAndCache($slug);
@@ -102,19 +98,13 @@ final class TenantAwareTransportsDecorator implements TransportInterface
     private function buildAndCache(string $slug): TransportInterface
     {
         if (null === $this->provider) {
-            throw new \RuntimeException(sprintf(
-                'tenancy: cannot build transport for "tenant_%s" — no TenantProviderInterface wired. Configure tenancy.provider in services.php.',
-                $slug
-            ));
+            throw new \RuntimeException(sprintf('tenancy: cannot build transport for "tenant_%s" — no TenantProviderInterface wired. Configure tenancy.provider in services.php.', $slug));
         }
 
         $tenant = $this->provider->findBySlug($slug);
         $dsn = $tenant->getMailerDsn();
         if (null === $dsn) {
-            throw new \RuntimeException(sprintf(
-                'tenancy: tenant "%s" has no mailerDsn configured — cannot route mail via tenant transport.',
-                $slug
-            ));
+            throw new \RuntimeException(sprintf('tenancy: tenant "%s" has no mailerDsn configured — cannot route mail via tenant transport.', $slug));
         }
 
         $transport = ($this->transportFactory)($dsn, $this->eventDispatcher);
