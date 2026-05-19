@@ -44,7 +44,7 @@ final class TenantProfilerStash implements ResetInterface
 
     public function onTenantBootstrapped(TenantBootstrapped $event): void
     {
-        $this->bootstrapperFqcns = $event->bootstrappers;
+        $this->bootstrapperFqcns = array_values(array_map('strval', $event->bootstrappers));
     }
 
     public function onTenantContextCleared(TenantContextCleared $event): void
