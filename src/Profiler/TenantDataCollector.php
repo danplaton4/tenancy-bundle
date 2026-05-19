@@ -30,12 +30,21 @@ final class TenantDataCollector extends AbstractDataCollector
      * @param string $driver             Value of %tenancy.driver% — 'database_per_tenant' | 'shared_db'
      * @param string $landlordConnection Value of %tenancy.landlord_connection% (defaults to 'default')
      */
+    private const KNOWN_DRIVERS = ['database_per_tenant', 'shared_db'];
+
     public function __construct(
         private readonly TenantProfilerStash $stash,
         private readonly TenantContext $tenantContext,
         private readonly string $driver,
         private readonly string $landlordConnection,
     ) {
+        if (!\in_array($driver, self::KNOWN_DRIVERS, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'TenantDataCollector: $driver must be one of [%s], got "%s".',
+                implode(', ', self::KNOWN_DRIVERS),
+                $driver,
+            ));
+        }
     }
 
     public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
