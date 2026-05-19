@@ -195,36 +195,36 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
         $email = (new Email())->from('x@y')->to('a@b')->text('hi');
         $email->getHeaders()->addTextHeader('X-Transport', 'tenant_acme');
 
-        $sawHeader = null;
-        $factory = function () use (&$sawHeader, $email): TransportInterface {
-            $spy = new class($sawHeader) implements TransportInterface {
-                /** @param-out bool $sawHeader */
-                public function __construct(private mixed &$sawHeader)
-                {
+        // Use a header-observing spy that records whether X-Transport was still
+        // present at the moment the tenant transport received the message.
+        $observer = new class implements TransportInterface {
+            public ?bool $sawHeaderAtSendTime = null;
+
+            public function send(\Symfony\Component\Mime\RawMessage $message, ?\Symfony\Component\Mailer\Envelope $envelope = null): ?\Symfony\Component\Mailer\SentMessage
+            {
+                if ($message instanceof \Symfony\Component\Mime\Message) {
+                    $this->sawHeaderAtSendTime = $message->getHeaders()->has('X-Transport');
                 }
 
-                public function send(\Symfony\Component\Mime\RawMessage $message, ?\Symfony\Component\Mailer\Envelope $envelope = null): ?\Symfony\Component\Mailer\SentMessage
-                {
-                    if ($message instanceof \Symfony\Component\Mime\Message) {
-                        $this->sawHeader = $message->getHeaders()->has('X-Transport');
-                    }
+                return null;
+            }
 
-                    return null;
-                }
-
-                public function __toString(): string
-                {
-                    return 'header-spy';
-                }
-            };
-
-            return $spy;
+            public function __toString(): string
+            {
+                return 'header-observer';
+            }
         };
+
+        $factory = static fn (string $dsn, ?EventDispatcherInterface $dispatcher): TransportInterface => $observer;
 
         $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context, null, $factory);
         $decorator->send($email);
 
-        $this->assertFalse($sawHeader, 'inner tenant transport must receive the message AFTER X-Transport is stripped');
+        $this->assertFalse(
+            $observer->sawHeaderAtSendTime,
+            'inner tenant transport must receive the message AFTER X-Transport is stripped'
+        );
+        $this->assertFalse($email->getHeaders()->has('X-Transport'));
     }
 
     public function testTenantWithNullDsnThrowsRuntimeException(): void
@@ -274,6 +274,70 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/provider/i');
         $decorator->send($email);
+    }
+
+    public function testRefusesCrossTenantRoutingWhenContextTenantSlugMismatches(): void
+    {
+        // Defensive cross-tenant guard (T-20-03-02 mitigation): if a tenant is active
+        // in TenantContext AND its slug differs from the X-Transport header slug,
+        // the decorator MUST refuse to send rather than risk leaking mail across tenants.
+        $inner = $this->createMock(TransportInterface::class);
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->expects($this->never())->method('findBySlug');
+
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext();
+        $context->setTenant($this->makeTenant('smtp://other', 'other-tenant'));
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_acme');
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/cross-tenant|does not match/i');
+        $decorator->send($email);
+    }
+
+    public function testAllowsRoutingWhenContextTenantMatchesHeaderSlug(): void
+    {
+        $inner = $this->createMock(TransportInterface::class);
+        $tenant = $this->makeTenant('smtp://acme', 'acme');
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->method('findBySlug')->willReturn($tenant);
+
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext();
+        $context->setTenant($tenant);
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_acme');
+
+        $sendCount = 0;
+        $built = new class($sendCount) implements TransportInterface {
+            public function __construct(private int &$sendCount)
+            {
+            }
+
+            public function send(\Symfony\Component\Mime\RawMessage $message, ?\Symfony\Component\Mailer\Envelope $envelope = null): ?\Symfony\Component\Mailer\SentMessage
+            {
+                ++$this->sendCount;
+
+                return null;
+            }
+
+            public function __toString(): string
+            {
+                return 'built';
+            }
+        };
+
+        $factory = static fn (string $dsn, ?EventDispatcherInterface $dispatcher): TransportInterface => $built;
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context, null, $factory);
+        $decorator->send($email);
+
+        $this->assertSame(1, $sendCount, 'tenant transport must be invoked when context slug matches header slug');
     }
 
     public function testFactoryReceivesInjectedEventDispatcher(): void
