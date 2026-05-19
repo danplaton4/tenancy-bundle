@@ -724,22 +724,23 @@ public function build(ContainerBuilder $container): void
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **TenantMessageDecorator listener: isQueued=false only, or both?**
+1. **TenantMessageDecorator listener: isQueued=false only, or both?** — **RESOLVED**
    - What we know: `isQueued=false` MessageEvent fires in both sync HTTP path (AbstractTransport::send) and async worker path (AbstractTransport::send called by MessageHandler). This covers both cases cleanly.
    - What's unclear: Is there a case where the user calls `$mailer->send()` in a context where tenant context IS available and wants the X-Transport stamp to control the async queue selection (X-Bus-Transport), not just the mailer transport selection?
-   - Recommendation: Implement `isQueued=false` listener only. The `isQueued=true` pre-dispatch event is for Messenger bus stamp injection (X-Bus-Transport), which is not needed for this phase. If needed later, it's additive.
+   - **Resolution:** Plan 03 confirms `isQueued=false` only (priority 100), no `isQueued` filter needed for the sync path because Mailer's transport-level MessageEvent fires identically in both sync and async paths. The `isQueued=true` pre-dispatch event is for Messenger bus stamp injection (X-Bus-Transport), which is not needed for this phase. If needed later, it's additive.
 
-2. **`Transport::fromDsn()` dispatcher injection in decorator**
+2. **`Transport::fromDsn()` dispatcher injection in decorator** — **RESOLVED**
    - What we know: `Transport::fromDsn($dsn, $dispatcher, $logger)` accepts optional EventDispatcher and Logger. The decorator should pass through the same dispatcher/logger from DI to ensure `SentMessageEvent`/`FailedMessageEvent` fire correctly.
    - What's unclear: Whether the worker's event dispatcher is the same instance wired to the mailer or a different one.
-   - Recommendation: Inject the event_dispatcher service into `TenantAwareTransportsDecorator` and pass it to `Transport::fromDsn()`. Planner to wire explicitly in services.php.
+   - **Resolution:** Will be wired in Plan 03 constructor + Plan 04 services.php registration. `EventDispatcherInterface` becomes the 5th constructor argument to `TenantAwareTransportsDecorator`, and `@event_dispatcher` is wired in the services.php registration. This ensures `SentMessageEvent` / `FailedMessageEvent` fire from tenant transports identically to landlord transports.
 
-3. **Async canary test infrastructure**
+3. **Async canary test infrastructure** — **RESOLVED**
    - What we know: `tests/Integration/Messenger/MessengerMiddlewareIntegrationTest.php` uses `StubTenantProvider` and in-process bus. The canary test cannot use a real SMTP server in CI.
    - What's unclear: Whether to use `NullTransport` (discards email but records DSN used) or build a `SpyTransport` that captures send calls.
-   - Recommendation: Build a `SpyTransport implements TransportInterface` in `tests/` that records `send()` invocations. Register as a named transport for the tenant in the test kernel. Assert the spy recorded a send (proving tenant transport was used, not landlord).
+   - **Resolution:** Plans 00 and 06 use a `SpyTransport` + `SpyTransportRegistry` pattern — test-double transports that capture sent emails for inspection on the worker side after Messenger deserialization. Registered as a named transport for the tenant in the test kernel. The async canary asserts the spy recorded a send (proving the correct tenant transport was used, not landlord).
+
 
 ---
 
