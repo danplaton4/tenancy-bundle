@@ -94,7 +94,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 4. Reloading a stored Profiler dump (after the request has terminated) renders the same panel state — no serialization errors from `$this->data`
 5. The Tenancy data collector is registered ONLY when `kernel.debug = true` — production container compilation does not include it (verified by a CI check)
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 **Wave 1**
@@ -107,7 +107,7 @@ Plans:
 - [x] 19-04-PLAN.md — DI registration + kernel.debug compile-out guard
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 19-05-PLAN.md — Integration tests: compile-out + serialization + source layout
+- [x] 19-05-PLAN.md — Integration tests: compile-out + serialization + source layout
 - [ ] 19-06-PLAN.md — WDT functional integration test (3 panel states)
 
 ### Phase 20: Mailer Bootstrapper
