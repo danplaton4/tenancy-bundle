@@ -75,6 +75,7 @@ That's it. Subdomain requests resolve tenants, database connections switch, cach
 | **CLI commands** | `tenancy:init`, `tenancy:migrate`, and `tenancy:run` |
 | **PHPUnit trait** | `InteractsWithTenancy` for clean per-test tenant setup |
 | **Strict mode** | `TenantMissingException` when querying without tenant (default: ON) |
+| **Profiler tab** | "Tenancy" panel in the WDT in dev — slug, label, driver, resolver, bootstrappers, error state. Auto-stripped in prod ([guide](user-guide/profiler-tab.md)) |
 
 ---
 

@@ -54,6 +54,7 @@ See the sections below for resolver configuration, shared-DB mode, Messenger int
 - **CLI commands** — `tenancy:init` (scaffold config), `tenancy:migrate` (run migrations per tenant), `tenancy:run` (wrap any command with tenant context)
 - **PHPUnit testing trait** — `InteractsWithTenancy` sets up a clean tenant DB/schema per test method
 - **Strict mode** — `TenantMissingException` thrown when `#[TenantAware]` entity is queried with no active tenant; on by default
+- **Symfony Profiler tab** — "Tenancy" panel in the WDT in dev showing slug, label, driver, resolver, bootstrappers, error state. Auto-registered when `kernel.debug=true`; compile-stripped in prod. See [Profiler tab guide](docs/user-guide/profiler-tab.md).
 
 ## How It Works
 
@@ -99,6 +100,7 @@ Bootstrappers are Symfony services tagged with `tenancy.bootstrapper` — add yo
 | PHPUnit testing trait | Yes | Yes | No | No |
 | PHPStan level 9 | Yes | No | No | No |
 | Event-driven bootstrappers | Yes | Bootstrapper classes | No | No |
+| Symfony Profiler / WDT panel | Yes (dev-only, auto-stripped in prod) | N/A (Laravel) | No | No |
 
 ## Philosophy
 
