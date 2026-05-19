@@ -169,7 +169,9 @@ final class TenantMessageDecoratorTest extends TestCase
 
         $decorator->onMessage($this->makeEvent($email));
 
-        $this->assertSame('marketing', $email->getHeaders()->get('X-Transport')->getBodyAsString());
+        $xt = $email->getHeaders()->get('X-Transport');
+        $this->assertNotNull($xt);
+        $this->assertSame('marketing', $xt->getBodyAsString());
     }
 
     public function testDoesNotOverwriteExistingFromHeader(): void
@@ -210,7 +212,9 @@ final class TenantMessageDecoratorTest extends TestCase
         $decorator->onMessage($this->makeEvent($message));
 
         $this->assertTrue($message->getHeaders()->has('X-Transport'));
-        $this->assertSame('tenant_acme', $message->getHeaders()->get('X-Transport')->getBodyAsString());
+        $xt = $message->getHeaders()->get('X-Transport');
+        $this->assertNotNull($xt);
+        $this->assertSame('tenant_acme', $xt->getBodyAsString());
         // No From header should be added because Email::from() is the only path that mutates From.
         $this->assertFalse($message->getHeaders()->has('From'));
     }
