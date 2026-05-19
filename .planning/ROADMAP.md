@@ -94,13 +94,13 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 4. Reloading a stored Profiler dump (after the request has terminated) renders the same panel state — no serialization errors from `$this->data`
 5. The Tenancy data collector is registered ONLY when `kernel.debug = true` — production container compilation does not include it (verified by a CI check)
 
-**Plans:** 1/7 plans executed
+**Plans:** 3/7 plans executed
 
 Plans:
 **Wave 1**
 - [x] 19-00-PLAN.md — Wave 0: composer deps + test dirs + ProfilerTestKernel
-- [ ] 19-01-PLAN.md — TenantProfilerStash (event-time capture + reset)
-- [ ] 19-02-PLAN.md — TenantDataCollector (8-key data shape + DSN defence)
+- [x] 19-01-PLAN.md — TenantProfilerStash (event-time capture + reset)
+- [x] 19-02-PLAN.md — TenantDataCollector (8-key data shape + DSN defence)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 19-03-PLAN.md — Twig templates (tenant.html.twig + _icon.svg.twig)
