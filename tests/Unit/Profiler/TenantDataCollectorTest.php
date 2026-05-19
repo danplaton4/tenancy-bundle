@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle\Tests\Unit\Profiler;
 
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Tenancy\Bundle\Context\TenantContext;
+use Tenancy\Bundle\Event\TenantBootstrapped;
+use Tenancy\Bundle\Event\TenantResolved;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Profiler\TenantDataCollector;
 use Tenancy\Bundle\Profiler\TenantProfilerStash;
@@ -16,13 +19,47 @@ use Tenancy\Bundle\TenantInterface;
 
 final class TenantDataCollectorTest extends TestCase
 {
-    private TenantProfilerStash&MockObject $stash;
+    private TenantProfilerStash $stash;
     private TenantContext $tenantContext;
 
     protected function setUp(): void
     {
-        $this->stash = $this->createMock(TenantProfilerStash::class);
+        $this->stash = new TenantProfilerStash();
         $this->tenantContext = new TenantContext();
+    }
+
+    /**
+     * Drive the real stash through its event subscribers — TenantProfilerStash is `final`
+     * (Phase 19 D-04 / 19-01 architectural rule), so we cannot mock it. Seeding via the
+     * real event surface also exercises the subscriber wiring end-to-end.
+     *
+     * @param array<int|string, string>                                    $bootstrappers
+     * @param array{class: class-string<\Throwable>, message: string}|null $capturedException
+     */
+    private function seedStash(?string $resolvedBy, array $bootstrappers, ?array $capturedException): void
+    {
+        $tenant = $this->createMock(TenantInterface::class);
+
+        if (null !== $resolvedBy) {
+            $this->stash->onTenantResolved(new TenantResolved($tenant, null, $resolvedBy));
+        }
+
+        if ([] !== $bootstrappers) {
+            $this->stash->onTenantBootstrapped(new TenantBootstrapped($tenant, $bootstrappers));
+        }
+
+        if (null !== $capturedException) {
+            $class = $capturedException['class'];
+            $throwable = new $class($capturedException['message']);
+            $kernel = $this->createMock(HttpKernelInterface::class);
+            $event = new ExceptionEvent(
+                $kernel,
+                Request::create('/'),
+                HttpKernelInterface::MAIN_REQUEST,
+                $throwable
+            );
+            $this->stash->onKernelException($event);
+        }
     }
 
     private function makeCollector(string $driver = 'database_per_tenant', string $landlord = 'default'): TenantDataCollector
@@ -47,9 +84,7 @@ final class TenantDataCollectorTest extends TestCase
         $tenant->method('getName')->willReturn('Acme Corp');
         $this->tenantContext->setTenant($tenant);
 
-        $this->stash->method('getResolvedBy')->willReturn('X\\Y\\Resolver');
-        $this->stash->method('getBootstrapperFqcns')->willReturn(['A\\B', 'C\\D']);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash('X\\Y\\Resolver', ['A\\B', 'C\\D'], null);
 
         $collector = $this->makeCollector('database_per_tenant', 'default');
         $collector->collect(Request::create('/'), new Response());
@@ -71,9 +106,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testCollectProducesNullStateWhenNoTenant(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash(null, [], null);
 
         $collector = $this->makeCollector('shared_db', 'default');
         $collector->collect(Request::create('/'), new Response());
@@ -89,9 +122,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testCollectProducesErrorStateWhenStashCapturedException(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn([
+        $this->seedStash(null, [], [
             'class' => TenantNotFoundException::class,
             'message' => 'tenant x missing',
         ]);
@@ -108,9 +139,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testCollectForSharedDbDriverUsesLandlordConnectionName(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash(null, [], null);
 
         $collector = $this->makeCollector('shared_db', 'landlord_main');
         $collector->collect(Request::create('/'), new Response());
@@ -120,9 +149,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testCollectForDatabasePerTenantDriverUsesTenantLiteral(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash(null, [], null);
 
         $collector = $this->makeCollector('database_per_tenant', 'default');
         $collector->collect(Request::create('/'), new Response());
@@ -132,9 +159,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testConnectionNameDsnLikeColonStringThrows(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash(null, [], null);
 
         $collector = $this->makeCollector('shared_db', 'mysql://user:pass@host/db');
         $this->expectException(\RuntimeException::class);
@@ -144,9 +169,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testConnectionNameDsnLikeAtStringThrows(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash(null, [], null);
 
         $collector = $this->makeCollector('shared_db', 'user@host');
         $this->expectException(\RuntimeException::class);
@@ -155,9 +178,7 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testDataHasExactlyEightKeys(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        $this->stash->method('getBootstrapperFqcns')->willReturn([]);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash(null, [], null);
 
         $collector = $this->makeCollector('shared_db', 'default');
         $collector->collect(Request::create('/'), new Response());
@@ -174,9 +195,7 @@ final class TenantDataCollectorTest extends TestCase
         $tenant->method('getSlug')->willReturn('acme');
         $tenant->method('getName')->willReturn('Acme');
         $this->tenantContext->setTenant($tenant);
-        $this->stash->method('getResolvedBy')->willReturn('R');
-        $this->stash->method('getBootstrapperFqcns')->willReturn(['A', 'B']);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        $this->seedStash('R', ['A', 'B'], null);
 
         $collector = $this->makeCollector();
         $collector->collect(Request::create('/'), new Response());
@@ -187,7 +206,6 @@ final class TenantDataCollectorTest extends TestCase
                 continue;
             }
             if (is_scalar($value)) {
-                // Scalar branch — confirmed by the type guard above.
                 continue;
             }
             self::assertIsArray($value, "Key {$key} should be null, scalar, or array (no objects allowed)");
@@ -199,10 +217,8 @@ final class TenantDataCollectorTest extends TestCase
 
     public function testBootstrappersAreCoercedToStrings(): void
     {
-        $this->stash->method('getResolvedBy')->willReturn(null);
-        // Simulate stash returning non-string-keyed array with stringable values; coercion must produce list<string>.
-        $this->stash->method('getBootstrapperFqcns')->willReturn([5 => 'X\\B1', 9 => 'Y\\B2']);
-        $this->stash->method('getCapturedException')->willReturn(null);
+        // Simulate stash receiving non-contiguous-keyed bootstrappers array; collector must produce list<string>.
+        $this->seedStash(null, [5 => 'X\\B1', 9 => 'Y\\B2'], null);
 
         $collector = $this->makeCollector('shared_db', 'default');
         $collector->collect(Request::create('/'), new Response());
