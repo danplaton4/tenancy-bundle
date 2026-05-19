@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle\Tests\Unit\Mailer;
 
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Tenancy\Bundle\Bootstrapper\MailerBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
 use Tenancy\Bundle\Mailer\LruTransportCache;
 use Tenancy\Bundle\TenantInterface;
+use Tenancy\Bundle\Tests\Unit\Mailer\Fixture\StoppableSpyTransport;
 
 /**
  * Behavior tests for MailerBootstrapper.
@@ -35,24 +35,35 @@ final class MailerBootstrapperTest extends TestCase
 
     public function testBootIsNoOp(): void
     {
-        /** @var LruTransportCache&MockObject $cache */
-        $cache = $this->createMock(LruTransportCache::class);
-        $cache->expects($this->never())->method($this->anything());
+        // Use a real LruTransportCache (final, not mockable) loaded with a stoppable
+        // spy transport. boot() must NOT call clear() — verified by asserting the spy
+        // recorded zero stop() calls and the cache still contains the entry.
+        $cache = new LruTransportCache(32);
+        $spy = new StoppableSpyTransport('boot-noop-spy');
+        $cache->set('acme', $spy);
 
         $tenant = $this->createMock(TenantInterface::class);
 
         $bootstrapper = new MailerBootstrapper($cache);
         $bootstrapper->boot($tenant);
+
+        $this->assertSame(0, $spy->stopCalls, 'boot() must not invoke transport stop()');
+        $this->assertSame(1, $cache->size(), 'boot() must not clear the cache');
     }
 
     public function testClearFlushesLruTransportCache(): void
     {
-        /** @var LruTransportCache&MockObject $cache */
-        $cache = $this->createMock(LruTransportCache::class);
-        $cache->expects($this->once())->method('clear');
+        // Real LruTransportCache + spy: clear() must propagate to cache->clear(),
+        // which calls stop() on every cached transport (D-07 mailer-before-EM).
+        $cache = new LruTransportCache(32);
+        $spy = new StoppableSpyTransport('clear-flush-spy');
+        $cache->set('acme', $spy);
 
         $bootstrapper = new MailerBootstrapper($cache);
         $bootstrapper->clear();
+
+        $this->assertSame(1, $spy->stopCalls, 'clear() must flush LRU which stops each cached transport');
+        $this->assertSame(0, $cache->size(), 'clear() must empty the cache');
     }
 
     public function testClassIsFinal(): void
@@ -67,6 +78,18 @@ final class MailerBootstrapperTest extends TestCase
         // bootstrapper still loads via constructor with null. clear() then short-circuits.
         $bootstrapper = new MailerBootstrapper(null);
         $bootstrapper->clear(); // must not error
-        $this->assertTrue(true);
+
+        $this->assertInstanceOf(TenantBootstrapperInterface::class, $bootstrapper);
+
+        // Reflection confirms the constructor parameter is nullable.
+        $reflection = new \ReflectionClass(MailerBootstrapper::class);
+        $constructor = $reflection->getConstructor();
+        $this->assertNotNull($constructor);
+        $params = $constructor->getParameters();
+        $this->assertCount(1, $params);
+        $type = $params[0]->getType();
+        $this->assertInstanceOf(\ReflectionNamedType::class, $type);
+        $this->assertTrue($type->allowsNull(), 'Constructor cache parameter must be nullable');
+        $this->assertSame(LruTransportCache::class, $type->getName());
     }
 }
