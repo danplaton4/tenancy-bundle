@@ -7,9 +7,11 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
+use Tenancy\Bundle\Bootstrapper\MailerBootstrapper;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
 use Tenancy\Bundle\Cache\TenantAwareTagAwareCacheAdapter;
 use Tenancy\Bundle\Command\Install\BundlesPhpInstaller;
@@ -18,6 +20,10 @@ use Tenancy\Bundle\Command\TenantInitCommand;
 use Tenancy\Bundle\Command\TenantRunCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
+use Tenancy\Bundle\Mailer\LruTransportCache;
+use Tenancy\Bundle\Mailer\SanitizingMailerDecorator;
+use Tenancy\Bundle\Mailer\TenantAwareTransportsDecorator;
+use Tenancy\Bundle\Mailer\TenantMessageDecorator;
 use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
@@ -142,5 +148,48 @@ return function (ContainerConfigurator $container): void {
                 service('tenancy.provider')->nullOnInvalid(),
                 service('event_dispatcher'),
             ]);
+    }
+
+    if (interface_exists(MailerInterface::class)) {
+        // LruTransportCache — bounded per-tenant transport cache (default 32 slots)
+        $services->set('tenancy.mailer.lru_cache', LruTransportCache::class)
+            ->args([param('tenancy.mailer.transport_cache_size')]);
+
+        // MailerBootstrapper — joins the chain at priority -20 (runs AFTER
+        // DoctrineBootstrapper on boot, BEFORE on clear per D-07). The clear()
+        // step flushes the LRU so per-tenant SMTP sockets are closed cleanly.
+        $services->set('tenancy.mailer.bootstrapper', MailerBootstrapper::class)
+            ->args([service('tenancy.mailer.lru_cache')->nullOnInvalid()])
+            ->tag('tenancy.bootstrapper', ['priority' => -20]);
+
+        // TenantMessageDecorator — MessageEvent listener (priority 100) that
+        // stamps X-Transport: tenant_<slug> + From / Reply-To from the active
+        // tenant. Service ID MUST be exactly 'tenancy.mailer.message_decorator'
+        // — the MailerTransportContractPass checks for this exact ID.
+        $services->set('tenancy.mailer.message_decorator', TenantMessageDecorator::class)
+            ->args([service('tenancy.context')])
+            ->autoconfigure(true);
+
+        // TenantAwareTransportsDecorator — decorates mailer.transports so the
+        // worker (and sync path) route tenant_<slug> X-Transport headers via
+        // the tenant's mailerDsn. The 5th constructor arg @event_dispatcher
+        // is wired so SentMessageEvent / FailedMessageEvent fire from tenant
+        // transports identically to the landlord transport (RESEARCH Q2).
+        $services->set('tenancy.mailer.transports_decorator', TenantAwareTransportsDecorator::class)
+            ->decorate('mailer.transports')
+            ->args([
+                service('.inner'),
+                service('tenancy.provider')->nullOnInvalid(),
+                service('tenancy.mailer.lru_cache'),
+                service('tenancy.context'),
+                service('event_dispatcher'),
+            ]);
+
+        // SanitizingMailerDecorator — wraps the MailerInterface so
+        // TransportExceptionInterface bubbles up with the DSN password
+        // redacted out of the message text.
+        $services->set('tenancy.mailer.sanitizing_decorator', SanitizingMailerDecorator::class)
+            ->decorate('mailer')
+            ->args([service('.inner')]);
     }
 };

@@ -193,18 +193,20 @@ final class AutoconfigurationTest extends TestCase
         $chain = $container->get('tenancy.bootstrapper_chain');
         $this->assertInstanceOf(BootstrapperChain::class, $chain);
 
-        // Verify DummyBootstrapper was injected via the compiler pass + autoconfiguration
-        // Access the private $bootstrappers property via reflection
+        // Verify DummyBootstrapper was injected via the compiler pass + autoconfiguration.
+        // The chain may also include bundle-shipped bootstrappers (e.g. MailerBootstrapper
+        // when symfony/mailer is installed) — assert presence by class, not exact count.
         $reflection = new \ReflectionClass(BootstrapperChain::class);
         $bootstrappersProperty = $reflection->getProperty('bootstrappers');
 
         $bootstrappers = $bootstrappersProperty->getValue($chain);
 
         $this->assertIsArray($bootstrappers, 'BootstrapperChain::$bootstrappers must be an array');
-        $this->assertCount(1, $bootstrappers, 'Exactly one bootstrapper should be registered');
-        $this->assertInstanceOf(
+
+        $classes = array_map(static fn (mixed $b): string => is_object($b) ? $b::class : get_debug_type($b), $bootstrappers);
+        $this->assertContains(
             DummyBootstrapper::class,
-            $bootstrappers[0],
+            $classes,
             'DummyBootstrapper must be auto-tagged (via TenantBootstrapperInterface) and injected into BootstrapperChain',
         );
     }
@@ -222,9 +224,11 @@ final class AutoconfigurationTest extends TestCase
         $bootstrappers = $bootstrappersProperty->getValue($chain);
 
         $this->assertIsArray($bootstrappers);
-        $this->assertCount(2, $bootstrappers, 'Both bootstrappers should be collected by BootstrapperChainPass');
 
-        $classes = array_map(fn (object $b) => $b::class, $bootstrappers);
+        // Both user-registered bootstrappers must be collected. Bundle-shipped
+        // bootstrappers (e.g. MailerBootstrapper) may also be present — assert
+        // presence by class rather than exact count.
+        $classes = array_map(static fn (mixed $b): string => is_object($b) ? $b::class : get_debug_type($b), $bootstrappers);
         $this->assertContains(DummyBootstrapper::class, $classes);
         $this->assertContains(AnotherDummyBootstrapper::class, $classes);
     }
@@ -250,6 +254,14 @@ final class AutoconfigurationTest extends TestCase
         $container->register(DummyBootstrapper::class, DummyBootstrapper::class)
             ->addTag('tenancy.bootstrapper')
             ->setPublic(true);
+
+        // This test bypasses Bundle::load() and only invokes build(). Without loadExtension(),
+        // the tenancy.mailer.async parameter is never registered, so seed it here to satisfy
+        // MailerTransportContractPass (which is registered by build() when symfony/mailer is
+        // installed). Mirrors what TenancyBundle::loadExtension() would normally do.
+        if (interface_exists(\Symfony\Component\Mailer\MailerInterface::class)) {
+            $container->setParameter('tenancy.mailer.async', 'false');
+        }
 
         // Add and run the BootstrapperChainPass (as TenancyBundle::build() does)
         $bundle = new TenancyBundle();
