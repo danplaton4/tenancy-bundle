@@ -37,7 +37,14 @@
                 <b>Connection</b><span>{{ collector.data.connection_name|default('-') }}</span>
             </div>
             <div class="sf-toolbar-info-piece">
-                <b>Resolved by</b><span>{{ collector.data.resolved_by|split('\\')|last }}</span>
+                <b>Resolved by</b>
+                <span>
+                    {%- if collector.data.resolved_by -%}
+                        {{ collector.data.resolved_by|split('\\')|last }}
+                    {%- else -%}
+                        -
+                    {%- endif -%}
+                </span>
             </div>
         {% endif %}
     {% endset %}
