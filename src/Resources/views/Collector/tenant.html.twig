@@ -1,0 +1,110 @@
+{% extends '@WebProfiler/Profiler/layout.html.twig' %}
+
+{% block toolbar %}
+    {% set icon %}
+        {{ include('@Tenancy/Collector/_icon.svg.twig') }}
+        <span class="sf-toolbar-value">
+            {%- if collector.data.state == 'resolved' -%}
+                {{ collector.data.slug }}
+            {%- elseif collector.data.state == 'error' -%}
+                ⚠
+            {%- else -%}
+                —
+            {%- endif -%}
+        </span>
+    {% endset %}
+
+    {% set text %}
+        <div class="sf-toolbar-info-piece">
+            <b>State</b>
+            <span class="sf-toolbar-status sf-toolbar-status-{{
+                collector.data.state == 'error' ? 'red' :
+                (collector.data.state == 'null' ? 'yellow' : 'green')
+            }}">{{ collector.data.state }}</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Driver</b>
+            <span>{{ collector.data.driver|default('-') }}</span>
+        </div>
+        {% if collector.data.state == 'resolved' %}
+            <div class="sf-toolbar-info-piece">
+                <b>Slug</b><span>{{ collector.data.slug }}</span>
+            </div>
+            <div class="sf-toolbar-info-piece">
+                <b>Tenant</b><span>{{ collector.data.tenant_label|default('-') }}</span>
+            </div>
+            <div class="sf-toolbar-info-piece">
+                <b>Connection</b><span>{{ collector.data.connection_name|default('-') }}</span>
+            </div>
+            <div class="sf-toolbar-info-piece">
+                <b>Resolved by</b><span>{{ collector.data.resolved_by|split('\\')|last }}</span>
+            </div>
+        {% endif %}
+    {% endset %}
+
+    {% set status_color = collector.data.state == 'error' ? 'red' :
+                          (collector.data.state == 'null' ? 'yellow' : '') %}
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: profiler_url, status: status_color }) }}
+{% endblock %}
+
+{% block menu %}
+    <span class="label {{
+        collector.data.state == 'error' ? 'label-status-error' :
+        (collector.data.state == 'null' ? 'label-status-warning' : '')
+    }}">
+        <span class="icon">{{ include('@Tenancy/Collector/_icon.svg.twig') }}</span>
+        <strong>Tenancy</strong>
+    </span>
+{% endblock %}
+
+{% block panel %}
+    <h2>Tenancy</h2>
+
+    {% if collector.data.state == 'resolved' %}
+        <div class="metrics">
+            <div class="metric">
+                <span class="value">{{ collector.data.slug }}</span>
+                <span class="label">Slug</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.data.tenant_label|default('-') }}</span>
+                <span class="label">Tenant</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.data.driver }}</span>
+                <span class="label">Driver</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.data.connection_name|default('-') }}</span>
+                <span class="label">Connection</span>
+            </div>
+        </div>
+
+        <h3>Resolved by</h3>
+        <code>{{ collector.data.resolved_by|default('-') }}</code>
+
+        <h3>Bootstrappers ({{ collector.data.bootstrappers|length }})</h3>
+        {% if collector.data.bootstrappers is empty %}
+            <div class="empty"><p>No bootstrappers ran.</p></div>
+        {% else %}
+            <ul>
+                {% for fqcn in collector.data.bootstrappers %}
+                    <li><code>{{ fqcn }}</code></li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+    {% elseif collector.data.state == 'error' %}
+        <h3>Resolution error</h3>
+        <div class="empty empty-panel">
+            <p><strong>{{ collector.data.error.class }}</strong></p>
+            <p>{{ collector.data.error.message }}</p>
+        </div>
+
+    {% else %}
+        <div class="empty empty-panel">
+            <p>No tenant resolved for this request.</p>
+            <p>This is the expected state for public, landlord, and health-check routes.</p>
+        </div>
+    {% endif %}
+{% endblock %}
