@@ -102,6 +102,10 @@ class TenancyBundle extends AbstractBundle
     {
         $container->import('../config/services.php');
 
+        if (true === $builder->getParameter('kernel.debug')) {
+            $container->import('../config/services_dev.php');
+        }
+
         $builder->registerForAutoconfiguration(TenantBootstrapperInterface::class)
             ->addTag('tenancy.bootstrapper');
 
