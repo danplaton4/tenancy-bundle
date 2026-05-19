@@ -27,7 +27,7 @@ For prior-milestone (v0.2) requirements, see `.planning/milestones/v0.2-REQUIREM
 
 ### Developer Experience
 
-- [ ] **DX-02**: Symfony Profiler ships a "Tenancy" panel in the Web Debug Toolbar showing the active tenant for the current request — slug, ID, driver, connection name, resolved-by FQCN, bootstrappers run. Panel renders cleanly in three states (resolved tenant, null-resolution, error during resolution).
+- [x] **DX-02**: Symfony Profiler ships a "Tenancy" panel in the Web Debug Toolbar showing the active tenant for the current request — slug, ID, driver, connection name, resolved-by FQCN, bootstrappers run. Panel renders cleanly in three states (resolved tenant, null-resolution, error during resolution).
   - Acceptance: `TenantDataCollector` extends `AbstractDataCollector`; service registered only when `kernel.debug = true`
   - Acceptance: `collect()` (NOT `lateCollect()`) reads scalars only from `TenantContext` on `kernel.response`; `$this->data` contains no entity references, no closures, no DSN strings with credentials
   - Acceptance: `resolved_by` plumbing via a `TenantResolved` event subscriber that stashes the resolver FQCN — keeps `TenantContext` zero-dependency contract intact
@@ -110,7 +110,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | GOV-01 | Phase 16 — Governance Carry-Forward | ⊘ Skipped (non-functional, 2026-05-15) |
 | RESV-06 | Phase 17 — OriginHeaderResolver | Pending |
 | DX-06 | Phase 18 — tenancy:install | Complete |
-| DX-02 | Phase 19 — Profiler Tab | Pending |
+| DX-02 | Phase 19 — Profiler Tab | Complete |
 | BOOT-04 | Phase 20 — Mailer Bootstrapper | Pending |
 | DEMO-01 | Phase 21 — Demo App | Pending |
 | DOC-19 | Phase 22 — Docs Refresh | Pending |
