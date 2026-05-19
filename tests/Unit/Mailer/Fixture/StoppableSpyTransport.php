@@ -26,8 +26,8 @@ final class StoppableSpyTransport implements TransportInterface
 
     public function send(RawMessage $message, ?Envelope $envelope = null): ?SentMessage
     {
-        // @phpstan-ignore-next-line — spy never produces a SentMessage; returning null is
-        // permitted by the TransportInterface contract (return type is ?SentMessage).
+        // Spy never produces a SentMessage — null is permitted by the
+        // TransportInterface contract (return type is ?SentMessage).
         return null;
     }
 
