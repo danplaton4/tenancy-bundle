@@ -20,6 +20,7 @@ New to the bundle? Start here:
 - [CLI Commands](cli-commands.md) — tenancy:migrate, tenancy:run
 - [Testing](testing.md) — InteractsWithTenancy PHPUnit trait
 - [Strict Mode](strict-mode.md) — data leak prevention (default ON)
+- [Profiler tab](profiler-tab.md) — Tenancy panel in the Symfony Profiler / WDT (dev-only, automatic)
 
 ## Real-World Examples
 

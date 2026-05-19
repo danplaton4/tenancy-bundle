@@ -39,11 +39,7 @@ final class TenantDataCollector extends AbstractDataCollector
         private readonly string $landlordConnection,
     ) {
         if (!\in_array($driver, self::KNOWN_DRIVERS, true)) {
-            throw new \InvalidArgumentException(sprintf(
-                'TenantDataCollector: $driver must be one of [%s], got "%s".',
-                implode(', ', self::KNOWN_DRIVERS),
-                $driver,
-            ));
+            throw new \InvalidArgumentException(sprintf('TenantDataCollector: $driver must be one of [%s], got "%s".', implode(', ', self::KNOWN_DRIVERS), $driver));
         }
     }
 
