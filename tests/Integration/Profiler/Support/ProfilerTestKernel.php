@@ -73,11 +73,15 @@ final class ProfilerTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir().'/tenancy_bundle_profiler_test_'.md5(static::class).'_'.$this->environment.'_'.($this->debug ? 'debug' : 'nodebug').'/cache';
+        $key = md5(static::class.'_'.getmypid());
+
+        return sys_get_temp_dir().'/tenancy_bundle_profiler_test_'.$key.'_'.$this->environment.'_'.($this->debug ? 'debug' : 'nodebug').'/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir().'/tenancy_bundle_profiler_test_'.md5(static::class).'_'.$this->environment.'_'.($this->debug ? 'debug' : 'nodebug').'/logs';
+        $key = md5(static::class.'_'.getmypid());
+
+        return sys_get_temp_dir().'/tenancy_bundle_profiler_test_'.$key.'_'.$this->environment.'_'.($this->debug ? 'debug' : 'nodebug').'/logs';
     }
 }
