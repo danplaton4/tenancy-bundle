@@ -25,6 +25,7 @@ use Tenancy\Bundle\Mailer\LruTransportCache;
 use Tenancy\Bundle\Mailer\SanitizingMailerDecorator;
 use Tenancy\Bundle\Mailer\TenantAwareTransportsDecorator;
 use Tenancy\Bundle\Mailer\TenantContextClearedListener;
+use Tenancy\Bundle\Mailer\TenantMailerDecorator;
 use Tenancy\Bundle\Mailer\TenantMessageDecorator;
 use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
@@ -189,11 +190,36 @@ return function (ContainerConfigurator $container): void {
                 service('event_dispatcher'),
             ]);
 
-        // SanitizingMailerDecorator — wraps the MailerInterface so
-        // TransportExceptionInterface bubbles up with the DSN password
-        // redacted out of the message text.
+        // TenantMailerDecorator (Plan 20-09) — INNER decorator on the
+        // `mailer` service. Stamps X-Transport + From + Reply-To from the
+        // active tenant BEFORE Symfony's Mailer::send routes the message.
+        //
+        // decoration_priority 10 = INNER (closer to original Mailer). The
+        // SanitizingMailerDecorator below stays at priority 0 = OUTERMOST,
+        // so its catch block still wraps any exception bubbling out of
+        // the stamper or the inner mailer.
+        //
+        // Runtime chain (verified by AsyncCanaryTest):
+        //   user -> SanitizingMailerDecorator -> TenantMailerDecorator
+        //        -> Mailer -> mailer.transports -> SmtpTransport
+        //
+        // Closes the BOOT-04 architectural gap documented in
+        // .planning/phases/20-mailer-bootstrapper/20-VERIFICATION.md
+        // (Gap #1 — the MessageEvent listener fires AFTER routing).
+        $services->set('tenancy.mailer.tenant_decorator', TenantMailerDecorator::class)
+            ->decorate('mailer', null, 10)
+            ->args([
+                service('.inner'),
+                service('tenancy.context'),
+            ]);
+
+        // SanitizingMailerDecorator — OUTERMOST decorator on `mailer`
+        // (decoration_priority 0; explicit for clarity). Wraps any
+        // TransportException / ExceptionInterface bubbling out of the
+        // TenantMailerDecorator-stamped + Mailer-routed send path,
+        // redacting DSN credentials via DsnSanitizer.
         $services->set('tenancy.mailer.sanitizing_decorator', SanitizingMailerDecorator::class)
-            ->decorate('mailer')
+            ->decorate('mailer', null, 0)
             ->args([service('.inner')]);
 
         // MailerSetupStep — tenancy:install --with-mailer (Plan 20-08 / D-09).
