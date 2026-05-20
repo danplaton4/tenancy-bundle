@@ -8,6 +8,9 @@ use Symfony\Bundle\FrameworkBundle\DataCollector\AbstractDataCollector;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Tenancy\Bundle\Context\TenantContext;
+use Tenancy\Bundle\Mailer\DsnSanitizer;
+use Tenancy\Bundle\Mailer\LruTransportCache;
+use Tenancy\Bundle\TenantInterface;
 
 /**
  * Web Profiler data collector for the Tenancy panel.
@@ -23,6 +26,13 @@ use Tenancy\Bundle\Context\TenantContext;
  * SECURITY (D-09): connection_name is a LABEL string ('tenant' or '%tenancy.landlord_connection%'),
  * NEVER a DSN. The match expression below produces only literal labels; the defensive `:`/`@` check
  * is a tripwire that throws if anyone ever wires a DSN-laden value through DI.
+ *
+ * MAILER SECTION (Phase 20, D-08): When the optional LruTransportCache dependency is wired (mailer
+ * interface installed), an additional 'mailer' key is appended to $this->data with a 10-field
+ * scalar-only sub-array. The DSN is redacted via DsnSanitizer::redact (single source of truth shared
+ * with SanitizingMailerDecorator — Plan 02) so no raw password ever reaches the stored profile dump.
+ * A defense-in-depth tripwire throws if the redacted DSN still looks credentialed (catches future
+ * regex regressions in DsnSanitizer).
  */
 final class TenantDataCollector extends AbstractDataCollector
 {
@@ -37,6 +47,8 @@ final class TenantDataCollector extends AbstractDataCollector
         private readonly TenantContext $tenantContext,
         private readonly string $driver,
         private readonly string $landlordConnection,
+        private readonly ?LruTransportCache $cache = null,
+        private readonly ?string $mailerAsync = null,
     ) {
         if (!\in_array($driver, self::KNOWN_DRIVERS, true)) {
             throw new \InvalidArgumentException(sprintf('TenantDataCollector: $driver must be one of [%s], got "%s".', implode(', ', self::KNOWN_DRIVERS), $driver));
@@ -76,6 +88,12 @@ final class TenantDataCollector extends AbstractDataCollector
             'bootstrappers' => array_values(array_map('strval', $this->stash->getBootstrapperFqcns())),
             'error' => $this->stash->getCapturedException(),
         ];
+
+        // Mailer subsection (Phase 20, D-08) — only when the optional cache dep is wired.
+        // Twig template gates on `{% if collector.data.mailer is defined %}` so absence is graceful.
+        if (null !== $this->cache) {
+            $this->data['mailer'] = $this->collectMailerState($tenant);
+        }
     }
 
     public function getName(): string
@@ -104,5 +122,57 @@ final class TenantDataCollector extends AbstractDataCollector
         \assert(is_array($this->data), 'TenantDataCollector::$data must be a plain array — scalar-only invariant per D-11.');
 
         return $this->data;
+    }
+
+    /**
+     * Build the mailer subsection of $this->data (Phase 20, D-08).
+     *
+     * Returns 10 scalar-only keys: from, reply_to, dsn_redacted, cache_size, cache_max,
+     * cache_hits, cache_evictions, strategy, async_detected, badge. Every value is either
+     * scalar (int|string|bool) or null — preserves the Phase 19 scalar-only invariant.
+     *
+     * Badge state:
+     *   - 'OK'       — DSN present, OR no tenant resolved (nothing wrong, just inactive)
+     *   - 'MISSING'  — tenant resolved AND has no mailerDsn (misconfig signal)
+     *
+     * DSN redaction is delegated to DsnSanitizer::redact — the single source of truth shared
+     * with SanitizingMailerDecorator. Defense-in-depth: after redaction, the result is sniffed
+     * for residual credential patterns; any match throws, so a regex regression in DsnSanitizer
+     * cannot silently leak passwords into the stored profile dump.
+     *
+     * @return array{from: ?string, reply_to: ?string, dsn_redacted: ?string, cache_size: int, cache_max: int, cache_hits: int, cache_evictions: int, strategy: string, async_detected: ?string, badge: string}
+     */
+    private function collectMailerState(?TenantInterface $tenant): array
+    {
+        \assert(null !== $this->cache, 'collectMailerState must only be called when the LruTransportCache dependency is wired.');
+
+        $dsn = $tenant?->getMailerDsn();
+        $redacted = DsnSanitizer::redact($dsn);
+
+        // Defense-in-depth tripwire (D-08 + Phase 20 threat T-20-07-01): if DsnSanitizer ever
+        // regresses (e.g. the regex constant shifts), catch the leak HERE rather than letting
+        // the password reach $this->data. Pattern: any `:<something-other-than-***>@` in the
+        // redacted output proves the password wasn't replaced. Mirrors the connection_name
+        // tripwire above (D-09).
+        if (null !== $redacted && 1 === preg_match('/:(?!\/\/)(?!\*\*\*@)[^:@\/]+@/', $redacted)) {
+            throw new \RuntimeException('TenantDataCollector: redacted DSN still appears to contain credentials — DsnSanitizer regex regression?');
+        }
+
+        $badge = (null === $tenant)
+            ? 'OK'
+            : (null === $dsn ? 'MISSING' : 'OK');
+
+        return [
+            'from' => $tenant?->getMailerFrom(),
+            'reply_to' => $tenant?->getMailerReplyTo(),
+            'dsn_redacted' => $redacted,
+            'cache_size' => $this->cache->size(),
+            'cache_max' => $this->cache->maxSize(),
+            'cache_hits' => $this->cache->hits(),
+            'cache_evictions' => $this->cache->evictions(),
+            'strategy' => 'x_transport',
+            'async_detected' => $this->mailerAsync,
+            'badge' => $badge,
+        ];
     }
 }
