@@ -37,7 +37,7 @@ For prior-milestone (v0.2) requirements, see `.planning/milestones/v0.2-REQUIREM
 
 ### Bootstrappers
 
-- [ ] **BOOT-04**: Per-tenant Mailer bootstrapper sends each tenant's mail from the tenant's own SMTP transport, with the tenant's `From`/`Reply-To` headers, correctly in BOTH synchronous and asynchronous (Messenger-routed) Mailer dispatch.
+- [x] **BOOT-04**: Per-tenant Mailer bootstrapper sends each tenant's mail from the tenant's own SMTP transport, with the tenant's `From`/`Reply-To` headers, correctly in BOTH synchronous and asynchronous (Messenger-routed) Mailer dispatch.
   - Acceptance: `MailerBootstrapper` implements `TenantBootstrapperInterface`; optional dep on `symfony/mailer` guarded by `interface_exists(\Symfony\Component\Mailer\MailerInterface::class)`
   - Acceptance: `X-Transport` header strategy — `TenantMessageDecorator` listens on `MessageEvent` and stamps `X-Transport: tenant_<slug>` BEFORE Messenger serialization; multi-transport mailer config routes envelopes to per-tenant `tenant_<slug>` transports
   - Acceptance: `TenantMailerConfigTrait` ships as the default implementation for `getMailerDsn(): ?string`; `Tenant` entity gains a `mailerDsn` nullable string column; landlord migration recipe documented
@@ -111,7 +111,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | RESV-06 | Phase 17 — OriginHeaderResolver | Pending |
 | DX-06 | Phase 18 — tenancy:install | Complete |
 | DX-02 | Phase 19 — Profiler Tab | Complete |
-| BOOT-04 | Phase 20 — Mailer Bootstrapper | Pending |
+| BOOT-04 | Phase 20 — Mailer Bootstrapper | Complete |
 | DEMO-01 | Phase 21 — Demo App | Pending |
 | DOC-19 | Phase 22 — Docs Refresh | Pending |
 
