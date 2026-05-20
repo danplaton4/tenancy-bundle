@@ -101,6 +101,53 @@
             </ul>
         {% endif %}
 
+        {# Phase 20 (D-08): Mailer subsection — rendered only when the LruTransportCache
+           dependency is wired into the collector (symfony/mailer installed). The collector
+           omits the 'mailer' key entirely when the dep is absent, so this guard degrades
+           gracefully on non-mailer projects. #}
+        {% if collector.data.mailer is defined %}
+            <h3>Mailer</h3>
+            <div class="metrics">
+                <div class="metric">
+                    <span class="value sf-toolbar-status sf-toolbar-status-{{
+                        collector.data.mailer.badge == 'OK' ? 'green' :
+                        (collector.data.mailer.badge == 'ERROR' ? 'red' : 'yellow')
+                    }}">{{ collector.data.mailer.badge }}</span>
+                    <span class="label">Status</span>
+                </div>
+                <div class="metric">
+                    <span class="value">{{ collector.data.mailer.cache_size }}/{{ collector.data.mailer.cache_max }}</span>
+                    <span class="label">Transport cache</span>
+                </div>
+                <div class="metric">
+                    <span class="value">{{ collector.data.mailer.cache_hits }}</span>
+                    <span class="label">Cache hits</span>
+                </div>
+                <div class="metric">
+                    <span class="value">{{ collector.data.mailer.cache_evictions }}</span>
+                    <span class="label">Cache evictions</span>
+                </div>
+                <div class="metric">
+                    <span class="value">{{ collector.data.mailer.strategy }}</span>
+                    <span class="label">Strategy</span>
+                </div>
+                {% if collector.data.mailer.async_detected is not null %}
+                    <div class="metric">
+                        <span class="value">{{ collector.data.mailer.async_detected }}</span>
+                        <span class="label">Async</span>
+                    </div>
+                {% endif %}
+            </div>
+            <table>
+                <thead><tr><th>Key</th><th>Value</th></tr></thead>
+                <tbody>
+                    <tr><th>From</th><td>{{ collector.data.mailer.from is null ? '(none)' : collector.data.mailer.from }}</td></tr>
+                    <tr><th>Reply-To</th><td>{{ collector.data.mailer.reply_to is null ? '(none)' : collector.data.mailer.reply_to }}</td></tr>
+                    <tr><th>DSN (redacted)</th><td><code>{{ collector.data.mailer.dsn_redacted is null ? '(none)' : collector.data.mailer.dsn_redacted }}</code></td></tr>
+                </tbody>
+            </table>
+        {% endif %}
+
     {% elseif collector.data.state == 'error' %}
         <h3>Resolution error</h3>
         <div class="empty empty-panel">
