@@ -126,7 +126,7 @@ Plans:
 5. A thrown `TransportException` during send does NOT leak the DSN's password component in its message or trace (sanitization wrapper)
 6. After `TenantContextCleared` event, the per-tenant transport cache is cleared (verified by a long-running-worker simulation test that processes messages for 100 distinct tenants without unbounded socket growth)
 
-**Plans:** 6/9 plans executed
+**Plans:** 7/9 plans executed
 
 Plans:
 **Wave 0**
@@ -140,7 +140,7 @@ Plans:
 - [x] 20-04-PLAN.md — DI + compiler pass: MailerTransportContractPass + TenancyBundle configure/loadExtension/build + services.php registrations
 **Wave 4** *(blocked on Wave 3)*
 - [x] 20-05-PLAN.md — TenantContextClearedListener + 100-tenant long-running worker simulation test
-- [ ] 20-06-PLAN.md — AsyncCanaryTest: sync + async dispatch correctness (the headline differentiator)
+- [x] 20-06-PLAN.md — AsyncCanaryTest: sync + async dispatch correctness (the headline differentiator)
 **Wave 5** *(blocked on Wave 4)*
 - [ ] 20-07-PLAN.md — Profiler mailer subsection (D-08) — TenantDataCollector + tenant.html.twig
 **Wave 6** *(blocked on Wave 5)*
