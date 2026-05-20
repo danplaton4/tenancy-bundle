@@ -63,7 +63,6 @@ final class TenantDataCollectorMailerSectionTest extends TestCase
         $collector->collect(Request::create('/'), new Response());
     }
 
-
     /**
      * Test 1 — when LruTransportCache is null (mailer dep absent), the
      * 'mailer' key MUST NOT appear in $this->data. The Twig template gates
