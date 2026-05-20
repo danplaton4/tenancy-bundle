@@ -7,11 +7,12 @@ namespace Tenancy\Bundle\Tests\Unit\Command\Install\Step;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\ParserFactory;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputDefinition;
+use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Tenancy\Bundle\Command\Install\InstallStatus;
 use Tenancy\Bundle\Command\Install\Step\MailerSetupStep;
 
@@ -25,9 +26,8 @@ use Tenancy\Bundle\Command\Install\Step\MailerSetupStep;
  *
  * All filesystem writes are atomic (.bak timestamped); a post-mutation `php -l` failure
  * restores the original. Non-standard entity layouts are REFUSED with a manual snippet.
- *
- * @covers \Tenancy\Bundle\Command\Install\Step\MailerSetupStep
  */
+#[CoversClass(MailerSetupStep::class)]
 final class MailerSetupStepTest extends TestCase
 {
     private string $tmpDir = '';
@@ -67,11 +67,8 @@ final class MailerSetupStepTest extends TestCase
             $src = (string) file_get_contents(__DIR__.'/../../../../../src/Command/Install/Step/MailerSetupStep.php');
             self::assertStringContainsString('class_exists(ParserFactory::class)', $src,
                 'MailerSetupStep must guard on ParserFactory::class for graceful dev-dep absence');
-            self::assertStringContainsString('InstallStatus::DEV_DEPENDENCY_MISSING', $src.';');
-            // Actual functional behaviour is exercised via the alternate constructor
-            // signal: when no parser, the step still surfaces a manual instructions
-            // listing through $io. We assert the constant string is present.
-            $this->expectNotToPerformAssertions();
+            self::assertStringContainsString('InstallResult::devDependencyMissing()', $src,
+                'guard branch must return InstallResult::devDependencyMissing()');
 
             return;
         }
