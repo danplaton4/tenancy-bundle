@@ -89,6 +89,14 @@ class MailerTestKernel extends Kernel
                 'php_errors' => ['log' => true],
                 'mailer' => [
                     'dsn' => 'null://null',
+                    // Disable framework.mailer's auto-routing through Messenger so
+                    // $mailer->send() hits the transport directly. The async canary
+                    // explicitly dispatches SendEmailMessage via the message bus to
+                    // exercise the worker middleware + handler chain. This keeps
+                    // the two test methods on distinct, observable code paths:
+                    //   - sync: $mailer->send() → mailer.transports (decorator) → SpyTransport (cached in LRU)
+                    //   - async: $bus->dispatch(SendEmailMessage) → sync transport → TenantWorkerMiddleware → MessageHandler → mailer.transports → SpyTransport (LRU flushed by ContextClearedListener after)
+                    'message_bus' => false,
                 ],
                 'messenger' => [
                     'default_bus' => 'messenger.bus.default',
