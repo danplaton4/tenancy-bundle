@@ -126,7 +126,7 @@ Plans:
 5. A thrown `TransportException` during send does NOT leak the DSN's password component in its message or trace (sanitization wrapper)
 6. After `TenantContextCleared` event, the per-tenant transport cache is cleared (verified by a long-running-worker simulation test that processes messages for 100 distinct tenants without unbounded socket growth)
 
-**Plans:** 9/9 plans complete
+**Plans:** 11/12 plans executed
 
 Plans:
 **Wave 0**
