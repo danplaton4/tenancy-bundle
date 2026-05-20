@@ -61,4 +61,44 @@ final class DsnSanitizerTest extends TestCase
             DsnSanitizer::redact('not a dsn at all'),
         );
     }
+
+    /**
+     * Plan 20-10 / REVIEW WR-07 — failover composite DSNs must have
+     * every password redacted, not just the first.
+     */
+    public function testFailoverCompositeRedactsAllPasswords(): void
+    {
+        $input = 'failover(smtp://u1:secret1@h1 smtp://u2:secret2@h2)';
+        $result = DsnSanitizer::redact($input);
+
+        self::assertStringContainsString('smtp://u1:***@h1', $result);
+        self::assertStringContainsString('smtp://u2:***@h2', $result);
+        self::assertStringNotContainsString('secret1', $result);
+        self::assertStringNotContainsString('secret2', $result);
+    }
+
+    /**
+     * Plan 20-10 / REVIEW WR-07 — free-text containing `:` and `@` must
+     * NOT be mangled. Previously the regex `[\/]{0,2}` allowed zero
+     * slashes, matching arbitrary "user:host" / port:host shapes.
+     */
+    public function testDoesNotMangleFreeTextColons(): void
+    {
+        self::assertSame(
+            'Could not deliver to user@example.com via smtp:587 timeout',
+            DsnSanitizer::redact('Could not deliver to user@example.com via smtp:587 timeout'),
+        );
+    }
+
+    /**
+     * Plan 20-10 — round-trip sanity: a DSN already containing `***` in
+     * the password slot is a fixed point (DsnSanitizer is idempotent).
+     */
+    public function testIdempotentOnAlreadyRedactedDsn(): void
+    {
+        self::assertSame(
+            'smtp://user:***@host:25',
+            DsnSanitizer::redact('smtp://user:***@host:25'),
+        );
+    }
 }
