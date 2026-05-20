@@ -33,6 +33,11 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
  *
  * The transportFactory Closure is injectable for testability — production wiring
  * uses the default factory that delegates to Transport::fromDsn.
+ *
+ * X-Transport stamping is performed UPSTREAM by TenantMailerDecorator
+ * (decoration_priority 10 on the `mailer` service). This decorator only
+ * READS the header to make a routing decision — it does not mutate it.
+ * @see TenantMailerDecorator
  */
 final class TenantAwareTransportsDecorator implements TransportInterface
 {
@@ -85,8 +90,12 @@ final class TenantAwareTransportsDecorator implements TransportInterface
 
         $transport = $this->cache->get($slug) ?? $this->buildAndCache($slug);
 
-        $message->getHeaders()->remove('X-Transport');
-
+        // WR-08 fix (Plan 20-09): do NOT remove X-Transport from the
+        // caller's message. The tenant-specific transport returned above
+        // does not re-route on the header (it's a leaf transport bound to
+        // tenant_<slug>'s DSN), so leaving it intact is harmless. Removing
+        // it would silently strip routing metadata from a Message instance
+        // the caller may re-send — causing cross-tenant misroute on retry.
         return $transport->send($message, $envelope);
     }
 

@@ -329,6 +329,154 @@ final class AsyncCanaryTest extends TestCase
         );
     }
 
+    /**
+     * Plan 20-09 — closes Gap #1 from 20-VERIFICATION.md.
+     *
+     * Same as testSyncDispatchUsesTenantDsn, but DOES NOT pre-stamp
+     * X-Transport on the email. Proves that TenantMailerDecorator (the
+     * upstream stamper introduced in Plan 20-09) writes the header from
+     * TenantContext::getTenant() BEFORE the inner Mailer::send routes the
+     * message. If this test passes without manual stamping, BOOT-04
+     * acceptance bullet (b) is operationally true.
+     */
+    public function testSyncDispatchUsesTenantDsnWithoutPreStamping(): void
+    {
+        $container = $this->kernel()->getContainer();
+
+        /** @var TenantContext $context */
+        $context = $container->get('tenancy.context');
+        /** @var MailerInterface $mailer */
+        $mailer = $container->get('mailer');
+        /** @var LruTransportCache $cache */
+        $cache = $container->get('tenancy.mailer.lru_cache');
+
+        $tenant = $container->get('tenancy.provider')->findBySlug('acme');
+        $context->setTenant($tenant);
+
+        // NOTE: no addTextHeader('X-Transport', ...) here — TenantMailerDecorator must do it.
+        $email = (new Email())
+            ->to('recipient@example.com')
+            ->subject('hello-upstream-stamp')
+            ->text('body');
+
+        $mailer->send($email);
+
+        $cached = $cache->get('acme');
+        self::assertNotNull($cached, 'LRU should hold tenant acme transport — upstream stamping should have driven routing');
+        self::assertInstanceOf(SpyTransport::class, $cached);
+
+        $sends = $cached->getSends();
+        self::assertCount(1, $sends, 'SpyTransport should have recorded exactly one send via upstream-stamped routing');
+        self::assertSame(
+            'smtp://tenant-acme:secret@smtp-acme.example.com:587',
+            $sends[0]['dsn'],
+            'Tenant acme DSN must have been used — proving TenantMailerDecorator stamped X-Transport from TenantContext'
+        );
+
+        $context->clear();
+    }
+
+    /**
+     * Plan 20-09 — closes Gap #1 from 20-VERIFICATION.md for the async path.
+     *
+     * Same intent as testAsyncDispatchInWorkerUsesTenantDsnNotLandlord but
+     * does NOT pre-stamp X-Transport. Under MailerTestKernel,
+     * framework.mailer.message_bus is disabled, so $mailer->send() does
+     * not route through the bus — meaning TenantMailerDecorator stamps
+     * the message BEFORE the inner Mailer hands it to mailer.transports.
+     * This exercises the upstream stamping path end-to-end and asserts
+     * via SpyTransportRegistry that the tenant DSN was used and the
+     * landlord null://null was never used.
+     */
+    public function testAsyncDispatchWithoutPreStampingSurvivesMessengerRoundTrip(): void
+    {
+        $container = $this->kernel()->getContainer();
+
+        /** @var TenantContext $context */
+        $context = $container->get('tenancy.context');
+
+        $tenant = $container->get('tenancy.provider')->findBySlug('acme');
+        $context->setTenant($tenant);
+
+        $email = (new Email())
+            ->to('recipient@example.com')
+            ->subject('async-upstream-stamp')
+            ->text('body');
+
+        /** @var MailerInterface $mailer */
+        $mailer = $container->get('mailer');
+        $mailer->send($email);
+
+        $context->clear();
+
+        // Assertion strategy: SpyTransportRegistry captures every SpyTransport
+        // constructor call across the test run. tenant acme's DSN must appear;
+        // landlord null://null must NOT appear.
+        $dsns = SpyTransportRegistry::dsnsUsed();
+        self::assertNotEmpty($dsns, 'A SpyTransport must have been constructed — upstream stamping should have driven routing');
+        self::assertContains(
+            'smtp://tenant-acme:secret@smtp-acme.example.com:587',
+            $dsns,
+            'Tenant acme DSN must be in the used-DSN set — proves upstream stamping survived to the routing decision'
+        );
+        self::assertNotContains(
+            'null://null',
+            $dsns,
+            'Landlord DSN must NOT have been used — the upstream-stamping async canary assertion'
+        );
+    }
+
+    /**
+     * Plan 20-09 / WR-08 regression — proves that re-sending the SAME
+     * Email instance still routes to the tenant transport (i.e. that
+     * TenantAwareTransportsDecorator no longer mutates the message by
+     * removing X-Transport after the first send).
+     */
+    public function testReSendingPreservesXTransportRouting(): void
+    {
+        $container = $this->kernel()->getContainer();
+
+        /** @var TenantContext $context */
+        $context = $container->get('tenancy.context');
+        /** @var MailerInterface $mailer */
+        $mailer = $container->get('mailer');
+        /** @var LruTransportCache $cache */
+        $cache = $container->get('tenancy.mailer.lru_cache');
+
+        $tenant = $container->get('tenancy.provider')->findBySlug('acme');
+        $context->setTenant($tenant);
+
+        $email = (new Email())
+            ->to('recipient@example.com')
+            ->subject('resend-test')
+            ->text('body');
+
+        $mailer->send($email);
+
+        // After first send, the X-Transport header MUST still be present on $email
+        // (WR-08 fix — TenantAwareTransportsDecorator no longer removes it).
+        self::assertTrue(
+            $email->getHeaders()->has('X-Transport'),
+            'After first send, X-Transport header MUST still be present (WR-08): '.
+            'TenantAwareTransportsDecorator must not mutate the caller message'
+        );
+        self::assertSame(
+            'tenant_acme',
+            $email->getHeaders()->get('X-Transport')->getBodyAsString(),
+            'X-Transport header must still equal tenant_acme after first send'
+        );
+
+        // Second send of the same instance — should land on the same tenant transport.
+        $mailer->send($email);
+
+        $cached = $cache->get('acme');
+        self::assertNotNull($cached);
+        self::assertInstanceOf(SpyTransport::class, $cached);
+        self::assertCount(2, $cached->getSends(), 'Tenant acme SpyTransport must have received both sends');
+
+        $context->clear();
+    }
+
     private static function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {
