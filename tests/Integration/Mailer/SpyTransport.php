@@ -26,6 +26,14 @@ final class SpyTransport implements TransportInterface
 
     public function __construct(private readonly string $dsn)
     {
+        // Phase 20 Plan 06: record every spy construction in the global
+        // registry so AsyncCanaryTest can assert WHICH DSNs were used across
+        // the entire send → serialize → deserialize → handler → Transports::send
+        // chain. Belt-and-suspenders with SpyTransportFactory (the factory
+        // records too; this ensures recording even if a test bypasses the
+        // factory and instantiates SpyTransport directly, as LongRunningWorker
+        // SimulationTest does).
+        SpyTransportRegistry::record($dsn);
     }
 
     /** @phpstan-ignore-next-line return.unusedType — null permitted by TransportInterface contract */
