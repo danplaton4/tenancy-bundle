@@ -6,25 +6,40 @@ namespace Tenancy\Bundle\Tests\Integration\Mailer;
 
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
-use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
+use Symfony\Component\Mailer\Messenger\SendEmailMessage;
 use Tenancy\Bundle\TenancyBundle;
-use Tenancy\Bundle\Tests\Integration\Support\ReplaceTenancyProviderPass;
+use Tenancy\Bundle\Tests\Integration\Messenger\Support\ReplaceProviderWithStubPass;
 
 /**
  * Minimal Symfony kernel for Mailer + Messenger integration tests (Phase 20).
  *
  * Registers FrameworkBundle + TenancyBundle with:
- *   - framework.mailer.dsn = null://null (landlord default — never used by tests if
- *     a tenant DSN is resolved, but provides a safe fallback)
- *   - Messenger enabled with default bus + allow_no_handlers, with the
- *     SendEmailMessage routing reserved for Plan 06 (async canary).
- *   - MakeMailerServicesPublicPass: exposes Phase-20 services for $container->get().
+ *   - framework.mailer.dsn = null://null
+ *     The landlord default. The async canary asserts THIS DSN is NEVER seen
+ *     by the SpyTransport — only tenant DSNs should be used when routing
+ *     through tenancy.mailer.transports_decorator.
+ *   - Messenger enabled with:
+ *       transports.sync = 'sync://'
+ *       routing[SendEmailMessage::class] = 'sync'
+ *     The sync transport STILL runs PhpSerializer encode→decode in-process
+ *     (RESEARCH Finding 1) — this exercises the X-Transport-survives-PHP-
+ *     serialize path and the worker middleware chain without requiring a
+ *     real broker (Doctrine/AMQP/Redis).
+ *   - Compiler passes:
+ *       - ReplaceProviderWithStubPass: swaps the Doctrine-backed
+ *         tenancy.provider with StubTenantProvider (supports addTenant()),
+ *         replaces tenancy.doctrine_bootstrapper with a no-op, and removes
+ *         the EntityManagerResetListener (no Doctrine bundle here).
+ *       - MakeMailerServicesPublicPass: exposes Phase-20 mailer services
+ *         and the messenger bus for $container->get() in tests.
+ *       - ReplaceTenantTransportFactoryPass: overrides the
+ *         TenantAwareTransportsDecorator's 6th positional arg
+ *         (transportFactory Closure) with SpyTransportFactory::create() so
+ *         tenant transports route to SpyTransport instead of real SMTP.
  *
- * Wave 1 plans may extend this kernel with additional configuration; Wave 0
- * only needs the file to exist and be syntactically valid so AsyncCanaryTest's
- * setUpBeforeClass can boot it (or markTestIncomplete out before doing so).
+ * Consumers: AsyncCanaryTest, LongRunningWorkerSimulationTest.
  */
 class MailerTestKernel extends Kernel
 {
@@ -44,12 +59,23 @@ class MailerTestKernel extends Kernel
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
-        // Replace real tenancy.provider (needs Doctrine EM + cache) with NullTenantProvider —
-        // mirrors tests/Integration/TestKernel so the container compiles without Doctrine
-        // ORM/DBAL bundles configured. Plan 06 (async canary) may add a real StubTenantProvider
-        // override that runs at a later compiler-pass priority.
-        $container->addCompilerPass(new ReplaceTenancyProviderPass());
+
+        // The provider-swap pass also adapts the doctrine bootstrapper +
+        // EntityManagerResetListener so the kernel boots without Doctrine
+        // ORM/DBAL bundles configured. The same StubTenantProvider used by
+        // MessengerMiddlewareIntegrationTest is exposed here so the async
+        // canary can register tenants via addTenant() and resolve them via
+        // findBySlug().
+        $container->addCompilerPass(new ReplaceProviderWithStubPass());
+
+        // Expose Phase 20 services + messenger bus + event_dispatcher + mailer
+        // alias for direct $container->get() inspection from tests.
         $container->addCompilerPass(new MakeMailerServicesPublicPass());
+
+        // Inject the SpyTransport-producing Closure as the decorator's
+        // transportFactory so tests verify ROUTING + DSN selection without
+        // opening real SMTP sockets.
+        $container->addCompilerPass(new ReplaceTenantTransportFactoryPass());
     }
 
     public function registerContainerConfiguration(LoaderInterface $loader): void
@@ -63,6 +89,14 @@ class MailerTestKernel extends Kernel
                 'php_errors' => ['log' => true],
                 'mailer' => [
                     'dsn' => 'null://null',
+                    // Disable framework.mailer's auto-routing through Messenger so
+                    // $mailer->send() hits the transport directly. The async canary
+                    // explicitly dispatches SendEmailMessage via the message bus to
+                    // exercise the worker middleware + handler chain. This keeps
+                    // the two test methods on distinct, observable code paths:
+                    //   - sync: $mailer->send() → mailer.transports (decorator) → SpyTransport (cached in LRU)
+                    //   - async: $bus->dispatch(SendEmailMessage) → sync transport → TenantWorkerMiddleware → MessageHandler → mailer.transports → SpyTransport (LRU flushed by ContextClearedListener after)
+                    'message_bus' => false,
                 ],
                 'messenger' => [
                     'default_bus' => 'messenger.bus.default',
@@ -70,6 +104,12 @@ class MailerTestKernel extends Kernel
                         'messenger.bus.default' => [
                             'default_middleware' => 'allow_no_handlers',
                         ],
+                    ],
+                    'transports' => [
+                        'sync' => 'sync://',
+                    ],
+                    'routing' => [
+                        SendEmailMessage::class => 'sync',
                     ],
                 ],
             ]);
@@ -89,39 +129,5 @@ class MailerTestKernel extends Kernel
     public function getLogDir(): string
     {
         return sys_get_temp_dir().'/tenancy_mailer_test/logs';
-    }
-}
-
-/**
- * Compiler pass that exposes the (future) Phase 20 Mailer services so
- * integration tests can fetch them via $container->get(). Service IDs
- * referenced here will be created in Wave 1 plans — the pass tolerates
- * missing definitions (hasDefinition guard) so it is safe to add now.
- */
-final class MakeMailerServicesPublicPass implements CompilerPassInterface
-{
-    public function process(ContainerBuilder $container): void
-    {
-        $ids = [
-            'tenancy.context',
-            'tenancy.bootstrapper_chain',
-            'tenancy.provider',
-            // Phase 20 service IDs — registered in Wave 1+
-            'tenancy.mailer.bootstrapper',
-            'tenancy.mailer.message_decorator',
-            'tenancy.mailer.transports_decorator',
-            'tenancy.mailer.lru_cache',
-            'tenancy.mailer.sanitizing_decorator',
-            'mailer.transports',
-            'mailer.default_transport',
-        ];
-
-        foreach ($ids as $id) {
-            if ($container->hasDefinition($id)) {
-                $container->getDefinition($id)->setPublic(true);
-            } elseif ($container->hasAlias($id)) {
-                $container->getAlias($id)->setPublic(true);
-            }
-        }
     }
 }
