@@ -148,7 +148,7 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
         $decorator->send($email);
 
         $this->assertSame(0, $factoryInvocations, 'cache hit must not invoke transport factory');
-        $this->assertFalse($email->getHeaders()->has('X-Transport'), 'X-Transport must be stripped after routing');
+        $this->assertTrue($email->getHeaders()->has('X-Transport'), 'WR-08 (Plan 20-09): X-Transport must be PRESERVED on the caller message after routing — the bundle no longer mutates the input message');
     }
 
     public function testBuildsAndCachesTransportOnLruMiss(): void
@@ -179,10 +179,10 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
 
         $this->assertSame('smtp://acme', $capturedDsn);
         $this->assertSame($built, $cache->get('acme'), 'built transport must be stored in LRU');
-        $this->assertFalse($email->getHeaders()->has('X-Transport'));
+        $this->assertTrue($email->getHeaders()->has('X-Transport'), 'WR-08 (Plan 20-09): X-Transport header preserved post-routing');
     }
 
-    public function testStripsXTransportHeaderAfterRouting(): void
+    public function testPreservesXTransportHeaderAfterRouting(): void
     {
         $inner = $this->createMock(TransportInterface::class);
         $tenant = $this->makeTenant('smtp://acme', 'acme');
@@ -220,11 +220,11 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
         $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context, null, $factory);
         $decorator->send($email);
 
-        $this->assertFalse(
+        $this->assertTrue(
             $observer->sawHeaderAtSendTime,
-            'inner tenant transport must receive the message AFTER X-Transport is stripped'
+            'WR-08 (Plan 20-09): inner tenant transport receives the message WITH X-Transport intact — the bundle no longer strips it before delegation'
         );
-        $this->assertFalse($email->getHeaders()->has('X-Transport'));
+        $this->assertTrue($email->getHeaders()->has('X-Transport'), 'WR-08 (Plan 20-09): X-Transport header preserved post-routing');
     }
 
     public function testTenantWithNullDsnThrowsRuntimeException(): void
