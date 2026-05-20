@@ -78,6 +78,30 @@ final class TenantAwareTransportsDecorator implements TransportInterface
 
         $slug = substr($headerValue, 7); // strip "tenant_" prefix
 
+        // Plan 20-11 / REVIEW BL-02 — empty-slug guard.
+        // X-Transport === 'tenant_' (literal, no slug after the underscore)
+        // produces $slug === ''. The empty string flowing into
+        // TenantProviderInterface::findBySlug('') is a hostile-input vector:
+        // a pathological provider could return the first row of the tenants
+        // table. The cross-tenant guard below only catches the case where an
+        // active tenant is set; this guard catches the no-active-tenant path
+        // (worker-pre-restoration, sync-context misuse).
+        if ('' === $slug) {
+            throw new \RuntimeException('tenancy: refusing to route mail — X-Transport "tenant_" has an empty slug.');
+        }
+
+        // Plan 20-11 / REVIEW BL-02 — character-set guard.
+        // Slugs in this bundle match [a-z0-9_-]+ (lower-case alphanumerics
+        // plus `-` and `_`). Reject any other shape BEFORE the provider
+        // round-trip so user-supplied providers never see weird input.
+        // Catches: whitespace, dots, slashes, uppercase, unicode, etc.
+        if (1 !== preg_match('/^[a-z0-9_-]+$/', $slug)) {
+            throw new \RuntimeException(sprintf(
+                'tenancy: refusing to route mail — X-Transport "tenant_%s" has an invalid slug (must match [a-z0-9_-]+).',
+                $slug,
+            ));
+        }
+
         // Defensive cross-tenant guard (T-20-03-02 mitigation): if a tenant is active
         // in the context AND its slug differs from the routed header slug, this
         // indicates a stale / cross-context message. Refuse to send rather than

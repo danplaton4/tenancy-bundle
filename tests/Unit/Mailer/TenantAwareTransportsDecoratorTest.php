@@ -368,4 +368,151 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
 
         $this->assertSame($dispatcher, $capturedDispatcher, 'transport factory must receive the injected event dispatcher');
     }
+
+    /**
+     * Plan 20-11 / REVIEW BL-02 — empty-slug X-Transport guard.
+     *
+     * X-Transport: tenant_ (literal, no slug after the underscore) must be
+     * rejected with a \RuntimeException BEFORE any provider call. This
+     * catches the no-active-tenant path that the cross-tenant guard misses
+     * (worker pre-restoration, sync-context misuse).
+     */
+    public function testRefusesEmptySlugXTransportHeader(): void
+    {
+        $inner = $this->createMock(TransportInterface::class);
+        $inner->expects($this->never())->method('send');
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->expects($this->never())->method('findBySlug');
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext(); // no active tenant — the unguarded path
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_'); // literal, empty slug
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/has an empty slug/');
+        $decorator->send($email);
+    }
+
+    /**
+     * Plan 20-11 / REVIEW BL-02 — character-set guard.
+     *
+     * A path-traversal-ish slug must be rejected. The character-set regex
+     * [a-z0-9_-]+ matches the bundle's slug convention.
+     */
+    public function testRefusesInvalidSlugCharacters(): void
+    {
+        $inner = $this->createMock(TransportInterface::class);
+        $inner->expects($this->never())->method('send');
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->expects($this->never())->method('findBySlug');
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext();
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_../etc/passwd');
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/has an invalid slug/');
+        $decorator->send($email);
+    }
+
+    /**
+     * Plan 20-11 / REVIEW BL-02 — whitespace in slug rejected.
+     */
+    public function testRefusesSlugWithWhitespace(): void
+    {
+        $inner = $this->createMock(TransportInterface::class);
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->expects($this->never())->method('findBySlug');
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext();
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_ acme');
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/has an invalid slug/');
+        $decorator->send($email);
+    }
+
+    /**
+     * Plan 20-11 / REVIEW BL-02 — uppercase slug rejected (bundle convention
+     * is lower-case slugs; an uppercase slug is a sign of mis-construction
+     * upstream and routing it would create a separate cache entry from the
+     * canonical lower-case form).
+     */
+    public function testRefusesSlugWithUppercase(): void
+    {
+        $inner = $this->createMock(TransportInterface::class);
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->expects($this->never())->method('findBySlug');
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext();
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_ACME');
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/has an invalid slug/');
+        $decorator->send($email);
+    }
+
+    /**
+     * Plan 20-11 / REVIEW BL-02 — sanity case: valid slug still routes.
+     * Proves the new guards don't break the happy path.
+     */
+    public function testValidSlugStillRoutes(): void
+    {
+        $inner = $this->createMock(TransportInterface::class);
+        $inner->expects($this->never())->method('send');
+
+        $tenant = $this->makeTenant('smtp://acme', 'acme');
+        $provider = $this->createMock(TenantProviderInterface::class);
+        $provider->expects($this->once())->method('findBySlug')->with('acme')->willReturn($tenant);
+
+        $cache = new LruTransportCache(8);
+        $context = new TenantContext();
+
+        $email = (new Email())->from('x@y')->to('a@b')->text('hi');
+        $email->getHeaders()->addTextHeader('X-Transport', 'tenant_acme');
+
+        // Anon-class spy that counts send invocations — mirrors the pattern from
+        // testAllowsRoutingWhenContextTenantMatchesHeaderSlug. We can't use
+        // PlainSpyTransport here because it does not record invocations.
+        $sendCount = 0;
+        $built = new class($sendCount) implements TransportInterface {
+            public function __construct(private int &$sendCount)
+            {
+            }
+
+            public function send(\Symfony\Component\Mime\RawMessage $message, ?\Symfony\Component\Mailer\Envelope $envelope = null): ?\Symfony\Component\Mailer\SentMessage
+            {
+                ++$this->sendCount;
+
+                return null;
+            }
+
+            public function __toString(): string
+            {
+                return 'built';
+            }
+        };
+
+        $factory = static fn (string $dsn, ?EventDispatcherInterface $dispatcher): TransportInterface => $built;
+
+        $decorator = new TenantAwareTransportsDecorator($inner, $provider, $cache, $context, null, $factory);
+        $decorator->send($email);
+
+        // Routing happened: the built spy transport saw the send.
+        self::assertSame(1, $sendCount, 'valid slug must still route to the built transport');
+    }
 }
