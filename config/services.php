@@ -23,6 +23,7 @@ use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
 use Tenancy\Bundle\Mailer\LruTransportCache;
 use Tenancy\Bundle\Mailer\SanitizingMailerDecorator;
 use Tenancy\Bundle\Mailer\TenantAwareTransportsDecorator;
+use Tenancy\Bundle\Mailer\TenantContextClearedListener;
 use Tenancy\Bundle\Mailer\TenantMessageDecorator;
 use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
@@ -191,5 +192,15 @@ return function (ContainerConfigurator $container): void {
         $services->set('tenancy.mailer.sanitizing_decorator', SanitizingMailerDecorator::class)
             ->decorate('mailer')
             ->args([service('.inner')]);
+
+        // TenantContextClearedListener — subscribes to TenantContextCleared
+        // and flushes the LruTransportCache so per-tenant SMTP sockets are
+        // closed cleanly at request/message teardown. Belt-and-suspenders
+        // alongside MailerBootstrapper::clear() — guarantees the cache is
+        // emptied regardless of which teardown path the kernel takes
+        // (roadmap success criterion 6).
+        $services->set('tenancy.mailer.context_cleared_listener', TenantContextClearedListener::class)
+            ->args([service('tenancy.mailer.lru_cache')])
+            ->autoconfigure(true);
     }
 };
