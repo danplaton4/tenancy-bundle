@@ -37,6 +37,15 @@ return function (ContainerConfigurator $container): void {
     // `template` attributes — those must be explicit. The explicit ->tag(...) call below adds them
     // alongside the autoconfigured tag (Symfony merges tag attributes when both autoconfigure and
     // explicit tag are present).
+    // Phase 20 D-08 — the 5th + 6th constructor args feed the Mailer subsection
+    // (LruTransportCache + the user's tenancy.mailer.async setting). Both are optional:
+    //   - service('tenancy.mailer.lru_cache')->nullOnInvalid() yields null when symfony/mailer
+    //     is absent (the mailer service block in services.php registers under interface_exists),
+    //     and the collector's null-cache branch produces NO 'mailer' key in $this->data — the
+    //     Twig template gracefully degrades via `{% if collector.data.mailer is defined %}`.
+    //   - param('tenancy.mailer.async') is ALWAYS set by TenancyBundle::loadExtension()
+    //     (unconditional — see src/TenancyBundle.php line 150), so the parameter reference
+    //     resolves regardless of MailerInterface presence.
     $services->set(TenantDataCollector::class)
         ->autoconfigure(true)
         ->public()
@@ -45,6 +54,8 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.context'),
             param('tenancy.driver'),
             param('tenancy.landlord_connection'),
+            service('tenancy.mailer.lru_cache')->nullOnInvalid(),
+            param('tenancy.mailer.async'),
         ])
         ->tag('data_collector', [
             'id' => 'tenancy',
