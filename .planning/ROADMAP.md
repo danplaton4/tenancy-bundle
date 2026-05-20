@@ -41,7 +41,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 - [x] **Phase 17: OriginHeaderResolver** — SPA-friendly resolver at priority 25, allow-list config, `OriginHeaderResolverConfigPass` guard (RESV-06) (completed 2026-05-15)
 - [x] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06) (completed 2026-05-18)
 - [x] **Phase 19: Profiler Tab** — `TenantDataCollector` + Twig template, dev-only, three render states (resolved/null/error), stored-profile reload tested (DX-02) (completed 2026-05-19)
-- [ ] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04)
+- [x] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04) (completed 2026-05-20)
 - [ ] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01)
 - [ ] **Phase 22: Docs Refresh** — install page rewrite, new pages (resolver/profiler/mailer/demo/roadmap), UPGRADE 0.2→0.3, docs-lint extended (DOC-19)
 
@@ -126,7 +126,7 @@ Plans:
 5. A thrown `TransportException` during send does NOT leak the DSN's password component in its message or trace (sanitization wrapper)
 6. After `TenantContextCleared` event, the per-tenant transport cache is cleared (verified by a long-running-worker simulation test that processes messages for 100 distinct tenants without unbounded socket growth)
 
-**Plans:** 8/9 plans executed
+**Plans:** 9/9 plans complete
 
 Plans:
 **Wave 0**
@@ -144,7 +144,7 @@ Plans:
 **Wave 5** *(blocked on Wave 4)*
 - [x] 20-07-PLAN.md — Profiler mailer subsection (D-08) — TenantDataCollector + tenant.html.twig
 **Wave 6** *(blocked on Wave 5)*
-- [ ] 20-08-PLAN.md — tenancy:install --with-mailer (D-09) — MailerSetupStep + AST entity edit + migration scaffold
+- [x] 20-08-PLAN.md — tenancy:install --with-mailer (D-09) — MailerSetupStep + AST entity edit + migration scaffold
 
 ### Phase 21: Demo App
 
