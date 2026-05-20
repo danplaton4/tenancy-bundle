@@ -15,6 +15,7 @@ use Tenancy\Bundle\Bootstrapper\MailerBootstrapper;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
 use Tenancy\Bundle\Cache\TenantAwareTagAwareCacheAdapter;
 use Tenancy\Bundle\Command\Install\BundlesPhpInstaller;
+use Tenancy\Bundle\Command\Install\Step\MailerSetupStep;
 use Tenancy\Bundle\Command\TenancyInstallCommand;
 use Tenancy\Bundle\Command\TenantInitCommand;
 use Tenancy\Bundle\Command\TenantRunCommand;
@@ -135,6 +136,8 @@ return function (ContainerConfigurator $container): void {
         ->args([
             param('kernel.project_dir'),
             service('tenancy.command.install.bundles_php_installer'),
+            service('tenancy.mailer.install_step')->nullOnInvalid(),
+            param('tenancy.tenant_entity_class'),
         ])
         ->tag('console.command');
 
@@ -192,6 +195,13 @@ return function (ContainerConfigurator $container): void {
         $services->set('tenancy.mailer.sanitizing_decorator', SanitizingMailerDecorator::class)
             ->decorate('mailer')
             ->args([service('.inner')]);
+
+        // MailerSetupStep — tenancy:install --with-mailer (Plan 20-08 / D-09).
+        // Encapsulates the 3 install actions: AST-insert TenantMailerConfigTrait
+        // into the user's Tenant entity, scaffold Doctrine migration for the 3
+        // mailer columns, append commented-out `mailer:` defaults to
+        // config/packages/tenancy.yaml. Constructor takes no required args.
+        $services->set('tenancy.mailer.install_step', MailerSetupStep::class);
 
         // TenantContextClearedListener — subscribes to TenantContextCleared
         // and flushes the LruTransportCache so per-tenant SMTP sockets are

@@ -1,3 +1,4 @@
 # Phase 20 — Deferred Items
 
 - (20-00, 2026-05-20) Pre-existing PHPStan property.unusedType warnings on `tests/Integration/Support/Entity/TestProduct.php:16` and `TestTenantProduct.php:26` (id property `int|null` never assigned int). Out of scope for Plan 20-00 — not touched by this plan. Track for a future cleanup pass.
+- (20-08, 2026-05-20) Pre-existing worktree-related failures in `TenantInitCommandIntegrationTest::testInitCommandReceivesProjectDir` and `TenantRunCommandIntegrationTest` analogous test. Both compare `$projectDir` via assertSame against the worktree path, but the actual kernel resolves to the main checkout dir (symlink/realpath mismatch). Reproduced with `git stash` (Plan 20-08 changes have zero effect on the failure). Out of scope per executor scope-boundary rules; track for a Phase 21 worktree-test-hygiene cleanup.
