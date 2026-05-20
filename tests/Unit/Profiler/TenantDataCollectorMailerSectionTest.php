@@ -12,8 +12,7 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Mailer\LruTransportCache;
 use Tenancy\Bundle\Profiler\TenantDataCollector;
 use Tenancy\Bundle\Profiler\TenantProfilerStash;
-use Tenancy\Bundle\TenantInterface;
-use Tenancy\Bundle\Tests\Integration\Support\StubTenantMailerExtension;
+use Tenancy\Bundle\Tests\Integration\Messenger\Support\StubTenant;
 use Tenancy\Bundle\Tests\Unit\Mailer\Fixture\StoppableSpyTransport;
 
 /**
@@ -42,41 +41,9 @@ final class TenantDataCollectorMailerSectionTest extends TestCase
         $this->tenantContext = new TenantContext();
     }
 
-    private function makeTenant(string $slug = 'acme'): TenantInterface
+    private function makeTenant(string $slug = 'acme'): StubTenant
     {
-        return new class($slug) implements TenantInterface {
-            use StubTenantMailerExtension;
-
-            public function __construct(private readonly string $slug)
-            {
-            }
-
-            public function getSlug(): string
-            {
-                return $this->slug;
-            }
-
-            public function getDomain(): ?string
-            {
-                return null;
-            }
-
-            /** @return array<string, mixed> */
-            public function getConnectionConfig(): array
-            {
-                return [];
-            }
-
-            public function getName(): string
-            {
-                return $this->slug;
-            }
-
-            public function isActive(): bool
-            {
-                return true;
-            }
-        };
+        return new StubTenant($slug);
     }
 
     private function makeCollector(?LruTransportCache $cache, ?string $async = null): TenantDataCollector
@@ -95,6 +62,7 @@ final class TenantDataCollectorMailerSectionTest extends TestCase
     {
         $collector->collect(Request::create('/'), new Response());
     }
+
 
     /**
      * Test 1 — when LruTransportCache is null (mailer dep absent), the
