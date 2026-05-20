@@ -6,7 +6,9 @@ namespace Tenancy\Bundle\Tests\Unit\Mailer;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Mailer\Envelope;
+use Symfony\Component\Mailer\Exception\InvalidArgumentException as MailerInvalidArgumentException;
 use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\Exception\UnsupportedSchemeException;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\RawMessage;
 use Tenancy\Bundle\Exception\TenantSanitizedTransportException;
@@ -114,5 +116,92 @@ final class SanitizingMailerDecoratorTest extends TestCase
         self::assertSame('?'.Envelope::class, (string) $params[1]->getType());
         self::assertTrue($params[1]->isDefaultValueAvailable());
         self::assertNull($params[1]->getDefaultValue());
+    }
+
+    /**
+     * Plan 20-10 / REVIEW WR-01 — UnsupportedSchemeException's message
+     * may carry the DSN (when bridge factories report "no transport
+     * supports scheme 'X' for dsn 'smtp://user:secret@host'"). Must be
+     * caught and redacted, re-thrown as \RuntimeException (NOT as a
+     * TenantSanitizedTransportException — UnsupportedSchemeException is
+     * not a TransportException subtype, so the type contract for the
+     * TenantSanitizedTransportException class would change).
+     */
+    public function testUnsupportedSchemeExceptionMessageIsRedacted(): void
+    {
+        if (!class_exists(UnsupportedSchemeException::class)) {
+            self::markTestSkipped('UnsupportedSchemeException not in this symfony/mailer version');
+        }
+        $inner = $this->createMock(MailerInterface::class);
+        // UnsupportedSchemeException's real constructor takes (Dsn $dsn, ?string $name, array $supported)
+        // and derives the message from the DSN scheme — it cannot directly carry a DSN
+        // string in its message. We use an inline anonymous subclass that re-routes
+        // the constructor to \Exception::__construct(string) so we can supply an
+        // arbitrary message containing a DSN, simulating a future bridge that puts
+        // the DSN in the message.
+        $inner->method('send')->willThrowException(new class('cannot use smtp://user:hunter2@host scheme') extends UnsupportedSchemeException {
+            public function __construct(string $message)
+            {
+                \Exception::__construct($message);
+            }
+        });
+
+        $decorator = new SanitizingMailerDecorator($inner);
+
+        try {
+            $decorator->send(new RawMessage('x'));
+            self::fail('Expected \RuntimeException');
+        } catch (\RuntimeException $caught) {
+            // NOT a TenantSanitizedTransportException — it's an UnsupportedScheme,
+            // not a TransportException, so we use \RuntimeException to avoid
+            // promoting it to TransportException type.
+            self::assertNotInstanceOf(TenantSanitizedTransportException::class, $caught);
+            self::assertStringContainsString('smtp://user:***@host', $caught->getMessage());
+            self::assertStringNotContainsString('hunter2', $caught->getMessage());
+        }
+    }
+
+    /**
+     * Plan 20-10 / REVIEW WR-01 — Mailer's InvalidArgumentException
+     * (distinct from \InvalidArgumentException) also caught and redacted.
+     */
+    public function testMailerInvalidArgumentExceptionMessageIsRedacted(): void
+    {
+        if (!class_exists(MailerInvalidArgumentException::class)) {
+            self::markTestSkipped('Mailer\\InvalidArgumentException not in this symfony/mailer version');
+        }
+        $inner = $this->createMock(MailerInterface::class);
+        $inner->method('send')->willThrowException(
+            new MailerInvalidArgumentException('bad config for smtp://user:hunter2@host'),
+        );
+
+        $decorator = new SanitizingMailerDecorator($inner);
+
+        try {
+            $decorator->send(new RawMessage('x'));
+            self::fail('Expected \RuntimeException');
+        } catch (\RuntimeException $caught) {
+            self::assertNotInstanceOf(TenantSanitizedTransportException::class, $caught);
+            self::assertStringContainsString('smtp://user:***@host', $caught->getMessage());
+            self::assertStringNotContainsString('hunter2', $caught->getMessage());
+        }
+    }
+
+    /**
+     * Plan 20-10 / WR-01 — global \RuntimeException (NOT a Mailer
+     * exception) continues to propagate as-is (this is the existing
+     * testNonTransportExceptionPropagatesAsIs contract — re-verified
+     * post-widening to prove the new catch arm doesn't over-catch).
+     */
+    public function testGlobalRuntimeExceptionStillPropagatesUnchanged(): void
+    {
+        $inner = $this->createMock(MailerInterface::class);
+        $inner->method('send')->willThrowException(new \RuntimeException('non-mailer boom'));
+
+        $decorator = new SanitizingMailerDecorator($inner);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('non-mailer boom');
+        $decorator->send(new RawMessage('x'));
     }
 }
