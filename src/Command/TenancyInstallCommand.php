@@ -13,6 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Tenancy\Bundle\Command\Install\BundlesPhpInstallerInterface;
 use Tenancy\Bundle\Command\Install\InstallStatus;
+use Tenancy\Bundle\Command\Install\Step\MailerSetupStep;
 
 /**
  * One-command bundle setup: registers TenancyBundle in `config/bundles.php`
@@ -38,6 +39,8 @@ class TenancyInstallCommand extends Command
     public function __construct(
         protected readonly string $projectDir,
         private readonly BundlesPhpInstallerInterface $installer,
+        private readonly ?MailerSetupStep $mailerSetupStep = null,
+        private readonly ?string $tenantEntityClass = null,
     ) {
         parent::__construct();
     }
@@ -46,7 +49,13 @@ class TenancyInstallCommand extends Command
     {
         $this
             ->addOption('force', null, InputOption::VALUE_NONE, 'Overwrite existing tenancy.yaml when delegating to tenancy:init')
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Print the proposed bundles.php mutation; do not write; do not invoke tenancy:init');
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Print the proposed bundles.php mutation; do not write; do not invoke tenancy:init')
+            ->addOption(
+                'with-mailer',
+                null,
+                InputOption::VALUE_NONE,
+                'Scaffold the Doctrine migration adding the 3 mailer columns, insert `use TenantMailerConfigTrait;` into the Tenant entity, AND append commented-out mailer defaults to config/packages/tenancy.yaml (Phase 20 / BOOT-04, D-09).'
+            );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -145,6 +154,7 @@ class TenancyInstallCommand extends Command
             // Treat the install funnel as successful and surface a one-line note.
             if (file_exists($this->projectDir.'/config/packages/tenancy.yaml') && !$force) {
                 $io->note('tenancy.yaml already exists; leaving as-is. Run "tenancy:install --force" to overwrite.');
+                $this->runMailerSetupIfRequested($input, $io);
                 $this->printNextSteps($io);
 
                 return Command::SUCCESS;
@@ -153,9 +163,111 @@ class TenancyInstallCommand extends Command
             return Command::FAILURE;
         }
 
+        $this->runMailerSetupIfRequested($input, $io);
         $this->printNextSteps($io);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Runs the optional --with-mailer step (Plan 20-08 / D-09).
+     *
+     * Skips silently when the flag is not set. When the flag is set but the
+     * MailerSetupStep service is null (symfony/mailer not installed), emits a
+     * warning and returns — does NOT fail the install (graceful degradation
+     * per the Phase 18 "refusal-is-success" pattern).
+     */
+    private function runMailerSetupIfRequested(InputInterface $input, SymfonyStyle $io): void
+    {
+        if (!(bool) $input->getOption('with-mailer')) {
+            return;
+        }
+
+        if (null === $this->mailerSetupStep) {
+            $io->warning('--with-mailer requested but MailerSetupStep is not wired (symfony/mailer not installed). Skipping.');
+
+            return;
+        }
+
+        $io->section('Mailer setup (--with-mailer)');
+
+        $entityPath = $this->resolveTenantEntityPath();
+        $migrationsDir = $this->resolveMigrationsDir();
+        $tenancyYamlPath = $this->resolveTenancyYamlPath();
+        $dryRun = (bool) $input->getOption('dry-run');
+
+        $this->mailerSetupStep->run(
+            $io,
+            $entityPath,
+            $migrationsDir,
+            $tenancyYamlPath,
+            $dryRun,
+        );
+    }
+
+    /**
+     * Resolves the absolute filesystem path of the user's Tenant entity.
+     *
+     * Strategy:
+     *   1. If `tenancy.tenant_entity_class` resolves to a loadable class whose
+     *      file lives inside `$this->projectDir`, use that.
+     *   2. Otherwise (bundle's own default entity, unloadable class, or file
+     *      outside the projectDir) fall back to the Symfony / Doctrine
+     *      convention path `<projectDir>/src/Entity/Tenant.php`.
+     *
+     * The "inside projectDir" guard prevents `--with-mailer` from accidentally
+     * mutating the bundle's own `src/Entity/Tenant.php` when the user has not
+     * overridden the config key (the default class resolves to the bundle's
+     * own file via the composer autoloader).
+     */
+    private function resolveTenantEntityPath(): string
+    {
+        $fallback = $this->projectDir.'/src/Entity/Tenant.php';
+
+        if (null === $this->tenantEntityClass || !class_exists($this->tenantEntityClass)) {
+            return $fallback;
+        }
+
+        try {
+            $fileName = (new \ReflectionClass($this->tenantEntityClass))->getFileName();
+        } catch (\ReflectionException) {
+            return $fallback;
+        }
+        if (false === $fileName) {
+            return $fallback;
+        }
+
+        // Only honour the reflected path when it lives inside the user's project root.
+        $projectDirReal = realpath($this->projectDir);
+        $fileReal = realpath($fileName);
+        if (false === $projectDirReal || false === $fileReal) {
+            return $fallback;
+        }
+        if (!str_starts_with($fileReal, rtrim($projectDirReal, '/').'/')) {
+            return $fallback;
+        }
+
+        return $fileReal;
+    }
+
+    /**
+     * Resolves the Doctrine migrations directory.
+     *
+     * Uses the Symfony convention `<projectDir>/migrations`. Users with a
+     * custom migrations path documented in doctrine_migrations.yaml are not
+     * yet supported — they receive the migration in the conventional dir.
+     */
+    private function resolveMigrationsDir(): string
+    {
+        return $this->projectDir.'/migrations';
+    }
+
+    /**
+     * Resolves the absolute filesystem path to config/packages/tenancy.yaml.
+     */
+    private function resolveTenancyYamlPath(): string
+    {
+        return $this->projectDir.'/config/packages/tenancy.yaml';
     }
 
     private function printNextSteps(SymfonyStyle $io): void
