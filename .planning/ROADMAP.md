@@ -39,7 +39,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 
 - ⊘ **Phase 16: Governance Carry-Forward** — **SKIPPED.** Non-functional process tooling (`audit-open` extension). Retrospective items #1 (plan↔summary parity) and #2 (`human_needed` 72h TTL) acknowledged as gaps in `RETROSPECTIVE.md` but intentionally not enforced via tooling. Bundle-user value is zero; the v0.2 retrospective surfaces the lessons humans need without machine enforcement. Phase number retained for stable references; downstream phase numbers (17–22) unchanged.
 - [x] **Phase 17: OriginHeaderResolver** — SPA-friendly resolver at priority 25, allow-list config, `OriginHeaderResolverConfigPass` guard (RESV-06) (completed 2026-05-15)
-- [x] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06) (completed 2026-05-18)
+- [~] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06). Originally completed 2026-05-18; **gap reopened 2026-05-21** after human UAT exposed zero-config boot regression (6 `nullOnInvalid()` consumer sites with non-nullable signatures). Gap-closure plans 18-08…18-11 in flight.
 - [x] **Phase 19: Profiler Tab** — `TenantDataCollector` + Twig template, dev-only, three render states (resolved/null/error), stored-profile reload tested (DX-02) (completed 2026-05-19)
 - [x] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04) (completed 2026-05-20)
 - [ ] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01)
@@ -80,6 +80,26 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 3. `bin/console tenancy:install --dry-run` prints the proposed mutation to stdout without writing
 4. On any of the 6 fixture-corpus shapes the command either (a) succeeds, OR (b) refuses to mutate and prints a clean manual snippet — never produces an invalid `bundles.php` (post-mutation `php -l` check enforces this; `.bak` restore on failure)
 5. `nikic/php-parser` is in `require-dev` only and loaded lazily (its absence from `require` is verified by a test on the bundle's runtime container)
+
+**Status:** ✅ Initial scope shipped 2026-05-18 (7 plans). ⚠ Reopened 2026-05-21 — human UAT on a fresh Symfony skeleton hit a blocker `TypeError` during post-`composer require` `cache:clear`. 6 `nullOnInvalid()` consumer sites declared non-nullable `TenantProviderInterface` parameters; bundle was unbootable in zero-config mode. Gap closure in 4 plans (18-08 → 18-11).
+
+**Plans:** 7/11 plans complete (gap closure in progress)
+
+Plans:
+**Original scope (Wave 1–4, shipped 2026-05-18)**
+- [x] 18-01-PLAN.md — composer manifest + nikic/php-parser dev dep + suggest block
+- [x] 18-02-PLAN.md — BundlesPhpInstaller AST detect/refuse path
+- [x] 18-03-PLAN.md — BundlesPhpInstaller atomic write + .bak + lint + restore
+- [x] 18-04-PLAN.md — TenancyInstallCommand + DI registration + tenancy:init delegation
+- [x] 18-05-PLAN.md — Fixture corpus (skeleton, api-platform, sulu, ddd-override, with-comments, env-conditional, malformed)
+- [x] 18-06-PLAN.md — Unit tests (command + installer + safety + composer contract)
+- [x] 18-07-PLAN.md — Integration tests + idempotency proof + CHANGELOG
+
+**Gap closure (Wave 1–3, opened 2026-05-21)**
+- [ ] 18-08-PLAN.md — Wave 1: ZeroConfigKernelBootTest canary regression test (RED bar)
+- [ ] 18-09-PLAN.md — Wave 2 (depends 18-08): Fix 4 resolver sites — nullable param + early-return null guard (fail-silent)
+- [ ] 18-10-PLAN.md — Wave 2 (parallel with 18-09): Fix TenantRunCommand + TenantWorkerMiddleware — nullable param + RuntimeException guard (fail-loud)
+- [ ] 18-11-PLAN.md — Wave 3 (depends 18-09, 18-10): Green-bar verification + CHANGELOG `### Fixed` + README nikic prereq callout
 
 ### Phase 19: Profiler Tab
 
