@@ -193,31 +193,47 @@ Additional `nullOnInvalid()` injection sites in `config/services.php` (lines 68,
 
 ## Gaps
 
+> Updated 2026-05-21 after `/gsd:debug tenancy-install-null-provider` swept all 9 `nullOnInvalid()` injection sites. Confirmed defect surface is **6 sites** (not 3 as initially documented); 3 other `nullOnInvalid()` sites are already safe. Released `v0.2.1` is affected (repo has no `v1.0.0` tag despite stale memory claim).
+
 ```yaml
 - truth: "bin/console tenancy:install on a fresh Symfony skeleton must register TenancyBundle in config/bundles.php and write config/packages/tenancy.yaml, exit 0."
   status: failed
   severity: blocker
   test: 1
   reason: "Bundle is unbootable after `composer require` on a fresh skeleton. Symfony Flex's auto-generated recipe registers the bundle in bundles.php, then `cache:clear` (and any subsequent `bin/console` invocation) crashes with `ConsoleResolver::__construct(): Argument #1 ($tenantProvider) must be of type TenantProviderInterface, null given`. The install command never gets a chance to run."
-  root_cause: "Contract mismatch in `config/services.php` + resolver classes: `tenancy.provider` is injected with `->nullOnInvalid()` (allowing null when no provider is configured) into resolvers whose constructors declare non-nullable `TenantProviderInterface` parameters. On a zero-config install, the provider service is absent, `nullOnInvalid()` resolves to null, and PHP throws a TypeError before the kernel can boot."
-  artifacts:
-    - "config/services.php (lines 68, 73-75, 77-79, 81-88, 123, 153, 187 — all `service('tenancy.provider')->nullOnInvalid()` injection sites)"
-    - "src/Resolver/ConsoleResolver.php (line 21 — constructor)"
-    - "src/Resolver/QueryParamResolver.php (line 17 — constructor)"
-    - "src/Resolver/HeaderResolver.php (line 17 — constructor)"
+  root_cause: "Contract mismatch in `config/services.php` + 6 consumer classes: `tenancy.provider` is injected with `->nullOnInvalid()` (allowing null when no provider is configured) into classes whose constructors declare non-nullable `TenantProviderInterface` parameters. On a zero-config install, the provider service is absent, `nullOnInvalid()` resolves to null, and PHP 8.x strict-typed enforcement throws TypeError before the kernel can boot."
+  defect_inventory:
+    - { service_line: "config/services.php:68", consumer: "Tenancy\\Bundle\\Resolver\\HostResolver", constructor: "src/Resolver/HostResolver.php:15", nullable: false, guard: false }
+    - { service_line: "config/services.php:74", consumer: "Tenancy\\Bundle\\Resolver\\HeaderResolver", constructor: "src/Resolver/HeaderResolver.php:17", nullable: false, guard: false }
+    - { service_line: "config/services.php:78", consumer: "Tenancy\\Bundle\\Resolver\\QueryParamResolver", constructor: "src/Resolver/QueryParamResolver.php:17", nullable: false, guard: false }
+    - { service_line: "config/services.php:84", consumer: "Tenancy\\Bundle\\Resolver\\ConsoleResolver", constructor: "src/Resolver/ConsoleResolver.php:21", nullable: false, guard: false }
+    - { service_line: "config/services.php:123", consumer: "Tenancy\\Bundle\\Command\\TenantRunCommand", constructor: "src/Command/TenantRunCommand.php:19", nullable: false, guard: false }
+    - { service_line: "config/services.php:153", consumer: "Tenancy\\Bundle\\Messenger\\TenantWorkerMiddleware", constructor: "src/Messenger/TenantWorkerMiddleware.php:21", nullable: false, guard: false }
+  already_safe_sites:
+    - { service_line: "config/services.php:140", consumer: "TenancyInstallCommand mailer step", reason: "?MailerSetupStep — already nullable" }
+    - { service_line: "config/services.php:167", consumer: "MailerBootstrapper lru_cache", reason: "?LruTransportCache — nullable + null-safe operator in clear()" }
+    - { service_line: "config/services.php:187", consumer: "TenantAwareTransportsDecorator provider", reason: "?TenantProviderInterface — nullable + explicit null guard in buildAndCache()" }
   missing:
-    - "Nullable constructor parameter declarations on all resolvers wired with `nullOnInvalid()`"
-    - "Early-return null-guards in resolver entry methods (`onConsoleCommand`, `resolve()`) when provider is null"
-    - "Audit of the remaining 5 `nullOnInvalid()` injection sites (lines 68, 123, 153, 187) for the same constructor-type mismatch"
-    - "Integration test that boots a kernel WITHOUT a configured `tenancy.provider` and asserts the container builds successfully (regression guard)"
+    - "Nullable constructor parameter declarations (?TenantProviderInterface $tenantProvider = null) on all 6 defect-site classes"
+    - "Entry-method null guards: resolvers (HostResolver/HeaderResolver/QueryParamResolver/ConsoleResolver) → early return null/no-op; TenantRunCommand and TenantWorkerMiddleware → throw descriptive RuntimeException (fail-loud for write paths is safer than silent pass-through)"
+    - "Regression test: tests/Integration/ZeroConfigKernelBootTest.php — minimal kernel registering TenancyBundle with NO `tenancy` extension block loaded; assert container compiles, kernel boots, `bin/console --version` exits 0. Must fail on current master, pass after fix."
     - "(optional, smaller) README quick-start callout that `composer require --dev nikic/php-parser` is a prerequisite for `bin/console tenancy:install`"
-  fix_strategy: "Make every resolver wired with `nullOnInvalid()` actually nullable in its constructor (`?TenantProviderInterface $tenantProvider = null`) with an early-return guard in the entry method when the provider is missing. Smallest change that aligns wiring intent with type contract. Add a kernel-boot integration test with zero tenancy.yaml config to prevent regression."
+  fix_strategy: "For each of the 6 defect sites: (a) change constructor signature to nullable with `= null` default, (b) add null guard at top of the active method (early-return for resolvers/console listener, throw RuntimeException with actionable message for TenantRunCommand and TenantWorkerMiddleware). No changes to config/services.php — nullOnInvalid() is the correct DI expression of intent. Add the ZeroConfigKernelBootTest as the canary."
+  versions_affected:
+    - "current master (HEAD 4c61fe5, post-Phase 20)"
+    - "v0.2.1 (latest tag) — confirmed by source inspection"
+    - "v0.2.0 — same non-nullable signatures (defect predates Phase 18)"
+    - "v0.1.0 — same"
   evidence:
     reproduction_dir: "/tmp/tenancy-install-uat"
     transcripts:
       - "/tmp/tu-fresh.txt — failed install on fresh skeleton"
       - "/tmp/tu-out2.txt — successful dry-run against configured demo"
+    debug_session: ".planning/debug/tenancy-install-null-provider.md (status: root_cause_found)"
     verification_environment: "Symfony 8.0.x, PHP 8.4.12, Composer 2.9.5, macOS 25.4.0"
+  why_tests_miss_it:
+    - "Every integration test kernel loads a `tenancy` extension block via registerContainerConfiguration() (e.g. CommandTestKernel:107-112) which binds tenancy.provider, so nullOnInvalid() always resolves to a real service — the null path is never exercised."
+    - "ReplaceTenancyProviderPass starts with `if (!$container->hasDefinition('tenancy.provider')) { return; }` — in zero-config it silently no-ops rather than surfacing the absence. Combined with (1), the zero-config code path has zero coverage across 545 tests."
 ```
 
 ---
