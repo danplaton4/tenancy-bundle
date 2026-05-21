@@ -1,13 +1,17 @@
 ---
 phase: 18-tenancy-install
 verified: 2026-05-18T08:41:24Z
-status: human_needed
+human_verified: 2026-05-21T00:00:00Z
+status: gaps_found
 score: 5/5
 overrides_applied: 0
 human_verification:
   - test: "Run `bin/console tenancy:install` on a real fresh Symfony skeleton project (not a test kernel) and confirm the terminal shows the success transcript, bundles.php is updated correctly, tenancy.yaml is created, and exit code is 0."
     expected: "TenancyBundle registered in config/bundles.php, config/packages/tenancy.yaml created, 'Next steps' printed, exit code 0."
     why_human: "Integration tests use a test kernel with MakeCommandsPublicPass; cannot fully substitute for `bin/console` console discovery in a real app install."
+    result: failed
+    severity: blocker
+    summary: "Bundle is unbootable after `composer require` on a fresh skeleton. Symfony Flex auto-recipe registers the bundle in `config/bundles.php`, then container build crashes because `ConsoleResolver::__construct(): Argument #1 must be of type TenantProviderInterface, null given`. `bin/console tenancy:install` cannot run because the kernel itself cannot boot."
 ---
 
 # Phase 18: tenancy-install Verification Report
@@ -132,11 +136,92 @@ human_verification:
 
 ### Gaps Summary
 
-No blocking gaps found. All 5 ROADMAP success criteria are verified against the codebase. DX-06 acceptance criteria are fully satisfied. The four code-review warnings (WR-01 through WR-04) do not block the phase goal and are informational for follow-up work.
+**Status:** `gaps_found` — the human-required test (item 1 above) FAILED on 2026-05-21 during cross-phase UAT audit.
 
-The `human_needed` status reflects a single remaining item: confirming the full `bin/console tenancy:install` flow in a real Symfony skeleton app, which cannot be verified programmatically from within this repository's test environment.
+The original automated verification correctly noted that Truth #1 needed real-world confirmation outside the test kernel. Human run on a fresh `symfony/skeleton` (Symfony 8.0, PHP 8.4) revealed a blocker that the integration tests cannot catch: the bundle's resolver services declare non-nullable `TenantProviderInterface` constructor arguments but are wired with `service('tenancy.provider')->nullOnInvalid()`, so the container crashes during `cache:clear` post-install — before the user can ever invoke `bin/console tenancy:install`.
+
+See **Human Verification Result — 2026-05-21** and the structured `## Gaps` block below for the precise diagnosis and fix plan inputs.
+
+The four prior code-review warnings (WR-01 through WR-04) remain informational and are not part of this gap-closure scope.
 
 ---
 
-_Verified: 2026-05-18T08:41:24Z_
-_Verifier: Claude (gsd-verifier)_
+## Human Verification Result — 2026-05-21
+
+**Test:** Real `bin/console tenancy:install` on a fresh Symfony skeleton (canonical, matches the spec verbatim).
+
+**Reproduction:**
+
+```bash
+composer create-project symfony/skeleton /tmp/tenancy-install-uat   # Symfony 8.0.x, PHP 8.4
+cd /tmp/tenancy-install-uat
+composer config repositories.tenancy path /Users/danplaton/dev/tenancy-bundle-src
+composer config minimum-stability dev
+composer require danplaton4/tenancy-bundle:@dev
+```
+
+**Observed:**
+
+1. `composer require` resolves and symlinks the bundle.
+2. Symfony Flex's **auto-generated recipe** (no published recipe exists per project decision — see Memory: `feedback_no_flex.md`) registers `Tenancy\Bundle\TenancyBundle::class => ['all' => true]` in `config/bundles.php`.
+3. Post-install `cache:clear` crashes with:
+   ```
+   ConsoleResolver::__construct(): Argument #1 ($tenantProvider) must be of type
+   TenantProviderInterface, null given, called in .../getConsoleResolverService.php on line 32
+   ```
+4. `bin/console tenancy:install` then fails with the **same** error — the kernel cannot boot, so the install command is unreachable.
+
+**Root cause (precise, file:line):**
+
+Contract mismatch between service wiring (`nullOnInvalid()` → allows `null`) and resolver constructors (non-nullable `TenantProviderInterface`):
+
+| Site | Wiring | Constructor |
+|------|--------|-------------|
+| `config/services.php:81` `ConsoleResolver` | `service('tenancy.provider')->nullOnInvalid()` | `src/Resolver/ConsoleResolver.php:21` non-nullable `TenantProviderInterface` |
+| `config/services.php:78` `QueryParamResolver` | `nullOnInvalid()` | `src/Resolver/QueryParamResolver.php:17` non-nullable |
+| `config/services.php:74` `HeaderResolver` | `nullOnInvalid()` | `src/Resolver/HeaderResolver.php:17` non-nullable |
+
+Additional `nullOnInvalid()` injection sites in `config/services.php` (lines 68, 123, 153, 187) must be audited for the same mismatch.
+
+**Why the integration tests miss this:** `TenancyInstallCommandIntegrationTest` uses `InstallCommandTestKernel`, which already has a configured tenancy stack (test fixtures provide a `tenancy.provider`). On a true fresh install the provider service does not exist, so `nullOnInvalid()` resolves to `null` and the typed constructor throws `TypeError`.
+
+**Secondary finding (not a blocker):** `bin/console tenancy:install` requires `nikic/php-parser` (bundle's `require-dev`, correctly not propagated to consumers). The user must `composer require --dev nikic/php-parser` before the installer can run. The command exits `1` with a clear "[ERROR] nikic/php-parser is required ... Install it with: composer require --dev nikic/php-parser" message — this is intended behavior per Phase 18 DEC-INST-02. No code change needed; documentation may want to call this out more prominently in the README's quick-start.
+
+**Confirmation the installer logic itself is correct:** After populating `nikic/php-parser` and using a project with a pre-existing valid `tenancy.yaml` (`/Users/danplaton/dev/hype/tests/symfony8x-demo`), `bin/console tenancy:install --dry-run` runs cleanly: detects existing bundle registration, detects existing `tenancy.yaml`, prints "Next steps", exits 0. The installer logic is sound — only the bundle's zero-config bootability is broken.
+
+---
+
+## Gaps
+
+```yaml
+- truth: "bin/console tenancy:install on a fresh Symfony skeleton must register TenancyBundle in config/bundles.php and write config/packages/tenancy.yaml, exit 0."
+  status: failed
+  severity: blocker
+  test: 1
+  reason: "Bundle is unbootable after `composer require` on a fresh skeleton. Symfony Flex's auto-generated recipe registers the bundle in bundles.php, then `cache:clear` (and any subsequent `bin/console` invocation) crashes with `ConsoleResolver::__construct(): Argument #1 ($tenantProvider) must be of type TenantProviderInterface, null given`. The install command never gets a chance to run."
+  root_cause: "Contract mismatch in `config/services.php` + resolver classes: `tenancy.provider` is injected with `->nullOnInvalid()` (allowing null when no provider is configured) into resolvers whose constructors declare non-nullable `TenantProviderInterface` parameters. On a zero-config install, the provider service is absent, `nullOnInvalid()` resolves to null, and PHP throws a TypeError before the kernel can boot."
+  artifacts:
+    - "config/services.php (lines 68, 73-75, 77-79, 81-88, 123, 153, 187 — all `service('tenancy.provider')->nullOnInvalid()` injection sites)"
+    - "src/Resolver/ConsoleResolver.php (line 21 — constructor)"
+    - "src/Resolver/QueryParamResolver.php (line 17 — constructor)"
+    - "src/Resolver/HeaderResolver.php (line 17 — constructor)"
+  missing:
+    - "Nullable constructor parameter declarations on all resolvers wired with `nullOnInvalid()`"
+    - "Early-return null-guards in resolver entry methods (`onConsoleCommand`, `resolve()`) when provider is null"
+    - "Audit of the remaining 5 `nullOnInvalid()` injection sites (lines 68, 123, 153, 187) for the same constructor-type mismatch"
+    - "Integration test that boots a kernel WITHOUT a configured `tenancy.provider` and asserts the container builds successfully (regression guard)"
+    - "(optional, smaller) README quick-start callout that `composer require --dev nikic/php-parser` is a prerequisite for `bin/console tenancy:install`"
+  fix_strategy: "Make every resolver wired with `nullOnInvalid()` actually nullable in its constructor (`?TenantProviderInterface $tenantProvider = null`) with an early-return guard in the entry method when the provider is missing. Smallest change that aligns wiring intent with type contract. Add a kernel-boot integration test with zero tenancy.yaml config to prevent regression."
+  evidence:
+    reproduction_dir: "/tmp/tenancy-install-uat"
+    transcripts:
+      - "/tmp/tu-fresh.txt — failed install on fresh skeleton"
+      - "/tmp/tu-out2.txt — successful dry-run against configured demo"
+    verification_environment: "Symfony 8.0.x, PHP 8.4.12, Composer 2.9.5, macOS 25.4.0"
+```
+
+---
+
+_Verified: 2026-05-18T08:41:24Z (automated)_
+_Human-verified: 2026-05-21 (failed — see Human Verification Result section)_
+_Verifier: Claude (gsd-verifier + human UAT run)_
