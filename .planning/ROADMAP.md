@@ -83,7 +83,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 
 **Status:** ✅ Initial scope shipped 2026-05-18 (7 plans). ⚠ Reopened 2026-05-21 — human UAT on a fresh Symfony skeleton hit a blocker `TypeError` during post-`composer require` `cache:clear`. 6 `nullOnInvalid()` consumer sites declared non-nullable `TenantProviderInterface` parameters; bundle was unbootable in zero-config mode. Gap closure in 4 plans (18-08 → 18-11).
 
-**Plans:** 10/11 plans executed
+**Plans:** 11/11 plans complete
 
 Plans:
 **Original scope (Wave 1–4, shipped 2026-05-18)**
@@ -99,7 +99,7 @@ Plans:
 - [x] 18-08-PLAN.md — Wave 1: ZeroConfigKernelBootTest canary regression test (RED bar)
 - [x] 18-09-PLAN.md — Wave 2 (depends 18-08): Fix 4 resolver sites — nullable param + early-return null guard (fail-silent)
 - [x] 18-10-PLAN.md — Wave 2 (parallel with 18-09): Fix TenantRunCommand + TenantWorkerMiddleware — nullable param + RuntimeException guard (fail-loud)
-- [ ] 18-11-PLAN.md — Wave 3 (depends 18-09, 18-10): Green-bar verification + CHANGELOG `### Fixed` + README nikic prereq callout
+- [x] 18-11-PLAN.md — Wave 3 (depends 18-09, 18-10): Green-bar verification + CHANGELOG `### Fixed` + README nikic prereq callout
 
 ### Phase 19: Profiler Tab
 
