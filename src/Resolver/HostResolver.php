@@ -12,7 +12,7 @@ use Tenancy\Bundle\TenantInterface;
 final class HostResolver implements TenantResolverInterface
 {
     public function __construct(
-        private readonly ?TenantProviderInterface $tenantProvider = null,
+        private readonly ?TenantProviderInterface $tenantProvider,
         private readonly ?string $appDomain = null,
     ) {
     }

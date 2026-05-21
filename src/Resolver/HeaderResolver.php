@@ -14,7 +14,7 @@ final class HeaderResolver implements TenantResolverInterface
     public const HEADER_NAME = 'X-Tenant-ID';
 
     public function __construct(
-        private readonly ?TenantProviderInterface $tenantProvider = null,
+        private readonly ?TenantProviderInterface $tenantProvider,
     ) {
     }
 
