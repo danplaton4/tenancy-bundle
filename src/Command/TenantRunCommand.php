@@ -16,6 +16,12 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 #[AsCommand(name: 'tenancy:run', description: 'Run a Symfony console command scoped to a specific tenant')]
 final class TenantRunCommand extends Command
 {
+    /**
+     * @param \Closure(list<string>): Process|null $processFactory
+     *                                                             Optional test seam; receives the fully-tokenized command argv list
+     *                                                             (NO shell semantics) and returns a Process instance. Real callers
+     *                                                             leave this null and the command spawns a Process with array argv.
+     */
     public function __construct(
         private readonly ?TenantProviderInterface $tenantProvider,
         private readonly string $projectDir,
@@ -28,7 +34,7 @@ final class TenantRunCommand extends Command
     {
         $this
             ->addArgument('tenant', InputArgument::REQUIRED, 'Tenant slug')
-            ->addArgument('command_string', InputArgument::REQUIRED, 'The console command to run (e.g. "app:some-command arg1 arg2")');
+            ->addArgument('command_string', InputArgument::REQUIRED, 'Whitespace-separated console command tokens (e.g. "app:some-command arg1 arg2"). NO shell interpretation: quotes, pipes, redirects, and command substitutions are passed through as literal characters in individual tokens.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -46,19 +52,23 @@ final class TenantRunCommand extends Command
         // Validate tenant exists — let TenantNotFoundException / TenantInactiveException bubble
         $this->tenantProvider->findBySlug($tenantSlug);
 
-        $consolePath = $this->projectDir.'/bin/console';
+        // Tokenize on whitespace; NO shell interpretation. The argv array is
+        // passed to Process directly, so each element becomes its own
+        // execve() argument: shell metacharacters in any token are inert.
+        // (Closes 18-REVIEW.md WR-04: the previous Process::fromShellCommandline
+        // path interpolated $commandString into a shell command line and was a
+        // shell-injection vector for any caller passing untrusted input.)
+        $tokens = preg_split('/\s+/', trim($commandString), -1, \PREG_SPLIT_NO_EMPTY) ?: [];
 
-        $commandLine = sprintf(
-            '%s %s %s --tenant=%s',
-            escapeshellarg(\PHP_BINARY),
-            escapeshellarg($consolePath),
-            $commandString,
-            escapeshellarg($tenantSlug),
+        $command = array_merge(
+            [\PHP_BINARY, $this->projectDir.'/bin/console'],
+            $tokens,
+            ['--tenant='.$tenantSlug],
         );
 
         $process = (null !== $this->processFactory)
-            ? ($this->processFactory)($commandLine)
-            : Process::fromShellCommandline($commandLine);
+            ? ($this->processFactory)($command)
+            : new Process($command);
 
         $process->setTimeout(null);
 
