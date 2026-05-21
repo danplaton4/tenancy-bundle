@@ -1,309 +1,462 @@
 ---
 phase: 18-tenancy-install
-reviewed: 2026-05-18T00:00:00Z
+reviewed: 2026-05-21T00:00:00Z
 depth: standard
-files_reviewed: 29
+files_reviewed: 7
 files_reviewed_list:
-  - CHANGELOG.md
-  - composer.json
-  - config/services.php
-  - src/Command/Install/BundlesPhpInstaller.php
-  - src/Command/Install/BundlesPhpInstallerInterface.php
-  - src/Command/Install/DetectionResult.php
-  - src/Command/Install/InstallResult.php
-  - src/Command/Install/InstallStatus.php
-  - src/Command/TenancyInstallCommand.php
-  - tests/Fixtures/BundlesPhpCorpus/.expected/api-platform/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/.expected/skeleton/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/.expected/sulu/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/.expected/with-comments/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/api-platform/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/ddd-override/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/env-conditional/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/malformed/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/skeleton/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/sulu/bundles.php
-  - tests/Fixtures/BundlesPhpCorpus/with-comments/bundles.php
-  - tests/Integration/Command/Support/InstallCommandTestKernel.php
-  - tests/Integration/Command/Support/MakeCommandsPublicPass.php
-  - tests/Integration/Command/TenancyInstallCommandIdempotencyTest.php
-  - tests/Integration/Command/TenancyInstallCommandIntegrationTest.php
-  - tests/Unit/Command/Install/BundlesPhpInstallerSafetyTest.php
-  - tests/Unit/Command/Install/BundlesPhpInstallerTest.php
-  - tests/Unit/Command/TenancyInstallCommandTest.php
-  - tests/Unit/Composer/ComposerJsonContractTest.php
-  - tests/bootstrap.php
+  - src/Resolver/HostResolver.php
+  - src/Resolver/HeaderResolver.php
+  - src/Resolver/QueryParamResolver.php
+  - src/Resolver/ConsoleResolver.php
+  - src/Command/TenantRunCommand.php
+  - src/Messenger/TenantWorkerMiddleware.php
+  - tests/Integration/ZeroConfigKernelBootTest.php
 findings:
-  critical: 0
+  critical: 1
   warning: 4
-  info: 3
-  total: 7
+  info: 5
+  total: 10
 status: issues_found
 ---
 
-# Phase 18: Code Review Report
+# Phase 18: Code Review Report (Gap-Closure Delta)
 
-**Reviewed:** 2026-05-18
+**Reviewed:** 2026-05-21
 **Depth:** standard
-**Files Reviewed:** 29
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Phase 18 delivers the `tenancy:install` console command: an AST-driven `config/bundles.php`
-mutator backed by `nikic/php-parser`, plus delegation to `tenancy:init`. The architecture is
-sound — the detect/write separation is clean, the backup/lint/restore safety chain is correctly
-implemented (Filesystem::copy, not rename, so the .bak survives every path), and the DI
-registration is correct. The fixture corpus covers the important refusal cases.
+This is the delta review for the Phase 18 gap-closure work (plans 18-08..18-11) that
+makes `?TenantProviderInterface` constructor parameters nullable across six defect
+sites so that a fresh `composer require danplaton4/tenancy-bundle` skeleton boots
+cleanly when no `tenancy:` config block is present. It supersedes the prior
+`18-REVIEW.md` which covered the original plans 18-01..18-07.
 
-Four warnings were found, all in `BundlesPhpInstaller::buildMutatedSource()`. Two relate to
-untested edge-case inputs (empty array, no-trailing-comma last entry) that produce syntactically
-valid but malformatted output. These are provable bugs against the documented intent of the
-method. The other two are a dead method with a wrong docblock and a fragile switch-without-default.
-Three informational items cover dead test state, a design smell in the status enum, and a
-cosmetic trailing-newline note.
+The core fix is sound: every defect-site constructor was correctly switched to a
+nullable type-hint, and the fail-silent / fail-loud split between read-path resolvers
+and write-path consumers is the right policy. However, several quality concerns and
+one functional gap surfaced:
 
----
+- **One BLOCKER**: the four read-path resolvers were updated with `= null` default
+  values, but `ConsoleResolver`, `TenantRunCommand`, and `TenantWorkerMiddleware`
+  declare `?TenantProviderInterface` *without* `= null`. The DI container does
+  pass null via `nullOnInvalid()`, so today this compiles — but the inconsistency
+  is itself the blocker: there is no PHPStan rule, no contract test, and no comment
+  preventing the next contributor from dropping the `?` on any one of these six
+  sites and resurrecting the exact TypeError this gap-closure existed to prevent.
+  See CR-01.
+- WARNINGs around `RuntimeException` (wrong exception class for a misconfiguration
+  signal — has real consequences for Messenger retry semantics), the fragile
+  guard-ordering in `ConsoleResolver` that mutates global Application state, and
+  a subtle type-handling asymmetry between `QueryParamResolver` and its siblings.
+- The test file is largely correct and faithfully reproduces the regression, but
+  has a few weaknesses: a stale "MUST fail on master" docblock, a
+  `setCatchExceptions(false)` setting that nullifies the assertion message,
+  parallel-process cache-dir collision, and an unobvious implicit-namespace
+  import.
+
+## Critical Issues
+
+### CR-01: Nullable-with-default is applied inconsistently — six sites, two patterns
+
+**File:** `src/Resolver/ConsoleResolver.php:20-26`, `src/Command/TenantRunCommand.php:18-24`, `src/Messenger/TenantWorkerMiddleware.php:18-24`
+
+**Issue:**
+The four read-path resolvers were uniformly updated to default the provider to null:
+- `src/Resolver/HostResolver.php:14-18` → `private readonly ?TenantProviderInterface $tenantProvider = null,`
+- `src/Resolver/HeaderResolver.php:16-19` → `= null,`
+- `src/Resolver/QueryParamResolver.php:16-19` → `= null,`
+
+The three remaining defect sites are nullable but NOT defaulted:
+- `src/Resolver/ConsoleResolver.php:21` → `private readonly ?TenantProviderInterface $tenantProvider,`
+- `src/Command/TenantRunCommand.php:19` → `private readonly ?TenantProviderInterface $tenantProvider,`
+- `src/Messenger/TenantWorkerMiddleware.php:21` → `private readonly ?TenantProviderInterface $tenantProvider,`
+
+This is a functional + consistency hazard:
+
+1. The defect this fix existed to prevent was *exactly* the TypeError from passing
+   null to a non-nullable parameter. The fix is robust only as long as every site
+   *remains* `?TenantProviderInterface`. Because the only enforcement is
+   convention (no PHPStan rule, no contract test, no comment), a contributor who
+   removes the `?` on any one of these six sites re-introduces the regression
+   silently — and the half-applied default pattern makes it look like an
+   intentional asymmetry rather than a mistake.
+2. The integration test in `ZeroConfigKernelBootTest` only exercises wiring
+   through the DI container. If a future test instantiates `ConsoleResolver`
+   directly with positional args (and many integration tests do), the missing
+   default forces callers to know the implementation detail and pass `null`
+   explicitly. The DI container masking this is exactly how the original
+   regression escaped detection until 2026-05-21.
+3. Two of six defect sites have defaults, four don't (counting the three
+   non-defaulted promoted-property declarations as one). That ratio screams
+   half-applied refactor.
+
+**Fix:**
+
+Apply `= null` uniformly to all six promoted-property declarations. PHP allows
+nullable-with-default to be followed by non-nullable-no-default params inside
+constructor promotion (it's a constructor, not a function call):
+
+```php
+// src/Resolver/ConsoleResolver.php
+public function __construct(
+    private readonly ?TenantProviderInterface $tenantProvider = null,
+    private readonly TenantContext $tenantContext,
+    private readonly BootstrapperChain $bootstrapperChain,
+    private readonly EventDispatcherInterface $eventDispatcher,
+) {
+
+// src/Command/TenantRunCommand.php
+public function __construct(
+    private readonly ?TenantProviderInterface $tenantProvider = null,
+    private readonly string $projectDir,
+    private readonly ?\Closure $processFactory = null,
+) {
+
+// src/Messenger/TenantWorkerMiddleware.php
+public function __construct(
+    private readonly TenantContext $tenantContext,
+    private readonly BootstrapperChain $bootstrapperChain,
+    private readonly ?TenantProviderInterface $tenantProvider = null,
+    private readonly EventDispatcherInterface $eventDispatcher,
+) {
+```
+
+Additionally, lock the invariant with a PHPStan rule or a static reflection test
+(`tests/Static/NullableProviderInjectionTest.php`) that scans `src/` for every
+constructor parameter typed `TenantProviderInterface` and asserts the type
+allows null AND the parameter has a default value. Without this enforcement, the
+fix is one careless edit away from regressing.
 
 ## Warnings
 
-### WR-01: `buildMutatedSource()` — empty array produces missing newline after opening bracket
+### WR-01: `RuntimeException` is the wrong exception class for misconfiguration
 
-**File:** `src/Command/Install/BundlesPhpInstaller.php:210`
+**File:** `src/Command/TenantRunCommand.php:35-37`, `src/Messenger/TenantWorkerMiddleware.php:34-36`
 
-**Issue:** When `bundles.php` contains an empty array (`return [];`), `getEndFilePos()` returns
-the index of `]`, and the walk-backwards loop finds `[` as `$prevChar`. The `prefix` is then
-set to `''` (no comma, no newline). The mutation becomes:
+**Issue:**
+Both write-path consumers throw `\RuntimeException` when the provider is null.
+This is technically functional (the bundle is in an unexpected runtime state),
+but PSR-style and Symfony convention reserve `RuntimeException` for unexpected
+*runtime* failures, while a missing config block is a *misconfiguration* — a
+programmer/operator error that should be `LogicException` or, even better, a
+domain-specific `MissingTenantProviderException` under the bundle's existing
+`Tenancy\Bundle\Exception\` hierarchy.
 
-```
-return [    Tenancy\Bundle\TenancyBundle::class => ['all' => true],
-];
-```
+Why this matters in practice for `TenantWorkerMiddleware`:
+- Symfony's MessengerBundle and several common worker-retry strategies treat
+  `RuntimeException` as a *retryable* worker failure. With a real Messenger
+  transport, a misconfigured worker would re-queue the message until the retry
+  cap is hit, generating noise and delaying the visible error, instead of
+  failing fast and surfacing the config issue immediately.
+- The exception message is currently the *only* signal the user has. With a
+  dedicated exception class, downstream tooling (and the user's own error
+  handlers) can `instanceof` check for it and apply different handling than
+  for a transient worker failure.
 
-The new entry is jammed immediately after `[` on the same line with no newline separator. The
-output is syntactically valid PHP (`php -l` passes), so the lint guard does **not** catch this,
-and a permanently malformatted `bundles.php` is committed to the project. There is no fixture
-for this case in the corpus, so no test exercises or catches the bug.
+The exception messages themselves are good — they are actionable, mention
+`tenancy:install`, and explain the cause. The class type is the issue.
 
-**Fix:** When `$prevChar === '['`, the prefix should be `$lineEnding` (a newline to open the
-array body), not `''`. Update the branching logic:
+**Fix:**
 
-```php
-if (',' === $prevChar) {
-    $prefix = '';
-} elseif ('[' === $prevChar) {
-    // Empty array: need a newline to start the body, no comma
-    $prefix = $lineEnding;
-} else {
-    // Previous entry has no trailing comma; supply one
-    $prefix = ','.$lineEnding;
-}
-```
-
-Add a corresponding fixture `tests/Fixtures/BundlesPhpCorpus/empty-array/bundles.php` with a
-matching `.expected/` baseline to gate this case in CI.
-
----
-
-### WR-02: `buildMutatedSource()` — no-trailing-comma last entry places comma on a bare line
-
-**File:** `src/Command/Install/BundlesPhpInstaller.php:208-218`
-
-**Issue:** When the last array entry has no trailing comma (e.g., `A::class => ['all' => true]`
-without a `,`), the backwards walk stops at `]` (the closing bracket of the value array), which
-is not `,` or `[`. The prefix becomes `','.$lineEnding`, which is inserted **before the
-new entry**. The result is:
+Create `Tenancy\Bundle\Exception\MissingTenantProviderException` extending
+`\LogicException` (programmer error, not transient runtime failure), and throw
+it from both sites:
 
 ```php
-return [
-    A::class => ['all' => true]
-,
-    Tenancy\Bundle\TenancyBundle::class => ['all' => true],
-];
-```
+namespace Tenancy\Bundle\Exception;
 
-The comma lands on column 0 of a new line — syntactically valid PHP, but not well-formed and
-clearly wrong. Again `php -l` passes, so the lint guard does not catch this, and the
-malformatted file is committed. There is no fixture for this case in the corpus.
-
-The method comment explicitly acknowledges this case: *"(e.g., previous entry has no trailing
-comma), prepend `,`"* — confirming the intent is to handle it, but the string-offset approach
-cannot insert a comma at the correct position (end of the previous line) by prepending to the
-insertion point.
-
-**Fix:** Compute the position to insert the comma separately from the position to insert the
-new entry. Specifically, find `$prevNonSpace` (already computed) and insert the comma there,
-then build the new-entry line at `$endPos`:
-
-```php
-// If the last non-space char before ']' is not a comma or '[', we need to
-// append a comma right after that char — not at the insertion point.
-if (',' !== $prevChar && '[' !== $prevChar) {
-    // Insert comma immediately after $prevNonSpace, then fall through to insert entry
-    $commaInserted = substr($source, 0, $prevNonSpace + 1)
-        .','
-        .substr($source, $prevNonSpace + 1);
-    // Recompute endPos since we added one byte
-    $source = $commaInserted;
-    $endPos += 1;
-}
-$prefix = ('[' === $prevChar) ? $lineEnding : '';
-return substr($source, 0, $endPos).$prefix.$entry.$lineEnding.substr($source, $endPos).$lineEnding;
-```
-
-Add a fixture `tests/Fixtures/BundlesPhpCorpus/no-trailing-comma/bundles.php` to gate this in CI.
-
----
-
-### WR-03: `InstallResult::isSuccessOutcome()` — docblock contradicts implementation; method is dead code
-
-**File:** `src/Command/Install/InstallResult.php:59-67`
-
-**Issue:** The docblock states *"was this a write outcome (WROTE or ALREADY_REGISTERED)?"* but
-the implementation also returns `true` for `REFUSED_NON_STANDARD`:
-
-```php
-public function isSuccessOutcome(): bool
+final class MissingTenantProviderException extends \LogicException
 {
-    return InstallStatus::WROTE === $this->status
-        || InstallStatus::ALREADY_REGISTERED === $this->status
-        || InstallStatus::REFUSED_NON_STANDARD === $this->status;  // contradicts docblock
+    public static function forContext(string $context): self
+    {
+        return new self(sprintf(
+            '%s requires a configured tenant provider, but `tenancy.provider` is unbound. '
+            .'Add a `tenancy:` config block (run `bin/console tenancy:install`) and ensure '
+            .'doctrine/orm is installed before invoking this code path.',
+            $context,
+        ));
+    }
 }
 ```
 
-`REFUSED_NON_STANDARD` is a non-mutating refusal — including it under "success outcome" directly
-contradicts the docblock's stated intent. Additionally, `grep` across the entire codebase
-(`src/` and `tests/`) finds **zero callers** of this method. It is dead code that cannot be
-tested and carries a misleading contract.
-
-**Fix:** Either remove the method entirely (preferred, since it has no callers), or align the
-implementation with the docblock by removing `REFUSED_NON_STANDARD`:
-
+Then in `TenantRunCommand:36`:
 ```php
-public function isSuccessOutcome(): bool
-{
-    return InstallStatus::WROTE === $this->status
-        || InstallStatus::ALREADY_REGISTERED === $this->status;
+throw MissingTenantProviderException::forContext('tenancy:run');
+```
+
+And in `TenantWorkerMiddleware:35`, include the offending slug in the context:
+```php
+throw MissingTenantProviderException::forContext(sprintf(
+    'TenantWorkerMiddleware (envelope stamped slug=\'%s\')',
+    $stamp->getTenantSlug(),
+));
+```
+
+### WR-02: `ConsoleResolver` mutates global Application definition — guard ordering is fragile
+
+**File:** `src/Resolver/ConsoleResolver.php:52-61`
+
+**Issue:**
+The provider-null guard at lines 31-33 (now correct) returns *before* the
+Application definition is mutated, which is good. But the broader pattern still
+has a latent landmine: lines 52-57 add the `--tenant` global option to the
+Symfony `Application` definition the *first* time `onConsoleCommand` fires, and
+this mutation persists for the entire CLI process. If at any point in the future
+a refactor moves the `null === $this->tenantProvider` check *after* the
+application-definition mutation, every console command (in zero-config mode)
+will silently gain a `--tenant` option that does nothing. PHPStan won't catch
+it; the integration test in `ZeroConfigKernelBootTest::testConsoleApplicationVersionCommandExitsZero`
+might, depending on assertion strictness — but `list` doesn't fail just because
+an unused option exists.
+
+The guard is also brittle because there is no comment at the mutation site (line
+52) warning that the early return must remain ABOVE it.
+
+**Fix:**
+
+Either:
+1. Add a defensive `assert(null !== $this->tenantProvider)` immediately before
+   line 52, and a `// MUST run after the null-provider guard above` comment at
+   the mutation site, OR
+2. Move the `--tenant` global option registration out of the event listener
+   entirely and into a one-shot compiler pass / kernel boot hook so it isn't
+   mutating mutable global state on each command invocation.
+
+Option 2 is the cleaner long-term fix and removes the entire class of bugs.
+
+### WR-03: `QueryParamResolver` empty-string check happens before cast — asymmetric with siblings
+
+**File:** `src/Resolver/QueryParamResolver.php:28-35`
+
+**Issue:**
+```php
+$slug = $request->query->get(self::PARAM_NAME);
+
+if (null === $slug || '' === $slug) {
+    return null;
 }
+
+try {
+    return $this->tenantProvider->findBySlug((string) $slug);
 ```
 
----
+`Request::query->get()` is typed `mixed` on current Symfony versions — it can
+return a non-string scalar in some edge cases (`?_tenant[]=foo` historically
+returned `null` or an array on different Symfony minor versions). The early-return
+guard only rejects exact-null and exact-empty-string. The author clearly knew
+about this risk (hence the `(string)` cast at line 35), but the cast *after*
+the empty check means: a query like `?_tenant=0` passes the guard (`'0' !== ''`),
+casts to `'0'`, and hits `findBySlug('0')` — fine, but the deeper issue is the
+asymmetry with `ConsoleResolver:65`, which already uses the more robust
+`!\is_string($slug) || '' === $slug` pattern, and `HeaderResolver:30`, which
+works on `headers->get()` (guaranteed string-or-null).
 
-### WR-04: `TenancyInstallCommand::execute()` — switch without default may silently return `null`
+This is not a security issue — `findBySlug` is the only consumer and the
+underlying repository will safely reject an unknown slug — but it's an
+intra-bundle consistency drift.
 
-**File:** `src/Command/TenancyInstallCommand.php:69-121`
+**Fix:**
 
-**Issue:** `execute()` is typed `: int` and the `switch` covers all five current `InstallStatus`
-cases. There is no `default` branch and no `return` statement after the `switch` block. If a
-new `InstallStatus` case is added in the future without updating this switch, PHP falls off the
-end of `execute()` without returning. With `strict_types=1` and a `: int` return type, this
-produces a `TypeError` when Symfony's `Command::run()` attempts to use the return value. The
-error message ("Return value must be of type int, null returned") is unhelpful and the root
-cause (unhandled enum case) is invisible.
+Reorder cast-and-check to match `ConsoleResolver`:
+```php
+$slug = $request->query->get(self::PARAM_NAME);
 
-Using `match` instead of `switch` would cause PHP to throw an `UnhandledMatchError` pointing
-directly at the unmatched value. Alternatively, a `default` that throws is an improvement over
-silent fall-through.
+if (!\is_string($slug) || '' === $slug) {
+    return null;
+}
 
-**Fix:** Replace `switch` with `match` (idiomatic PHP 8.1+ for exhaustive enum dispatch), which
-throws `UnhandledMatchError` on unhandled cases:
+try {
+    return $this->tenantProvider->findBySlug($slug);
+```
+
+This removes the redundant `(string)` cast and matches the
+`\is_string()`-based pattern already used elsewhere in the bundle.
+
+### WR-04: `TenantRunCommand` injects unescaped `$commandString` into a shell command line
+
+**File:** `src/Command/TenantRunCommand.php:50-56`
+
+**Issue:**
+```php
+$commandLine = sprintf(
+    '%s %s %s --tenant=%s',
+    escapeshellarg(\PHP_BINARY),
+    escapeshellarg($consolePath),
+    $commandString,                  // <-- not escaped
+    escapeshellarg($tenantSlug),
+);
+```
+
+`$commandString` comes directly from `InputArgument::REQUIRED` (line 30) and is
+spliced into a shell command line *without escaping*. The author's clear
+intent is that the user pass a *command with its args* as a single argument
+(e.g., `tenancy:run acme "app:do-thing arg1 arg2"`), and `Process::fromShellCommandline`
+needs the words to remain space-separated — so blanket `escapeshellarg` would
+break the feature. But the current implementation is a command-injection
+vector by any reasonable security review: a malicious caller (e.g., via a HTTP
+endpoint that constructs the inner command from user input, which the bundle
+docs warn against but does not prevent) can pass `app:do-thing; rm -rf /` and
+get arbitrary shell execution.
+
+This is *technically* pre-existing behavior, not introduced by the gap-closure
+changes, but the gap-closure review is the natural place to surface it because
+the file was modified in this batch. Note as WARNING (not BLOCKER) because the
+intended caller is a developer with full shell access already, and the docs
+should make the trust boundary explicit.
+
+**Fix:**
+
+Replace `Process::fromShellCommandline` with the array-form `new Process([...])`
+constructor and parse `$commandString` into argv-style tokens (e.g., via
+`Symfony\Component\Console\Input\StringInput::__construct` + `getArguments`,
+or PHP's `str_getcsv($commandString, ' ', '"')`). The array form does not invoke
+a shell, eliminating injection entirely:
 
 ```php
-return match ($result->status) {
-    InstallStatus::DEV_DEPENDENCY_MISSING => $this->handleDevDependencyMissing($io),
-    InstallStatus::REFUSED_NON_STANDARD   => $this->handleRefused($result, $io),
-    InstallStatus::LINT_FAILED_RESTORED   => $this->handleLintFailed($result, $io),
-    InstallStatus::WROTE                  => $this->handleWrote($result, $input, $output, $io),
-    InstallStatus::ALREADY_REGISTERED     => $this->handleAlreadyRegistered($input, $output, $io),
-};
+// Parse command string into argv tokens without invoking a shell.
+$argv = str_getcsv($commandString, ' ', '"');
+$argv = array_values(array_filter($argv, static fn ($t) => '' !== $t));
+
+$argv = array_merge(
+    [\PHP_BINARY, $consolePath],
+    $argv,
+    ['--tenant='.$tenantSlug],
+);
+
+$process = (null !== $this->processFactory)
+    ? ($this->processFactory)($argv)
+    : new Process($argv);
 ```
 
-Or, at minimum, add a `default` at the bottom of the switch:
-
-```php
-default:
-    throw new \LogicException('Unhandled InstallStatus: '.$result->status->value);
-```
-
----
+If the array-form refactor is too large for this gap-closure phase, at minimum
+add a docblock to `configure()` documenting that `command_string` is
+shell-interpolated and MUST come from a trusted source.
 
 ## Info
 
-### IN-01: `BundlesPhpInstallerStub::$expectNeverCalled` is set but never read — dead state
+### IN-01: Stale "MUST fail on master" docblock in canary test
 
-**File:** `tests/Unit/Command/TenancyInstallCommandTest.php:37,224`
+**File:** `tests/Integration/ZeroConfigKernelBootTest.php:23-37`
 
-**Issue:** `$installer->expectNeverCalled = true` is set in
-`testForceAndDryRunMutuallyExclusiveReturnsInvalid()` but the `install()` method of the stub
-never reads this field. The actual assertion (`self::assertFalse($installer->wasCalled)`) is
-correct and sufficient. The `$expectNeverCalled` field is dead state — it communicates
-developer intent but is never enforced by the stub itself.
+**Issue:**
+The class docblock says:
+> This test MUST fail on master before plans 18-09/18-10 land.
+> After those plans, it becomes the GREEN-bar regression gate.
 
-**Fix:** Remove the `$expectNeverCalled` field and its assignment, or enforce it inside
-`install()`:
+And carries `@group canary-red`. After plans 18-09/18-10 land (which this review
+is for), the test is no longer red-bar — it's a regression gate. Leaving the
+red-bar framing in place misleads future readers about its current role and
+breaks any CI selector that uses `--exclude-group canary-red` to skip
+intentionally-failing tests.
 
+**Fix:**
+Rewrite the docblock as a plain regression-gate description, replace
+`@group canary-red` with `@group regression` (or remove the annotation).
+
+### IN-02: `setCatchExceptions(false)` may mask the documented exit-code assertion
+
+**File:** `tests/Integration/ZeroConfigKernelBootTest.php:139-150`
+
+**Issue:**
 ```php
-public function install(string $bundlesPhpPath, bool $dryRun = false): InstallResult
+$application->setAutoExit(false);
+$application->setCatchExceptions(false);
+
+$tester = new ApplicationTester($application);
+$tester->run(['command' => 'list']);
+
+$this->assertSame(0, $tester->getStatusCode(), 'bin/console list must exit 0 ...');
+```
+
+With `setCatchExceptions(false)`, any exception thrown during `list` propagates
+out of `$tester->run(...)` as a real PHP exception — the `assertSame(0, ...)`
+line is never reached, the test still fails (good), but the assertion message
+("bin/console list must exit 0 in zero-config mode. Output: ...") is never
+printed. The failure manifests as a stack trace instead, which is the opposite
+of what the assertion message suggests is being checked. This is a documented
+risky-test pattern: an exception handler / catch policy that defeats the
+diagnostic value of the assertion.
+
+**Fix:**
+Either remove `setCatchExceptions(false)` (Symfony will convert exceptions to
+non-zero exit codes and the assertion produces the documented diagnostic), or
+wrap the run in `try { ... } catch (\Throwable $e) { $this->fail($e->getMessage()."\n".$tester->getDisplay()); }`.
+
+### IN-03: Cache-dir hash collides across parallel PHPUnit runs
+
+**File:** `tests/Integration/ZeroConfigKernelBootTest.php:207-215`
+
+**Issue:**
+```php
+public function getCacheDir(): string
 {
-    if ($this->expectNeverCalled) {
-        throw new \LogicException('install() was called but expectNeverCalled is true');
-    }
-    $this->wasCalled = true;
-    $this->receivedDryRun = $dryRun;
-    return $this->result;
+    return sys_get_temp_dir().'/tenancy_bundle_test_'.md5(static::class).'_'.$this->environment.'/cache';
 }
 ```
 
----
+The hash key is purely `static::class` + environment — no PID, no run-id, no
+random suffix. Two PHPUnit processes (`--parallel`, or two contributors on the
+same CI runner) pick the same dir and race on container cache compilation.
 
-### IN-02: `InstallResult::dryRun()` reuses `WROTE` status — disambiguation relies on null-diff check
+**Fix:**
+Append `getmypid()` or `uniqid('', true)` to the cache dir path. Or — better —
+have the test use `$this->createMock` of Filesystem-isolated cache dirs.
 
-**File:** `src/Command/Install/InstallResult.php:33-36`
+### IN-04: `tearDownAfterClass` removes shared parent dir twice
 
-**Issue:** `InstallResult::dryRun()` constructs a result with `InstallStatus::WROTE` and
-`$diff` set. `TenancyInstallCommand::execute()` then distinguishes dry-run from a real write
-by checking `null !== $result->diff` inside the `WROTE` case. This dual-purpose use of a single
-status case is fragile: both real-write and dry-run results share the same `case` branch, and
-the behavioral split is hidden inside a null-check on an ancillary field. A dedicated
-`InstallStatus::DRY_RUN` case would make the dispatch explicit and would allow PHPStan to
-enforce the status/field correspondence at compile time.
+**File:** `tests/Integration/ZeroConfigKernelBootTest.php:62-68`
 
-**Fix:** Add `case DRY_RUN = 'dry_run'` to `InstallStatus`, update `InstallResult::dryRun()`
-to use it, and add a separate `case InstallStatus::DRY_RUN:` branch in `execute()`. This also
-removes the ambiguity in `isSuccessOutcome()` (WR-03).
-
----
-
-### IN-03: `buildMutatedSource()` appends a trailing newline unconditionally, producing a double newline when source already ends with `\n`
-
-**File:** `src/Command/Install/BundlesPhpInstaller.php:218`
-
-**Issue:** The final line of `buildMutatedSource()` is:
-
+**Issue:**
 ```php
-return substr($source, 0, $endPos).$prefix.$entry.$lineEnding.substr($source, $endPos).$lineEnding;
+$fs = new Filesystem();
+foreach ([$cacheDir, $logDir] as $dir) {
+    $parent = \dirname($dir);
+    if ($fs->exists($parent)) {
+        $fs->remove($parent);
+    }
+}
 ```
 
-`substr($source, $endPos)` is `];\n` (for a source that already ends in `\n`). Appending
-`$lineEnding` again produces `];\n\n` — a double trailing newline. The expected baseline
-fixtures in `.expected/` match this (they also end with `\n\n`), which confirms this is
-intentional, but it deviates from the Symfony PHP CS Fixer convention of a single trailing
-newline. If `php-cs-fixer` is run post-install, it will strip the extra newline, making the
-file differ from the baseline. No current test exercises the CS-fixer-then-re-detect flow.
+`getCacheDir()` and `getLogDir()` share the same parent
+(`/tmp/tenancy_bundle_test_<hash>_<env>`), so the loop removes the same
+directory twice (the second iteration is a no-op only because the first already
+removed it). Cosmetic but misleading.
 
-**Fix:** Only append the trailing `$lineEnding` if `$source` does not already end with one:
-
+**Fix:**
 ```php
-$tail = substr($source, $endPos);
-$trailing = str_ends_with($tail, $lineEnding) ? '' : $lineEnding;
-return substr($source, 0, $endPos).$prefix.$entry.$lineEnding.$tail.$trailing;
+$parent = \dirname(static::$kernel->getCacheDir());
+if ($fs->exists($parent)) {
+    $fs->remove($parent);
+}
 ```
 
-Update the `.expected/` baselines (remove the blank final line from each) and rerun the
-idempotency test to confirm CS-fixer-clean output.
+### IN-05: `TenantWorkerMiddleware` references `TenantStamp::class` without an explicit import
+
+**File:** `src/Messenger/TenantWorkerMiddleware.php:28`
+
+**Issue:**
+Line 28 references `TenantStamp::class` without an import. This is correct
+because `TenantStamp` lives in the same namespace (`Tenancy\Bundle\Messenger`),
+but the implicit reference is a quiet trap: if anyone moves `TenantStamp` to a
+sub-namespace (`Tenancy\Bundle\Messenger\Stamp\`), this file will compile-error
+in a non-obvious way. Every other class referenced in this file has an explicit
+`use` statement, so the implicit one is also a consistency drift.
+
+**Fix:**
+Add `use Tenancy\Bundle\Messenger\TenantStamp;` for symmetry with the other
+imports, even though it's technically redundant inside the same namespace.
+
+## Narrative Findings (AI reviewer)
+
+All findings above are narrative — no `<structural_findings>` block was provided
+for this review. The gap-closure changes are scoped enough that structural
+analysis would not add much beyond what's captured above.
 
 ---
 
-_Reviewed: 2026-05-18_
+_Reviewed: 2026-05-21_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
