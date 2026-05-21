@@ -52,6 +52,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LINT_FAILED_RESTORED` / `DEV_DEPENDENCY_MISSING` enum cases). Unit-testable
   against the fixture corpus without a kernel boot.
 
+### Fixed
+
+- **Zero-config kernel boot regression** — bundle now constructs cleanly with no
+  `tenancy:` config block present (e.g. immediately after `composer require` on a
+  fresh Symfony skeleton before `bin/console tenancy:install` has been run).
+  - **Root cause:** 6 service classes were wired with
+    `service('tenancy.provider')->nullOnInvalid()` in `config/services.php` but
+    declared their `TenantProviderInterface` constructor parameter as non-nullable.
+    On a zero-config install where no `tenancy:` extension block is loaded,
+    `tenancy.provider` is absent and `nullOnInvalid()` resolves to `null`. PHP 8.x
+    strict typing then throws `TypeError` during `cache:clear` (or any subsequent
+    `bin/console` invocation), making `bin/console tenancy:install` unreachable.
+  - **Fix — read-only resolver sites (fail-silent):** `HostResolver`,
+    `HeaderResolver`, `QueryParamResolver`, and `ConsoleResolver` now declare
+    `?TenantProviderInterface` and return `null` / early-return void at the top of
+    their active method when the provider is absent. The resolver chain falls
+    through to null-resolution, which the system already handles.
+  - **Fix — write-path sites (fail-loud):** `TenantRunCommand` and
+    `TenantWorkerMiddleware` now declare `?TenantProviderInterface` and throw
+    `\RuntimeException` with an actionable message directing the user to
+    `bin/console tenancy:install` when invoked without a configured provider.
+    Silent no-op on the write path would risk data-correctness issues; fail-loud
+    is the safer policy.
+  - **Versions affected:** v0.1.0, v0.2.0, v0.2.1 — all users on those tags should
+    upgrade. The defect predates Phase 18 and was discovered during human UAT on
+    2026-05-21.
+  - **Regression coverage:** `tests/Integration/ZeroConfigKernelBootTest.php` now
+    exercises the previously-uncovered zero-config code path (container compile,
+    resolver instantiation, `bin/console list` exit 0) as a permanent regression
+    gate. Closes DX-06. Audit source: `.planning/phases/18-tenancy-install/18-VERIFICATION.md`.
+
 ## [0.2.1] — 2026-04-21
 
 ### Fixed
