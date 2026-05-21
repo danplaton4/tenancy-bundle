@@ -37,6 +37,7 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
  * X-Transport stamping is performed UPSTREAM by TenantMailerDecorator
  * (decoration_priority 10 on the `mailer` service). This decorator only
  * READS the header to make a routing decision — it does not mutate it.
+ *
  * @see TenantMailerDecorator
  */
 final class TenantAwareTransportsDecorator implements TransportInterface
@@ -96,10 +97,7 @@ final class TenantAwareTransportsDecorator implements TransportInterface
         // round-trip so user-supplied providers never see weird input.
         // Catches: whitespace, dots, slashes, uppercase, unicode, etc.
         if (1 !== preg_match('/^[a-z0-9_-]+$/', $slug)) {
-            throw new \RuntimeException(sprintf(
-                'tenancy: refusing to route mail — X-Transport "tenant_%s" has an invalid slug (must match [a-z0-9_-]+).',
-                $slug,
-            ));
+            throw new \RuntimeException(sprintf('tenancy: refusing to route mail — X-Transport "tenant_%s" has an invalid slug (must match [a-z0-9_-]+).', $slug));
         }
 
         // Defensive cross-tenant guard (T-20-03-02 mitigation): if a tenant is active
