@@ -20,6 +20,11 @@ composer require danplaton4/tenancy-bundle
 
 Register the bundle in `config/bundles.php`, then run `bin/console tenancy:init` to generate `config/packages/tenancy.yaml`.
 
+> **Automated setup:** `bin/console tenancy:install` handles both steps above in one command.
+> It requires `nikic/php-parser` to AST-parse `config/bundles.php` — install it first:
+> `composer require --dev nikic/php-parser`. Without it the command exits 1 with a clear
+> error (per DEC-INST-02); it is listed in `composer suggest`, not `require`.
+
 **2. Configure** (`config/packages/tenancy.yaml`):
 
 ```yaml
