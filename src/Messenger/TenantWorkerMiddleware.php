@@ -11,6 +11,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Event\TenantContextCleared;
+use Tenancy\Bundle\Exception\MissingTenantProviderException;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 
 final class TenantWorkerMiddleware implements MiddlewareInterface
@@ -32,7 +33,7 @@ final class TenantWorkerMiddleware implements MiddlewareInterface
         }
 
         if (null === $this->tenantProvider) {
-            throw new \RuntimeException(sprintf('TenantWorkerMiddleware received an envelope stamped with TenantStamp(slug=\'%s\') but the bundle has no configured tenant provider. The `tenancy.provider` service is unbound (no `tenancy:` config block present). Run `bin/console tenancy:install` and configure the bundle before dispatching tenant-scoped messages.', $stamp->getTenantSlug()));
+            throw new MissingTenantProviderException(sprintf("TenantWorkerMiddleware (received TenantStamp slug='%s')", $stamp->getTenantSlug()));
         }
 
         $tenant = $this->tenantProvider->findBySlug($stamp->getTenantSlug());

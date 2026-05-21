@@ -10,6 +10,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\Process;
+use Tenancy\Bundle\Exception\MissingTenantProviderException;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 
 #[AsCommand(name: 'tenancy:run', description: 'Run a Symfony console command scoped to a specific tenant')]
@@ -33,7 +34,7 @@ final class TenantRunCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if (null === $this->tenantProvider) {
-            throw new \RuntimeException('tenancy:run requires a configured tenant provider. The bundle was loaded but no `tenancy:` config block is present, so `tenancy.provider` is unbound. Run `bin/console tenancy:install` to scaffold the config, ensure `doctrine` is installed, then re-try.');
+            throw new MissingTenantProviderException('The `tenancy:run` command');
         }
 
         /** @var string $tenantSlug */
