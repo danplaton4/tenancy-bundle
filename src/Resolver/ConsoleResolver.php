@@ -18,7 +18,7 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 final class ConsoleResolver
 {
     public function __construct(
-        private readonly TenantProviderInterface $tenantProvider,
+        private readonly ?TenantProviderInterface $tenantProvider,
         private readonly TenantContext $tenantContext,
         private readonly BootstrapperChain $bootstrapperChain,
         private readonly EventDispatcherInterface $eventDispatcher,
@@ -27,6 +27,11 @@ final class ConsoleResolver
 
     public function onConsoleCommand(ConsoleCommandEvent $event): void
     {
+        // Zero-config mode: no provider bound. Skip console tenant resolution.
+        if (null === $this->tenantProvider) {
+            return;
+        }
+
         $command = $event->getCommand();
         $input = $event->getInput();
 
