@@ -16,7 +16,7 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 final class TenantRunCommand extends Command
 {
     public function __construct(
-        private readonly TenantProviderInterface $tenantProvider,
+        private readonly ?TenantProviderInterface $tenantProvider,
         private readonly string $projectDir,
         private readonly ?\Closure $processFactory = null,
     ) {
@@ -32,6 +32,10 @@ final class TenantRunCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if (null === $this->tenantProvider) {
+            throw new \RuntimeException('tenancy:run requires a configured tenant provider. The bundle was loaded but no `tenancy:` config block is present, so `tenancy.provider` is unbound. Run `bin/console tenancy:install` to scaffold the config, ensure `doctrine` is installed, then re-try.');
+        }
+
         /** @var string $tenantSlug */
         $tenantSlug = $input->getArgument('tenant');
 

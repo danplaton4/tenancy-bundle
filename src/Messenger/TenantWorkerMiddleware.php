@@ -18,7 +18,7 @@ final class TenantWorkerMiddleware implements MiddlewareInterface
     public function __construct(
         private readonly TenantContext $tenantContext,
         private readonly BootstrapperChain $bootstrapperChain,
-        private readonly TenantProviderInterface $tenantProvider,
+        private readonly ?TenantProviderInterface $tenantProvider,
         private readonly EventDispatcherInterface $eventDispatcher,
     ) {
     }
@@ -29,6 +29,10 @@ final class TenantWorkerMiddleware implements MiddlewareInterface
 
         if (null === $stamp) {
             return $stack->next()->handle($envelope, $stack);
+        }
+
+        if (null === $this->tenantProvider) {
+            throw new \RuntimeException(sprintf('TenantWorkerMiddleware received an envelope stamped with TenantStamp(slug=\'%s\') but the bundle has no configured tenant provider. The `tenancy.provider` service is unbound (no `tenancy:` config block present). Run `bin/console tenancy:install` and configure the bundle before dispatching tenant-scoped messages.', $stamp->getTenantSlug()));
         }
 
         $tenant = $this->tenantProvider->findBySlug($stamp->getTenantSlug());
