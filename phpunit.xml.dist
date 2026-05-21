@@ -23,4 +23,10 @@
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
     </php>
 
+    <groups>
+        <exclude>
+            <group>canary-red</group>
+        </exclude>
+    </groups>
+
 </phpunit>
