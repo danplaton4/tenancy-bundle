@@ -14,12 +14,17 @@ final class QueryParamResolver implements TenantResolverInterface
     public const PARAM_NAME = '_tenant';
 
     public function __construct(
-        private readonly TenantProviderInterface $tenantProvider,
+        private readonly ?TenantProviderInterface $tenantProvider = null,
     ) {
     }
 
     public function resolve(Request $request): ?TenantInterface
     {
+        // Zero-config mode: no provider bound. Yield to next resolver in chain.
+        if (null === $this->tenantProvider) {
+            return null;
+        }
+
         $slug = $request->query->get(self::PARAM_NAME);
 
         if (null === $slug || '' === $slug) {
