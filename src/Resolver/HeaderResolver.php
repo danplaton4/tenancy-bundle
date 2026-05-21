@@ -14,12 +14,17 @@ final class HeaderResolver implements TenantResolverInterface
     public const HEADER_NAME = 'X-Tenant-ID';
 
     public function __construct(
-        private readonly TenantProviderInterface $tenantProvider,
+        private readonly ?TenantProviderInterface $tenantProvider = null,
     ) {
     }
 
     public function resolve(Request $request): ?TenantInterface
     {
+        // Zero-config mode: no provider bound. Yield to next resolver in chain.
+        if (null === $this->tenantProvider) {
+            return null;
+        }
+
         $slug = $request->headers->get(self::HEADER_NAME);
 
         if (null === $slug || '' === $slug) {
