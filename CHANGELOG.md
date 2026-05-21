@@ -71,17 +71,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     through to null-resolution, which the system already handles.
   - **Fix — write-path sites (fail-loud):** `TenantRunCommand` and
     `TenantWorkerMiddleware` now declare `?TenantProviderInterface` and throw
-    `\RuntimeException` with an actionable message directing the user to
-    `bin/console tenancy:install` when invoked without a configured provider.
-    Silent no-op on the write path would risk data-correctness issues; fail-loud
-    is the safer policy.
+    `MissingTenantProviderException` (extends `\LogicException`) with an
+    actionable message directing the user to `bin/console tenancy:install` when
+    invoked without a configured provider. `\LogicException` (NOT
+    `\RuntimeException`) is used deliberately: Symfony Messenger's default retry
+    strategy treats `RuntimeException` as a retryable transient fault, which
+    would silently re-queue a misconfigured worker until the retry cap. Silent
+    no-op on the write path would risk data-correctness issues; fail-loud is
+    the safer policy.
   - **Versions affected:** v0.1.0, v0.2.0, v0.2.1 — all users on those tags should
     upgrade. The defect predates Phase 18 and was discovered during human UAT on
     2026-05-21.
   - **Regression coverage:** `tests/Integration/ZeroConfigKernelBootTest.php` now
     exercises the previously-uncovered zero-config code path (container compile,
     resolver instantiation, `bin/console list` exit 0) as a permanent regression
-    gate. Closes DX-06. Audit source: `.planning/phases/18-tenancy-install/18-VERIFICATION.md`.
+    gate. A new contract test
+    (`tests/Unit/Container/NullableProviderInjectionContractTest.php`) reflects
+    on every `tenancy.provider->nullOnInvalid()` consumer in `services.php` and
+    asserts the matching constructor param is `?TenantProviderInterface`,
+    locking the invariant against drift. Closes DX-06. Audit source:
+    `.planning/phases/18-tenancy-install/18-VERIFICATION.md`.
+
+- **`tenancy:run` shell-injection vector** — the `command_string` argument was
+  previously interpolated into a `Process::fromShellCommandline()` line, where
+  shell metacharacters (`;`, `&&`, `|`, `$(...)`, backticks, redirects) in the
+  argument would be interpreted by the shell. Callers passing untrusted input
+  could execute arbitrary commands. Fixed by switching to `new Process(array)`
+  with whitespace-tokenized argv; metacharacters now land as literal characters
+  in individual tokens. Trade-off: `command_string` no longer supports
+  shell-quoted args with embedded spaces — pass each token separated by
+  whitespace, or use the Symfony Process API directly for complex argv.
+  Regression coverage:
+  `TenantRunCommandTest::testShellMetacharactersAreInertInCommandString`.
 
 ## [0.2.1] — 2026-04-21
 
