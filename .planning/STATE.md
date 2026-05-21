@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: executing
-stopped_at: Phase 20 context gathered
-last_updated: "2026-05-21T12:51:36.461Z"
+status: ready_to_plan
+stopped_at: Phase 18 complete (11/11) — ready to discuss Phase 19
+last_updated: 2026-05-21T14:13:27.966Z
 last_activity: 2026-05-21 -- Phase 18 execution started
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 35
-  completed_plans: 31
-  percent: 50
+  completed_phases: 1
+  total_plans: 48
+  completed_plans: 83
+  percent: 17
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 18 — tenancy-install
+**Current focus:** Phase 19 — profiler tab
 
 ## Current Position
 
-Phase: 18 (tenancy-install) — EXECUTING
-Plan: 1 of 11
-Status: Executing Phase 18
-Last activity: 2026-05-21 -- Phase 18 execution started
+Phase: 19
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-21
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 51
+- Total plans completed: 62
 - Average duration: ~5 min
 - Total execution time: ~0.5 hours
 
@@ -51,7 +51,7 @@ Last activity: 2026-05-21 -- Phase 18 execution started
 | 14 | 2 | - | - |
 | 15 | 4 | - | - |
 | 17 | 5 | - | - |
-| 18 | 7 | - | - |
+| 18 | 11 | - | - |
 | 19 | 7 | - | - |
 | 20 | 12 | - | - |
 
