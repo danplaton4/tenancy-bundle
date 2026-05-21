@@ -14,7 +14,7 @@ final class QueryParamResolver implements TenantResolverInterface
     public const PARAM_NAME = '_tenant';
 
     public function __construct(
-        private readonly ?TenantProviderInterface $tenantProvider = null,
+        private readonly ?TenantProviderInterface $tenantProvider,
     ) {
     }
 
