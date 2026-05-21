@@ -12,13 +12,18 @@ use Tenancy\Bundle\TenantInterface;
 final class HostResolver implements TenantResolverInterface
 {
     public function __construct(
-        private readonly TenantProviderInterface $tenantProvider,
+        private readonly ?TenantProviderInterface $tenantProvider = null,
         private readonly ?string $appDomain = null,
     ) {
     }
 
     public function resolve(Request $request): ?TenantInterface
     {
+        // Zero-config mode: no provider bound. Yield to next resolver in chain.
+        if (null === $this->tenantProvider) {
+            return null;
+        }
+
         if (null === $this->appDomain) {
             return null;
         }
