@@ -131,8 +131,6 @@ final class SeedDemoCommand extends Command
                 $io->writeln(sprintf(' <info>✓</info> %s', $tenant->getSlug()));
             } catch (\Throwable $e) {
                 $io->writeln(sprintf(' <error>✗</error> %s (%s)', $tenant->getSlug(), $e->getMessage()));
-                $this->tenantContext->clear();
-                $this->bootstrapperChain->clear();
 
                 return Command::FAILURE;
             } finally {
