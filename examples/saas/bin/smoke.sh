@@ -38,14 +38,14 @@ for slug in "${!markers[@]}"; do
     }
 done
 
-# Origin-resolver path (Phase 17 invariant)
-echo "==> OriginHeaderResolver"
+# Resolver priority - HostResolver (30) wins over OriginHeaderResolver (25)
+echo "==> Resolver priority (HostResolver beats OriginHeaderResolver)"
 body=$($CURL \
-    -H "Host: tenancy.localhost" \
-    -H "Origin: https://acme.tenancy.localhost" \
+    -H "Host: acme.tenancy.localhost" \
+    -H "Origin: https://globex.tenancy.localhost" \
     "$BASE/")
 grep -q 'Acme Corporation' <<<"$body" || {
-    echo "FAIL: Origin-resolver did not resolve acme"; exit 1;
+    echo "FAIL: HostResolver should win — acme host should serve acme content (got globex Origin)"; exit 1;
 }
 
 echo "==> All smoke assertions PASSED"
