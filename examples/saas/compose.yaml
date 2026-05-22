@@ -20,7 +20,7 @@ services:
     image: axllent/mailpit:v1.20
     ports:
       # UI bound to loopback only (T-21-MP); SMTP :1025 is NOT published (internal only)
-      - '127.0.0.1:8025:8025'
+      - '127.0.0.1:${PORT_MAILPIT_UI:-8025}:8025'
     environment:
       MP_MAX_MESSAGES: 5000
       MP_DATABASE: /data/mailpit.db
@@ -55,13 +55,13 @@ services:
       TENANCY_DOMAIN_BASE: tenancy.localhost
     volumes:
       # Bundle-source dev loop (CONTEXT Critical Edge):
-      # Mount the bundle's src/ over /srv/src/ so edits to ../../src/** reflect in the
+      # Mount the bundle's src/ over /srv/bundle/src/ so edits to ../../src/** reflect in the
       # container without a rebuild. OPcache revalidate_freq=0 picks up changes per request.
-      - ../../src:/srv/src:rw
+      - ../../src:/srv/bundle/src:rw
       # Mount demo source too for tweaking templates without rebuild
-      - ./src:/srv/demo/src:rw
-      - ./templates:/srv/demo/templates:rw
-      - ./config:/srv/demo/config:rw
+      - ./src:/srv/bundle/examples/saas/src:rw
+      - ./templates:/srv/bundle/examples/saas/templates:rw
+      - ./config:/srv/bundle/examples/saas/config:rw
       # Caddy data: CA cert lives here — ephemeral across down -v, persistent across restart
       - caddy-data:/data
       - caddy-config:/config

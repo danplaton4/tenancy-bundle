@@ -4,9 +4,15 @@
 declare(strict_types=1);
 
 use App\Kernel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 
 require_once dirname(__DIR__).'/vendor/autoload_runtime.php';
 
-return function (array $context): Kernel {
-    return new Kernel($context['APP_ENV'], (bool) $context['APP_DEBUG']);
+return function (array $context): Application {
+    // Returning Application (not Kernel) tells Symfony Runtime to use the
+    // ConsoleApplicationRunner, not HttpKernelRunner. Without this, FrankenPHP's
+    // SERVER_NAME env var bleeds into the CLI process and Symfony tries to
+    // dispatch the command as an HTTP request — failing with "Invalid Host"
+    // before SeedDemoCommand ever runs.
+    return new Application(new Kernel($context['APP_ENV'], (bool) $context['APP_DEBUG']));
 };

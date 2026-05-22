@@ -3,3 +3,4 @@
 /.env.local
 /.env.*.local
 /public/bundles/
+/config/reference.php

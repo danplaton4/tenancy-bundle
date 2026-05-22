@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Entity\Landlord;
 
 use Doctrine\ORM\Mapping as ORM;
-use Tenancy\Bundle\Entity\Tenant;
+use Tenancy\Bundle\Entity\AbstractTenant;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'tenancy_tenants')]
-class DemoTenant extends Tenant
+class DemoTenant extends AbstractTenant
 {
     #[ORM\Column(type: 'string', length: 7, nullable: true)]
     private ?string $brandColor = null;
