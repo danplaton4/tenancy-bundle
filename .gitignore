@@ -7,3 +7,9 @@ site/
 .php-cs-fixer.cache
 CLAUDE.md
 vendor
+
+# Demo app generated files
+/examples/saas/var/
+/examples/saas/vendor/
+/examples/saas/.env.local
+/examples/saas/.env.*.local
