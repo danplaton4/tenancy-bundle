@@ -4,8 +4,8 @@ milestone: v0.3
 milestone_name: Adoption Surface
 status: executing
 stopped_at: Phase 21 context gathered
-last_updated: "2026-05-22T11:16:35.394Z"
-last_activity: 2026-05-22 -- Phase 21 planning complete
+last_updated: "2026-05-22T11:21:12.083Z"
+last_activity: 2026-05-22 -- Phase 21 execution started
 progress:
   total_phases: 6
   completed_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 21 — Demo App (examples/saas/ with FrankenPHP + Caddy + MariaDB)
+**Current focus:** Phase 21 — demo-app
 
 ## Current Position
 
-Phase: 21
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-22 -- Phase 21 planning complete
+Phase: 21 (demo-app) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 21
+Last activity: 2026-05-22 -- Phase 21 execution started
 
 ## Performance Metrics
 

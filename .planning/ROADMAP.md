@@ -204,13 +204,13 @@ Plans:
 4. `.github/workflows/demo-smoke.yml` runs `bin/smoke.sh` on every push to `master`; smoke failure blocks merge
 5. The demo's `composer.json` references the bundle via path repository so a developer can modify bundle source and rebuild the demo container to see changes immediately
 
-**Plans:** 4 plans
+**Plans:** 2/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 21-01-PLAN.md — Demo Symfony 7.4 skeleton (composer.json path-repo + config/bundles.php + tenancy/doctrine/mailer/web_profiler.yaml)
-- [ ] 21-02-PLAN.md — Demo PHP source (DemoTenant + Post entities, four controllers, LandlordTenantsFixture, SeedDemoCommand replacing D-05 `--create-dbs`, Twig templates)
+- [x] 21-01-PLAN.md — Demo Symfony 7.4 skeleton (composer.json path-repo + config/bundles.php + tenancy/doctrine/mailer/web_profiler.yaml)
+- [x] 21-02-PLAN.md — Demo PHP source (DemoTenant + Post entities, four controllers, LandlordTenantsFixture, SeedDemoCommand replacing D-05 `--create-dbs`, Twig templates)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
