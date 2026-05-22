@@ -49,6 +49,19 @@ class Invoice
 
 See the sections below for resolver configuration, shared-DB mode, Messenger integration, and more.
 
+## Try the demo
+
+A runnable two-+-landlord Symfony app lives under [`examples/saas/`](examples/saas/README.md):
+
+```bash
+git clone <this repo>
+cd <repo>/examples/saas
+docker compose up -d --wait --build
+open http://acme.tenancy.localhost/          # or curl with -H 'Host:'
+```
+
+Three tenants (acme, globex, initech) on FrankenPHP + Caddy + MariaDB 11 with the Profiler tab and Mailpit always-up. See [`examples/saas/README.md`](examples/saas/README.md) for the full walkthrough + three-step fallback ladder + CI smoke details.
+
 ## Features
 
 - **Database-per-tenant** — DBAL connection switching at runtime per tenant
