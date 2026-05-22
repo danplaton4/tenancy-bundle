@@ -42,7 +42,13 @@ final class LandlordTenantsFixture extends Fixture
             ],
         ];
 
+        $repository = $manager->getRepository(DemoTenant::class);
+
         foreach ($tenants as $data) {
+            if (null !== $repository->findOneBy(['slug' => $data['slug']])) {
+                continue;
+            }
+
             $tenant = new DemoTenant($data['slug'], $data['name']);
             $tenant->setIsActive(true);
             $tenant->setBrandColor($data['brandColor']);
