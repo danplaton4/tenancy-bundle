@@ -26,7 +26,7 @@ jobs:
           tools: flex
           coverage: none
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
         env:
           SYMFONY_REQUIRE: ${{ matrix.symfony }}
 
@@ -44,13 +44,13 @@ jobs:
           tools: flex
           coverage: xdebug
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
         env:
           SYMFONY_REQUIRE: '7.4.*'
 
       - run: vendor/bin/phpunit --coverage-clover coverage.xml
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v6
         with:
           files: ./coverage.xml
         env:
@@ -67,7 +67,7 @@ jobs:
           php-version: '8.4'
           coverage: none
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - run: vendor/bin/phpstan analyse
 
@@ -82,7 +82,7 @@ jobs:
           php-version: '8.2'
           coverage: none
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - run: vendor/bin/php-cs-fixer check --diff --allow-risky=yes
 
@@ -101,7 +101,7 @@ jobs:
           tools: flex
           coverage: none
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Remove Doctrine packages
         run: composer remove --dev doctrine/orm doctrine/dbal doctrine/doctrine-bundle doctrine/migrations --no-interaction
@@ -123,7 +123,7 @@ jobs:
           tools: flex
           coverage: none
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
         with:
           composer-options: --prefer-lowest --prefer-stable
         env:
@@ -143,7 +143,7 @@ jobs:
           tools: flex
           coverage: none
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Remove Messenger package
         run: composer remove --dev symfony/messenger --no-interaction
