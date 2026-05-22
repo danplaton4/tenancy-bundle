@@ -1,0 +1,4 @@
+framework:
+    mailer:
+        # Default DSN is overridden per-tenant at runtime by Phase 20 TenantAwareTransportsDecorator
+        dsn: '%env(MAILER_DSN)%'
