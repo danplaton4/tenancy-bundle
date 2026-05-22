@@ -12,7 +12,9 @@ doctrine:
                 driver: pdo_mysql
                 server_version: 'mariadb-11.0.0'
                 charset: utf8mb4
-                wrapper_class: Tenancy\Bundle\Doctrine\TenantConnection
+                # No wrapper_class needed — TenancyBundle auto-registers TenantDriverMiddleware
+                # on this connection (see src/TenancyBundle.php). The old wrapper_class:
+                # Tenancy\Bundle\Doctrine\TenantConnection API was removed before v0.3.
 
     orm:
         default_entity_manager: landlord
@@ -26,12 +28,11 @@ doctrine:
                         dir: '%kernel.project_dir%/src/Entity/Landlord'
                         prefix: 'App\Entity\Landlord'
                         alias: App
-                    Tenancy:
-                        is_bundle: false
-                        type: attribute
-                        dir: '%kernel.project_dir%/vendor/danplaton4/tenancy-bundle/src/Entity'
-                        prefix: 'Tenancy\Bundle\Entity'
-                        alias: Tenancy
+                    # The bundle's Tenancy\Bundle\Entity namespace is intentionally NOT
+                    # listed here. DemoTenant extends Tenancy\Bundle\Entity\AbstractTenant
+                    # (a #[ORM\MappedSuperclass]) and is the only concrete entity mapped to
+                    # `tenancy_tenants`. Mapping the bundle's concrete Tenant alongside it
+                    # would create two root entities on the same table.
             tenant:
                 connection: tenant
                 mappings:

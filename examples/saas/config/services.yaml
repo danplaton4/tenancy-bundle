@@ -1,0 +1,16 @@
+# Standard Symfony 7.4 services config — declares controllers, commands, and other
+# App\ classes as autoconfigured services so the container picks them up.
+# Was missing from the original Phase 21 scaffold and caused 500s on every route
+# until the live Docker stack was actually exercised.
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'

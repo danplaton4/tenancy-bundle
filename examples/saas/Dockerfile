@@ -21,37 +21,41 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Custom OPcache dev config
 COPY examples/saas/docker/php.ini /usr/local/etc/php/conf.d/zz-demo.ini
 
-# Layout inside the image:
-#   /srv/         — bundle source root (so composer.json's url:"../../" from /srv/demo/ resolves here)
-#   /srv/demo/    — demo app root
+# Layout inside the image MIRRORS the host repo structure so the demo's
+# composer.json `url:"../../"` resolves consistently in both contexts:
+#   host:      examples/saas/  -> ../../    -> repo root
+#   container: /srv/bundle/examples/saas/  -> ../../  -> /srv/bundle/
+# Putting the bundle anywhere else (e.g. /srv/) silently breaks the path repo
+# and Composer falls through to Packagist — see VERIFICATION 21 §"DOCKER-01"
+# for the live-stack incident.
 #
 # Build context MUST be the repo root (set in compose.yaml build.context: ../../)
 # so paths below are relative to the repo root.
 
-# 1) Copy bundle source to /srv/ (only the dirs composer needs)
-COPY src/ /srv/src/
-COPY config/ /srv/config/
-COPY composer.json /srv/composer.json
+# 1) Copy bundle source to /srv/bundle/ (only the dirs composer needs)
+COPY src/ /srv/bundle/src/
+COPY config/ /srv/bundle/config/
+COPY composer.json /srv/bundle/composer.json
 
 # composer.lock is optional (bundle may not commit it); the trailing * makes it optional with BuildKit
-COPY composer.lock* /srv/
+COPY composer.lock* /srv/bundle/
 
-# 2) Copy the demo source to /srv/demo/
-WORKDIR /srv/demo
+# 2) Copy the demo source to /srv/bundle/examples/saas/
+WORKDIR /srv/bundle/examples/saas
 
 # Copy composer manifest first (layer-cache friendly)
-COPY examples/saas/composer.json /srv/demo/composer.json
+COPY examples/saas/composer.json /srv/bundle/examples/saas/composer.json
 # composer.lock is optional for the demo too
-COPY examples/saas/composer.lock* /srv/demo/
+COPY examples/saas/composer.lock* /srv/bundle/examples/saas/
 
-# 3) Install demo composer deps (resolves path-repo at ../../ which is /srv/ from /srv/demo/)
+# 3) Install demo composer deps (resolves path-repo at ../../ which is /srv/ from /srv/bundle/examples/saas/)
 RUN composer install --no-interaction --no-progress --prefer-dist --no-scripts
 
 # 4) Copy the rest of the demo source (after composer install for better layer caching)
-COPY examples/saas/ /srv/demo/
+COPY examples/saas/ /srv/bundle/examples/saas/
 
 # 5) Ensure console + entrypoint are executable
-RUN chmod +x /srv/demo/bin/console /srv/demo/docker/entrypoint.sh
+RUN chmod +x /srv/bundle/examples/saas/bin/console /srv/bundle/examples/saas/docker/entrypoint.sh
 
 # Environment
 ENV SERVER_NAME=":80,:443"
@@ -66,4 +70,4 @@ EXPOSE 80 443
 HEALTHCHECK --interval=5s --timeout=3s --start-period=120s --retries=5 \
     CMD curl -fsS http://localhost/health || exit 1
 
-ENTRYPOINT ["/srv/demo/docker/entrypoint.sh"]
+ENTRYPOINT ["/srv/bundle/examples/saas/docker/entrypoint.sh"]

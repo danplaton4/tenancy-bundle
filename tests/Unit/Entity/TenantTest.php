@@ -6,6 +6,7 @@ namespace Tenancy\Bundle\Tests\Unit\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use PHPUnit\Framework\TestCase;
+use Tenancy\Bundle\Entity\AbstractTenant;
 use Tenancy\Bundle\Entity\Tenant;
 use Tenancy\Bundle\TenantInterface;
 
@@ -26,7 +27,8 @@ class TenantTest extends TestCase
 
     public function testSlugIsStringPrimaryKey(): void
     {
-        $reflection = new \ReflectionClass(Tenant::class);
+        // Field declarations live on AbstractTenant (MappedSuperclass); Tenant inherits them.
+        $reflection = new \ReflectionClass(AbstractTenant::class);
 
         $slugProperty = $reflection->getProperty('slug');
         $idAttributes = $slugProperty->getAttributes(ORM\Id::class);
@@ -40,6 +42,23 @@ class TenantTest extends TestCase
                 sprintf('Property "%s" must not have #[ORM\GeneratedValue] — slug is the natural PK', $property->getName())
             );
         }
+    }
+
+    public function testTenantExtendsAbstractTenant(): void
+    {
+        $this->assertTrue(is_subclass_of(Tenant::class, AbstractTenant::class));
+        $this->assertTrue((new \ReflectionClass(AbstractTenant::class))->isAbstract());
+    }
+
+    public function testAbstractTenantIsMappedSuperclass(): void
+    {
+        $reflection = new \ReflectionClass(AbstractTenant::class);
+
+        $mappedSuperclass = $reflection->getAttributes(ORM\MappedSuperclass::class);
+        $this->assertNotEmpty($mappedSuperclass, 'AbstractTenant must declare #[ORM\MappedSuperclass]');
+
+        $entity = $reflection->getAttributes(ORM\Entity::class);
+        $this->assertEmpty($entity, 'AbstractTenant must NOT declare #[ORM\Entity] — that would make it a concrete root and break subclass mapping');
     }
 
     public function testDomainDefaultsToNull(): void

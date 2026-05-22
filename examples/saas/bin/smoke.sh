@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # bin/smoke.sh — DNS-independent demo smoke test.
-# Runs on host (CI runner or dev machine). Caddy must publish :80 on localhost.
+# Runs on host (CI runner or dev machine). Caddy must publish $BASE_PORT (default 80) on localhost.
+# Override the host port when something else owns :80 (e.g. another dev stack):
+#   BASE_PORT=8080 bash bin/smoke.sh
 set -euo pipefail
 
 CURL='curl --fail --max-time 10 --retry 5 --retry-all-errors --retry-connrefused -sS'
-BASE='http://localhost'
+BASE_PORT="${BASE_PORT:-80}"
+BASE="http://localhost:${BASE_PORT}"
 
 # Wait for /health to be ready (max 30s)
 echo "==> Waiting for app readiness..."

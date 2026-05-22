@@ -3,11 +3,19 @@
     auto_https disable_redirects
 }
 
-*.tenancy.localhost, tenancy.localhost, localhost {
-    tls internal
-
+# HTTP listener — needed for `bash bin/smoke.sh` (which uses plain HTTP with
+# `Host:` header injection so CI doesn't have to deal with the internal CA).
+http://*.tenancy.localhost, http://tenancy.localhost, http://localhost {
     root * public/
     encode zstd br gzip
+    php_server
+}
 
+# HTTPS listener — used by browsers (with the demo's internal CA, see
+# `caddy trust` instructions in the README) and the Docker healthcheck.
+https://*.tenancy.localhost, https://tenancy.localhost, https://localhost {
+    tls internal
+    root * public/
+    encode zstd br gzip
     php_server
 }

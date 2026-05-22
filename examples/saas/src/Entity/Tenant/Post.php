@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: PostRepository::class)]
 #[ORM\Table(name: 'post')]
-final class Post
+class Post
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
