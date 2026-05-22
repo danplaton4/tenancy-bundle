@@ -1,5 +1,75 @@
 # Upgrade Guide
 
+## 0.3.1 to 0.3.2
+
+### Custom tenant entities: extend `AbstractTenant`, not `Tenant`
+
+The bundle's `Tenancy\Bundle\Entity\Tenant` was split into two classes:
+
+- `Tenancy\Bundle\Entity\AbstractTenant` — `#[ORM\MappedSuperclass]`, holds
+  all fields, getters, setters, and lifecycle callbacks. Abstract, never
+  instantiated directly.
+- `Tenancy\Bundle\Entity\Tenant` — `#[ORM\Entity]`, `#[ORM\Table('tenancy_tenants')]`,
+  empty body, `extends AbstractTenant`. Default users (no `tenant_entity_class`
+  override) keep referring to `Tenant::class` exactly as before.
+
+**If you have a custom tenant entity that `extends Tenant`:**
+
+```php
+// before — broke at cache:warmup with
+//   Entity class 'App\Entity\Tenant' is a subclass of the root entity class
+//   'Tenancy\Bundle\Entity\Tenant', but no inheritance mapping type was declared.
+use Tenancy\Bundle\Entity\Tenant;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'tenancy_tenants')]
+class AppTenant extends Tenant { /* extra columns */ }
+```
+
+```php
+// after — extend AbstractTenant instead
+use Tenancy\Bundle\Entity\AbstractTenant;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'tenancy_tenants')]
+class AppTenant extends AbstractTenant { /* extra columns */ }
+```
+
+Doctrine forbids one `#[ORM\Entity]` from extending another `#[ORM\Entity]`
+without an explicit inheritance strategy (single-table + discriminator, or
+joined). The split moves the inheritable surface to a `MappedSuperclass` so
+your custom entity is the only concrete root mapped to `tenancy_tenants`.
+
+If your Doctrine mappings list the bundle's `Tenancy\Bundle\Entity` directory
+*and* you have a custom tenant entity, also remove the bundle's directory
+from your `doctrine.yaml` mappings — Doctrine should only see your concrete
+entity for that table:
+
+```yaml
+# config/packages/doctrine.yaml
+orm:
+  entity_managers:
+    landlord:
+      mappings:
+        App:
+          dir: '%kernel.project_dir%/src/Entity/Landlord'
+          # ... your custom-entity mapping ...
+        # Remove any block that mapped Tenancy\Bundle\Entity here.
+```
+
+**If you use `Tenancy\Bundle\Entity\Tenant` directly (no subclass):** nothing
+changes. `new Tenant($slug, $name)` still works, every getter/setter still
+works, the table still maps the same way. No schema migration is required.
+
+### Demo (`examples/saas`) — boot fixes
+
+If you have a clone of the demo from before v0.3.2, several boot-time issues
+were fixed (Docker layout, Caddyfile, `bin/console`, `config/services.yaml`).
+Pull master or re-clone — the fixes are commit `9a1d138`. The smoke test
+(`bin/smoke.sh`) also now accepts a `BASE_PORT` env override and the demo's
+`compose.yaml` parametrizes the Mailpit UI port via `PORT_MAILPIT_UI`, so the
+stack can coexist with other dev environments on the same host.
+
 ## 0.2 to 0.3
 
 Phase 20 introduces per-tenant Mailer support. The contract change is a
