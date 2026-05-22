@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+{% block title %}Tenancy Bundle Demo — Landlord{% endblock %}
+{% block heading %}Tenancy Bundle Demo{% endblock %}
+{% block body %}
+  <p>This is the landlord page (null-tenant). Click a tenant subdomain to see per-tenant isolated content.</p>
+  <ul>
+    {% for tenant in tenants %}
+      <li>
+        <strong style="color: {{ tenant.brandColor ?? '#0f172a' }}">{{ tenant.name }}</strong>
+        <span class="meta">— slug: <code>{{ tenant.slug }}</code></span><br>
+        <a href="http://{{ tenant.slug }}.tenancy.localhost/">Visit {{ tenant.slug }}.tenancy.localhost</a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}
