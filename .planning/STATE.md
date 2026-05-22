@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: executing
-stopped_at: Phase 21 context gathered
-last_updated: "2026-05-22T12:40:15.182Z"
-last_activity: 2026-05-22 -- Phase 21 execution started
+status: planning
+stopped_at: Phase 21 shipped (v0.3.2 on Packagist 2b17a621c7)
+last_updated: "2026-05-22T19:30:00.000Z"
+last_activity: 2026-05-22 -- Phase 21 verified end-to-end against live Docker stack; v0.3.2 released; history rewritten to strip Claude trailers
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 40
-  completed_plans: 39
-  percent: 67
+  completed_phases: 5
+  total_plans: 45
+  completed_plans: 44
+  percent: 83
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 21 — demo-app
+**Current focus:** Phase 22 — Docs Refresh (DOC-19) — last phase in v0.3 milestone
 
 ## Current Position
 
-Phase: 21 (demo-app) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 21
-Last activity: 2026-05-22 -- Phase 21 execution started
+Phase: 22 (docs-refresh) — PENDING
+Plans: 5 of 5 complete on Phase 21 (last phase shipped); 0 of TBD on Phase 22
+Status: Ready to discuss / plan Phase 22
+Last activity: 2026-05-22 -- v0.3.2 released; Claude co-author trailers stripped from all history (37 commits rewritten); demo-smoke CI gate live and green
 
 ## Performance Metrics
 
