@@ -1,0 +1,73 @@
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+      MARIADB_USER: ${MARIADB_USER:-tenancy}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-tenancy}
+      MARIADB_DATABASE: landlord
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    # MariaDB port NOT published to host — internal compose network only (T-21-DB)
+    volumes:
+      - db-data:/var/lib/mysql
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    ports:
+      # UI bound to loopback only (T-21-MP); SMTP :1025 is NOT published (internal only)
+      - '127.0.0.1:8025:8025'
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:8025/api/v1/info']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  php:
+    build:
+      context: ../../        # repo root — Dockerfile COPYs both bundle src and demo
+      dockerfile: examples/saas/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    ports:
+      - '${PORT_HTTP:-80}:80'
+      - '${PORT_HTTPS:-443}:443'
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: '1'
+      APP_SECRET: ${APP_SECRET:-demo-secret-not-for-production}
+      DATABASE_URL_LANDLORD: 'mysql://${MARIADB_USER:-tenancy}:${MARIADB_PASSWORD:-tenancy}@db:3306/landlord?serverVersion=mariadb-11.0.0&charset=utf8mb4'
+      MAILER_DSN: 'smtp://mailpit:1025'
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+      DATABASE_HOST: db
+      TENANCY_DOMAIN_BASE: tenancy.localhost
+    volumes:
+      # Bundle-source dev loop (CONTEXT Critical Edge):
+      # Mount the bundle's src/ over /srv/src/ so edits to ../../src/** reflect in the
+      # container without a rebuild. OPcache revalidate_freq=0 picks up changes per request.
+      - ../../src:/srv/src:rw
+      # Mount demo source too for tweaking templates without rebuild
+      - ./src:/srv/demo/src:rw
+      - ./templates:/srv/demo/templates:rw
+      - ./config:/srv/demo/config:rw
+      # Caddy data: CA cert lives here — ephemeral across down -v, persistent across restart
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  mailpit-data:
+  caddy-data:
+  caddy-config:
