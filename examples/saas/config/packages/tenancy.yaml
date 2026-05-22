@@ -1,0 +1,14 @@
+tenancy:
+    driver: database_per_tenant
+    database:
+        enabled: true
+    landlord_connection: landlord
+    host:
+        app_domain: tenancy.localhost
+    strict_mode: true
+    tenant_entity_class: App\Entity\Landlord\DemoTenant
+    resolvers: [host, origin, header, query_param, console]
+    origin:
+        allow_list:
+            - { origin: 'https://*.tenancy.localhost' }
+            - { origin: 'http://*.tenancy.localhost' }

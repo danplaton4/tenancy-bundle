@@ -1,0 +1,48 @@
+doctrine:
+    dbal:
+        default_connection: landlord
+        connections:
+            landlord:
+                url: '%env(resolve:DATABASE_URL_LANDLORD)%'
+                driver: pdo_mysql
+                server_version: 'mariadb-11.0.0'
+                charset: utf8mb4
+            tenant:
+                url: '%env(resolve:DATABASE_URL_LANDLORD)%'
+                driver: pdo_mysql
+                server_version: 'mariadb-11.0.0'
+                charset: utf8mb4
+                wrapper_class: Tenancy\Bundle\Doctrine\TenantConnection
+
+    orm:
+        default_entity_manager: landlord
+        entity_managers:
+            landlord:
+                connection: landlord
+                mappings:
+                    App:
+                        is_bundle: false
+                        type: attribute
+                        dir: '%kernel.project_dir%/src/Entity/Landlord'
+                        prefix: 'App\Entity\Landlord'
+                        alias: App
+                    Tenancy:
+                        is_bundle: false
+                        type: attribute
+                        dir: '%kernel.project_dir%/vendor/danplaton4/tenancy-bundle/src/Entity'
+                        prefix: 'Tenancy\Bundle\Entity'
+                        alias: Tenancy
+            tenant:
+                connection: tenant
+                mappings:
+                    AppTenant:
+                        is_bundle: false
+                        type: attribute
+                        dir: '%kernel.project_dir%/src/Entity/Tenant'
+                        prefix: 'App\Entity\Tenant'
+                        alias: AppTenant
+
+when@prod:
+    doctrine:
+        orm:
+            auto_generate_proxy_classes: false
