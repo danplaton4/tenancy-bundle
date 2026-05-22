@@ -1,0 +1,5 @@
+var/
+vendor/
+.git/
+.env.local*
+node_modules/

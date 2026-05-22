@@ -7,3 +7,5 @@ parameters:
         -
             identifier: trait.unused
             reportUnmatched: false
+    parallel:
+        maximumNumberOfProcesses: 1
