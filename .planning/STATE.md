@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: ready_to_plan
-stopped_at: Phase 18 complete + v0.3.0 tagged and pushed — ready to discuss Phase 21 (Demo App)
-last_updated: 2026-05-22T00:00:00.000Z
-last_activity: 2026-05-22 -- v0.3.0 released
+status: Ready to discuss
+stopped_at: Phase 21 context gathered
+last_updated: "2026-05-22T10:19:48.925Z"
+last_activity: 2026-05-22
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 48
-  completed_plans: 83
+  total_plans: 35
+  completed_plans: 35
   percent: 67
 ---
 
@@ -181,6 +181,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T15:07:50.603Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-mailer-bootstrapper/20-CONTEXT.md
+Last session: 2026-05-22T10:19:48.915Z
+Stopped at: Phase 21 context gathered
+Resume file: .planning/phases/21-demo-app/21-CONTEXT.md
