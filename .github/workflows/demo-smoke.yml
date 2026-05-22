@@ -17,6 +17,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # Fail-fast boot check — runs cache:warmup against the demo Kernel before
+      # spending ~90s on docker build. Catches the failure modes that prompted
+      # this gate: Doctrine inheritance errors, missing services.yaml,
+      # `final` entity classes, and bin/console returning Kernel instead of
+      # Application. See .planning/phases/21-demo-app/21-VERIFICATION.md
+      # § "Post-Mortem" for the BOOT-01..BOOT-07 incident.
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, intl, opcache, zip
+          coverage: none
+
+      - name: Install demo deps (composer)
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Boot check (cache:warmup + service lookups)
+        env:
+          # CLI invocation — keep SERVER_NAME unset so Symfony Runtime routes
+          # through ConsoleApplicationRunner, not HttpKernelRunner.
+          SERVER_NAME: ''
+          APP_ENV: dev
+          APP_DEBUG: '0'
+          APP_SECRET: 'ci-stub-not-for-production'
+          # Stub DSN — cache:warmup compiles metadata but does NOT connect.
+          DATABASE_URL_LANDLORD: 'mysql://stub:stub@127.0.0.1:3306/stub?serverVersion=mariadb-11.0.0&charset=utf8mb4'
+          MAILER_DSN: 'null://null'
+        run: |
+          # cache:warmup catches BOOT-01 (Doctrine inheritance), BOOT-04 (final
+          # entity / lazy ghost proxy), and any DI compile error.
+          php bin/console cache:warmup --no-debug
+          # debug:container <controller> catches BOOT-05 (missing services.yaml
+          # → controllers aren't autoconfigured → "has no container set" 500s).
+          php bin/console debug:container 'App\Controller\LandlordController' --no-debug
+          php bin/console debug:container 'App\Controller\TenantController' --no-debug
+          # debug:container <command> catches BOOT-06 — App\Command\SeedDemoCommand
+          # must resolve as a Symfony command service. If bin/console returns
+          # Kernel instead of Application this whole step would have failed earlier
+          # under FrankenPHP's SERVER_NAME, but we're on a plain CLI runner here
+          # so this is the belt to the braces on bin/console returning Application.
+          php bin/console debug:container 'App\Command\SeedDemoCommand' --no-debug
+
       - name: Build and start demo
         run: docker compose up -d --wait --build
 
