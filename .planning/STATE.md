@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
 status: ready_to_plan
-stopped_at: Phase 18 complete (11/11) — ready to discuss Phase 19
-last_updated: 2026-05-21T14:13:27.966Z
-last_activity: 2026-05-21 -- Phase 18 execution started
+stopped_at: Phase 18 complete + v0.3.0 tagged and pushed — ready to discuss Phase 21 (Demo App)
+last_updated: 2026-05-22T00:00:00.000Z
+last_activity: 2026-05-22 -- v0.3.0 released
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 4
   total_plans: 48
   completed_plans: 83
-  percent: 17
+  percent: 67
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 19 — profiler tab
+**Current focus:** Phase 21 — Demo App (examples/saas/ with FrankenPHP + Caddy + MariaDB)
 
 ## Current Position
 
-Phase: 19
+Phase: 21
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-21
+Status: Ready to discuss
+Last activity: 2026-05-22
 
 ## Performance Metrics
 
