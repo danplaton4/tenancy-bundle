@@ -204,7 +204,7 @@ Plans:
 4. `.github/workflows/demo-smoke.yml` runs `bin/smoke.sh` on every push to `master`; smoke failure blocks merge
 5. The demo's `composer.json` references the bundle via path repository so a developer can modify bundle source and rebuild the demo container to see changes immediately
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -214,7 +214,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 21-03-PLAN.md — Container stack (compose.yaml + Dockerfile + Caddyfile + entrypoint.sh + php.ini; seed-before-serve per Pitfall 5)
+- [x] 21-03-PLAN.md — Container stack (compose.yaml + Dockerfile + Caddyfile + entrypoint.sh + php.ini; seed-before-serve per Pitfall 5)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
