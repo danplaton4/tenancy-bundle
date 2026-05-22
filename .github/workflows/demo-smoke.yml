@@ -1,0 +1,32 @@
+name: demo-smoke
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: examples/saas
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build and start demo
+        run: docker compose up -d --wait --build
+
+      - name: Run smoke
+        run: bash bin/smoke.sh
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
