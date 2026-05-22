@@ -1,0 +1,21 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ tenant.name }}{% endblock %}
+{% block brand_color %}{{ tenant.brandColor ?? '#0f172a' }}{% endblock %}
+{% block heading %}{{ tenant.name }}{% endblock %}
+{% block body %}
+  <p class="meta">Tenant slug: <code>{{ tenant.slug }}</code></p>
+  <h2>Posts</h2>
+  {% if posts is empty %}
+    <p>No posts yet.</p>
+  {% else %}
+    <ul>
+      {% for post in posts %}
+        <li>
+          <strong>{{ post.title }}</strong>
+          <p>{{ post.body }}</p>
+          <span class="meta">{{ post.createdAt|date('Y-m-d') }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}
