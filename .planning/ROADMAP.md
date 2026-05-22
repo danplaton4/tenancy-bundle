@@ -42,7 +42,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 - [x] **Phase 18: tenancy:install** — single-command setup (auto-registers bundle, runs `tenancy:init`), `nikic/php-parser` detection, ≥6 fixture corpus, atomic write + .bak (DX-06). Originally completed 2026-05-18; gap reopened 2026-05-21 after human UAT exposed zero-config boot regression at 6 `nullOnInvalid()` consumer sites with non-nullable signatures; gap-closure plans 18-08…18-11 + follow-up fixes (CR-01/WR-01/WR-04) landed 2026-05-21. Shipped in v0.3.0 on 2026-05-22.
 - [x] **Phase 19: Profiler Tab** — `TenantDataCollector` + Twig template, dev-only, three render states (resolved/null/error), stored-profile reload tested (DX-02) (completed 2026-05-19)
 - [x] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04) (completed 2026-05-20)
-- [ ] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01) — *4/4 plans complete; verification gaps_found (CR-02 smoke gate)*
+- [x] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01) — *4/4 plans complete; verification gaps_found (CR-02 smoke gate)* (completed 2026-05-22)
 - [ ] **Phase 22: Docs Refresh** — install page rewrite, new pages (resolver/profiler/mailer/demo/roadmap), UPGRADE 0.2→0.3, docs-lint extended (DOC-19)
 
 **Architectural decisions ratified** (see `REQUIREMENTS.md#architectural-decisions-ratified`): DEC-MAIL-01 X-Transport strategy, DEC-MAIL-02 full BOOT-04 in v0.3, DEC-MAIL-03 BC break with trait, DEC-RESV-01 priority 25, DEC-PROF-01 TenantResolved subscriber, DEC-INST-01 programmatic invoke, DEC-INST-02 refuse-on-nonstandard, DEC-DEMO-01 Caddy + `*.tenancy.localhost`.
@@ -204,7 +204,7 @@ Plans:
 4. `.github/workflows/demo-smoke.yml` runs `bin/smoke.sh` on every push to `master`; smoke failure blocks merge
 5. The demo's `composer.json` references the bundle via path repository so a developer can modify bundle source and rebuild the demo container to see changes immediately
 
-**Plans:** 4/4 plans complete
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
