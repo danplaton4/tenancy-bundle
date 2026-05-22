@@ -1,0 +1,13 @@
+{
+    frankenphp
+    auto_https disable_redirects
+}
+
+*.tenancy.localhost, tenancy.localhost, localhost {
+    tls internal
+
+    root * public/
+    encode zstd br gzip
+
+    php_server
+}
