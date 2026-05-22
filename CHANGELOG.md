@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-22
+
+Adoption Surface — batch 1. Ships the SPA-friendly Origin-header resolver, the one-command `tenancy:install` setup flow, and a critical fix for a zero-config kernel-boot regression that affected every prior 0.x tag.
+
 ### Added
 
 - **`OriginHeaderResolver`** — SPA-friendly tenant resolver that reads the browser-set
