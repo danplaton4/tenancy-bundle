@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-05-22
+
+### Fixed
+
+- **CI `prefer-lowest` matrix:** `RecordingLogger` (test-suite helper) declared
+  `log($level, string|\Stringable $message, array $context = []): void`,
+  which is incompatible with PSR-3 v1.x's
+  `LoggerInterface::log($level, $message, array $context = []): void`. PHP's
+  LSP rules reject the stricter child signature, killing the whole test
+  suite with a fatal on autoload when CI installed psr/log ^1 on PHP 8.2
+  + Symfony 7.4. Fixed by dropping the union type from the PHP signature
+  and documenting the runtime contract in PHPDoc — the signature is now
+  contravariant-wider than both psr/log v1 (no type) and v3
+  (`string|\Stringable`), accepted by both. No production code affected;
+  this only unblocks the prefer-lowest CI job on PHP 8.2 / Symfony 7.4.
+
 ## [0.3.0] — 2026-05-22
 
 Adoption Surface — batch 1. Ships the SPA-friendly Origin-header resolver, the one-command `tenancy:install` setup flow, and a critical fix for a zero-config kernel-boot regression that affected every prior 0.x tag.
