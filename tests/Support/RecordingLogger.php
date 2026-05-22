@@ -21,9 +21,17 @@ final class RecordingLogger extends AbstractLogger
     private array $records = [];
 
     /**
-     * @param array<mixed> $context
+     * @param string|\Stringable $message
+     * @param array<mixed>       $context
+     *
+     * NOTE: `$message` is intentionally untyped at the PHP signature level.
+     * On prefer-lowest CI the matrix resolves psr/log to ^1.x, whose
+     * LoggerInterface::log() declares `$message` with no type at all. PHP
+     * LSP forbids a child from declaring a stricter parameter type than its
+     * parent, so `string|\Stringable` here is a fatal-on-autoload under
+     * PSR-3 v1. The runtime contract is preserved via PHPDoc above.
      */
-    public function log($level, string|\Stringable $message, array $context = []): void
+    public function log($level, $message, array $context = []): void
     {
         $this->records[] = ['level' => $level, 'message' => $message, 'context' => $context];
     }
