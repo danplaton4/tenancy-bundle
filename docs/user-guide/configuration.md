@@ -104,6 +104,7 @@ The list of active resolver aliases, in priority order (highest priority first).
 | Alias | Class | Priority |
 |-------|-------|----------|
 | `host` | `HostResolver` | 30 |
+| `origin` | `OriginHeaderResolver` | 25 |
 | `header` | `HeaderResolver` | 20 |
 | `query_param` | `QueryParamResolver` | 10 |
 | `console` | `ConsoleResolver` | N/A (ConsoleCommandEvent) |
@@ -123,6 +124,67 @@ The base domain used by `HostResolver` for subdomain extraction. When set to `ex
 When `null` (the default), `HostResolver` always returns `null` and passes control to the next resolver in the chain.
 
 For multi-segment subdomains (e.g. `api.acme.example.com`), the last segment before the `app_domain` suffix is used as the slug (`acme`).
+
+---
+
+### `tenancy.origin.allow_list`
+
+| Type | Default |
+|------|---------|
+| `array` | `[]` (empty — resolver disabled) |
+
+The list of allow-listed origins for `OriginHeaderResolver` (priority 25). Each entry is either a map form `{ origin: ..., slug: ... }` pinning a specific origin to a specific tenant slug, or a wildcard-shorthand string where the leftmost label of the matched host becomes the slug at runtime.
+
+```yaml
+# config/packages/tenancy.yaml
+tenancy:
+  resolvers: ['host', 'header', 'origin']
+  origin:
+    allow_list:
+      # Explicit map form: pin a specific origin to a specific tenant slug.
+      - { origin: 'https://acme.app.example.com', slug: 'acme' }
+      - { origin: 'https://beta.app.example.com', slug: 'beta-customer' }
+
+      # Wildcard shorthand: leftmost label becomes the slug at runtime.
+      # `https://*.app.example.com` matches `https://anything.app.example.com`
+      # and resolves to tenant slug = `anything`.
+      - 'https://*.app.example.com'
+```
+
+Each entry must be an absolute URL with scheme `http` or `https`, no path/query/fragment, and at most one `*` in the leftmost label. Invalid configurations fail at **container compile time** with a descriptive error — there is no way to ship a misconfigured allow-list to runtime. For the full Trust Model (what `Origin` guarantees from a browser context, where the trust ends, and the recommended pairing with real authentication), see [Origin Header Resolver](origin-header-resolver.md).
+
+---
+
+### Per-tenant mailer config
+
+Each tenant can carry its own SMTP transport, `From` header, and `Reply-To` header via three nullable columns on the Tenant entity. The bundle reads these via the `getMailerDsn()`, `getMailerFrom()`, and `getMailerReplyTo()` methods on `TenantInterface`. Returning `null` from any getter falls back to the landlord's default Mailer config.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `mailerDsn` | `string\|null` | SMTP transport DSN (e.g. `smtp://user:****@smtp.example.com:587`) |
+| `mailerFrom` | `string\|null` | `From:` header on outgoing emails |
+| `mailerReplyTo` | `string\|null` | `Reply-To:` header (optional) |
+
+The bundle ships `Tenancy\Bundle\Mailer\TenantMailerConfigTrait` as a one-line shortcut — `use TenantMailerConfigTrait;` inside a custom Tenant entity supplies all three columns, their getters, and their setters:
+
+```php
+<?php
+
+namespace App\Entity;
+
+use Doctrine\ORM\Mapping as ORM; // optional — only honored if doctrine/orm is installed
+use Tenancy\Bundle\Entity\AbstractTenant;
+use Tenancy\Bundle\Mailer\TenantMailerConfigTrait;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'tenancy_tenants')]
+class AppTenant extends AbstractTenant
+{
+    use TenantMailerConfigTrait;
+}
+```
+
+The bootstrapper works under both synchronous Mailer dispatch and Messenger-routed async dispatch via an `X-Transport: tenant_<slug>` stamp. A message dequeued for a deleted tenant throws (rather than silently dropping) — this contract is enforced at container compile time. For the full X-Transport strategy and async failure-mode warning, see the [Mailer Bootstrapper guide](mailer-bootstrapper.md).
 
 ---
 
