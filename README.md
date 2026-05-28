@@ -9,7 +9,7 @@
 
 > **Multi-tenancy for Symfony. Zero boilerplate, zero leaks.**
 
-[Documentation](https://danplaton4.github.io/tenancy-bundle/) · [Runnable demo](examples/saas/README.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [Upgrade guide](UPGRADE.md)
+[Documentation](https://danplaton4.github.io/tenancy-bundle/) · [Runnable demo](examples/saas/README.md) · [Changelog](CHANGELOG.md) · [Roadmap](https://danplaton4.github.io/tenancy-bundle/roadmap/) · [Upgrade guide](UPGRADE.md)
 
 ---
 
@@ -187,7 +187,7 @@ Highlights:
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for what's shipping next and what's tracked-but-unscheduled. Open a [GitHub issue](https://github.com/danplaton4/tenancy-bundle/issues) if you want something prioritized — real demand is the single strongest input to the next milestone's scope.
+See the [roadmap on the documentation site](https://danplaton4.github.io/tenancy-bundle/roadmap/) for what's shipping next and what's tracked-but-unscheduled. Open a [GitHub issue](https://github.com/danplaton4/tenancy-bundle/issues) if you want something prioritized — real demand is the single strongest input to the next milestone's scope.
 
 ## Contributing
 
