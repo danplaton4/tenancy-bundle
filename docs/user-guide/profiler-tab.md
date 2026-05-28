@@ -64,7 +64,7 @@ when@dev:
 
 ## What will I see?
 
-The panel has three render states — one per request — driven by what happened during tenant resolution.
+The panel has three render states — one per request — driven by what happened during tenant resolution. Want to see this live? The [SaaS demo](../../examples/saas/README.md) ships with the Profiler enabled — `docker compose up` and visit any tenant URL.
 
 ### Resolved state (green)
 
@@ -76,17 +76,18 @@ The most common state for tenant-scoped requests.
 
 Example panel content:
 
-```
-State            resolved
-Driver           shared_db
-Slug             acme
-Tenant           Acme Corporation
-Connection       tenant
-Resolved by      HostResolver
-
-Bootstrappers (2)
-  • Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper
-  • Tenancy\Bundle\Bootstrapper\CacheBootstrapper
+```text
+┌─ Tenancy ─────────────────────────────────────────────────────────┐
+│  Slug          Tenant              Driver       Connection        │
+│  acme          Acme Corporation    shared_db    tenant            │
+│                                                                   │
+│  Resolved by                                                      │
+│    Tenancy\Bundle\Resolver\HostResolver                           │
+│                                                                   │
+│  Bootstrappers (2)                                                │
+│    • Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper             │
+│    • Tenancy\Bundle\Bootstrapper\CacheBootstrapper                │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Null state (yellow)
@@ -97,6 +98,16 @@ Expected for public, landlord, and health-check routes — requests where no ten
 - **Status pill:** yellow, `null`
 - **Panel:** "No tenant resolved for this request. This is the expected state for public, landlord, and health-check routes."
 
+```text
+┌─ Tenancy — no tenant ─────────────────────────────────────────────┐
+│                                                                   │
+│  No tenant resolved for this request.                             │
+│  This is the expected state for public, landlord, and             │
+│  health-check routes.                                             │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
 ### Error state (red)
 
 Triggered when a `Tenancy\Bundle\Exception\*` exception is thrown during the request — typically `TenantInactiveException` (tenant exists but `isActive = false`) or `TenantMissingException` (a `#[TenantAware]` entity was queried with no tenant in strict mode).
@@ -104,6 +115,18 @@ Triggered when a `Tenancy\Bundle\Exception\*` exception is thrown during the req
 - **Toolbar badge:** warning glyph `⚠`
 - **Status pill:** red, `error`
 - **Panel:** exception class FQCN + the exception message (HTML-escaped — XSS-safe)
+
+```text
+┌─ Tenancy ─────────────────────────────────────────────────────────┐
+│                                                                   │
+│  Resolution error                                                 │
+│                                                                   │
+│    Tenancy\Bundle\Exception\TenantInactiveException               │
+│                                                                   │
+│    Tenant "acme" is inactive.                                     │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+```
 
 > **Note on "tenant not found":** when a resolver returns a slug that doesn't exist (e.g. `X-Tenant-ID: ghost`), the bundle's resolvers **catch and swallow** the `TenantNotFoundException` internally and the request proceeds as the null state. This is a Phase 02-02 design decision so that mistyped headers don't 500 the request before your application can decide how to respond. The error state is specifically for tenancy exceptions that escape resolution and reach `kernel.exception` — like inactive tenants or strict-mode filter violations.
 
