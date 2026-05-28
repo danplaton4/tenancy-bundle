@@ -4,49 +4,32 @@ Tenancy Bundle requires **PHP ^8.2** and **Symfony ^7.4 or ^8.0**. It is publish
 
 ---
 
-## 1. Composer Install
+## 1. Install via Composer
 
 ```bash
 composer require danplaton4/tenancy-bundle
 ```
 
+This pulls in the bundle and its hard dependencies. As of v0.3.3, that includes [`nikic/php-parser`](https://github.com/nikic/PHP-Parser), which the install command uses to safely register the bundle in your Symfony app — you do not need to install it separately.
+
 ---
 
-## 2. Bundle Registration
+## 2. Run the install command
 
-Add the bundle to `config/bundles.php`:
+Run the bundled install command to register the bundle and scaffold a starter config:
 
-```php
-return [
-    // ... other bundles
-    Tenancy\Bundle\TenancyBundle::class => ['all' => true],
-];
+```bash
+bin/console tenancy:install
 ```
 
-Then create `config/packages/tenancy.yaml` with the full defaults:
+In one shot, this command auto-registers `Tenancy\Bundle\TenancyBundle::class` in your application's bundle list (using an AST-safe edit, never a blind regex), writes a fully commented `config/packages/tenancy.yaml` with sensible defaults, and prints next-step guidance for picking a driver and wiring your first tenant. See the [`tenancy:install` CLI reference](cli-commands.md#tenancy-install) for the full surface.
 
-```yaml
-tenancy:
-    driver: database_per_tenant
-    strict_mode: true
-    landlord_connection: default
-    tenant_entity_class: Tenancy\Bundle\Entity\Tenant
-    cache_prefix_separator: '.'
-    database:
-        enabled: false
-    resolvers:
-        - host
-        - header
-        - query_param
-        - console
-    host:
-        app_domain: ~
-```
+Two useful flags:
 
-!!! tip "Or use tenancy:init"
-    Instead of creating the config manually, run `bin/console tenancy:init` to generate a fully
-    commented `config/packages/tenancy.yaml` with all keys and Doctrine-aware driver recommendations.
-    See [CLI Commands](cli-commands.md#tenancyinit) for details.
+- `bin/console tenancy:install --dry-run` — prints the proposed mutations without writing anything, so you can review before applying.
+- `bin/console tenancy:install --force` — overwrites an existing `config/packages/tenancy.yaml` (the default behavior refuses to overwrite). Useful when re-running the scaffold after a deliberate reset.
+
+If your application's bundle list has a non-standard shape that the AST parser refuses to mutate, the command prints a copy-paste snippet showing the exact line to add manually. The scaffold step always runs even when the registration step is skipped.
 
 ---
 
@@ -60,6 +43,7 @@ The bundle uses `class_exists()` and `interface_exists()` guards throughout. Fea
 | Shared-DB driver | `doctrine/orm`, `doctrine/dbal`, `doctrine/doctrine-bundle` | Doctrine SQL filter with `#[TenantAware]` attribute |
 | Tenant migrations | `doctrine/migrations` | `tenancy:migrate` command |
 | Messenger context propagation | `symfony/messenger` | `TenantStamp`, sending/worker middlewares — auto-enrolled in all buses |
+| Per-tenant mailer | `symfony/mailer` | `MailerBootstrapper` with X-Transport strategy |
 
 !!! note "Core runs without Doctrine"
     If you only need header/subdomain resolution and cache isolation, the bundle runs without any Doctrine package installed. The resolver chain, bootstrapper lifecycle, and cache namespacing are all dependency-free.
@@ -77,6 +61,7 @@ The bundle uses `class_exists()` and `interface_exists()` guards throughout. Fea
 | doctrine/doctrine-bundle *(optional)* | `^2.11` |
 | doctrine/migrations *(optional)* | `^3.7` |
 | symfony/messenger *(optional)* | `^7.4` or `^8.0` |
+| symfony/mailer *(optional)* | `^7.4` or `^8.0` |
 
 ---
 
