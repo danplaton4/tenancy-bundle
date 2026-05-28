@@ -74,7 +74,7 @@ That's it. Subdomain requests resolve tenants, database connections switch, cach
 | **5 built-in resolvers** | Subdomain, Origin header (SPA-friendly, allow-listed), `X-Tenant-ID` header, query param, CLI `--tenant` |
 | **Cache isolation** | Per-tenant cache namespace — no cross-tenant bleed |
 | **Messenger context** | `TenantStamp` on every envelope, re-booted on consume |
-| **CLI commands** | `tenancy:init`, `tenancy:migrate`, and `tenancy:run` |
+| **CLI commands** | `tenancy:install`, `tenancy:init`, `tenancy:migrate`, and `tenancy:run` |
 | **PHPUnit trait** | `InteractsWithTenancy` for clean per-test tenant setup |
 | **Strict mode** | `TenantMissingException` when querying without tenant (default: ON) |
 | **Profiler tab** | "Tenancy" panel in the WDT in dev — slug, label, driver, resolver, bootstrappers, error state. Auto-stripped in prod ([guide](user-guide/profiler-tab.md)) |
@@ -89,7 +89,7 @@ Request --> Router (priority 32)
        TenantContextOrchestrator (priority 20)
               |
         ResolverChain
-        (Host / Header / QueryParam / Console)
+        (Host / Origin / Header / QueryParam / Console)
               |
        TenantResolved event
               |
