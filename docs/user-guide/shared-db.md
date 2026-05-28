@@ -175,4 +175,4 @@ class Receipt extends Document { ... }  // inherits tenant scoping
 
 - [Database-per-Tenant Driver](database-per-tenant.md) — maximum isolation with separate databases
 - [Strict Mode](strict-mode.md) — handling non-tenant contexts safely
-- [Examples: API Header](examples/api-header.md) — shared-DB with REST API example
+- [Examples: API Header](../examples/api-header.md) — shared-DB with REST API example

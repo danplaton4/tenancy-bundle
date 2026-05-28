@@ -257,4 +257,4 @@ bin/console tenancy:migrate --tenant=acme
 - [Shared-DB Driver](shared-db.md) — single database, SQL filter isolation
 - [CLI Commands](cli-commands.md) — `tenancy:migrate`, `tenancy:run`
 - [Testing](testing.md) — `InteractsWithTenancy` trait for database-per-tenant tests
-- [Examples: SaaS Subdomain](examples/saas-subdomain.md) — end-to-end tutorial
+- [Examples: SaaS Subdomain](../examples/saas-subdomain.md) — end-to-end tutorial

@@ -349,7 +349,7 @@ class ProjectIsolationTest extends KernelTestCase
 
 ## See Also
 
-- [Database-per-Tenant Driver](../database-per-tenant.md) — full driver documentation
-- [CLI Commands](../cli-commands.md) — `tenancy:migrate`, `tenancy:run`
-- [Testing](../testing.md) — `InteractsWithTenancy` full reference
+- [Database-per-Tenant Driver](../user-guide/database-per-tenant.md) — full driver documentation
+- [CLI Commands](../user-guide/cli-commands.md) — `tenancy:migrate`, `tenancy:run`
+- [Testing](../user-guide/testing.md) — `InteractsWithTenancy` full reference
 - [Examples: API Header](api-header.md) — shared-DB with REST API

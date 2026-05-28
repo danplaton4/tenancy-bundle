@@ -295,7 +295,7 @@ class InvoiceControllerTest extends WebTestCase
 
 ## See Also
 
-- [Shared-DB Driver](../shared-db.md) — full driver documentation
-- [Strict Mode](../strict-mode.md) — handling unauthenticated requests
-- [Resolvers](../resolvers.md) — available tenant resolvers
+- [Shared-DB Driver](../user-guide/shared-db.md) — full driver documentation
+- [Strict Mode](../user-guide/strict-mode.md) — handling unauthenticated requests
+- [Resolvers](../user-guide/resolvers.md) — available tenant resolvers
 - [Examples: SaaS Subdomain](saas-subdomain.md) — database-per-tenant tutorial

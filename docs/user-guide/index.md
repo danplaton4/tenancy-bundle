@@ -24,5 +24,5 @@ New to the bundle? Start here:
 
 ## Real-World Examples
 
-- [SaaS Subdomain](examples/saas-subdomain.md) — full subdomain-based multi-tenant SaaS
-- [API Header](examples/api-header.md) — X-Tenant-ID header for API-first apps
+- [SaaS Subdomain](../examples/saas-subdomain.md) — full subdomain-based multi-tenant SaaS
+- [API Header](../examples/api-header.md) — X-Tenant-ID header for API-first apps
