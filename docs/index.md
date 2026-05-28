@@ -61,6 +61,7 @@ That's it. Subdomain requests resolve tenants, database connections switch, cach
 
 [:octicons-arrow-right-24: Installation guide](user-guide/installation.md){ .md-button .md-button--primary }
 [:octicons-arrow-right-24: Getting started](user-guide/getting-started.md){ .md-button }
+[:octicons-arrow-right-24: Roadmap](roadmap.md){ .md-button }
 
 ---
 
@@ -70,7 +71,7 @@ That's it. Subdomain requests resolve tenants, database connections switch, cach
 |---------|-------------|
 | **Database-per-tenant** | DBAL connection switching at runtime via `Doctrine\DBAL\Driver\Middleware` |
 | **Shared-database** | Doctrine SQL filter with `#[TenantAware]` attribute |
-| **4 built-in resolvers** | Subdomain, `X-Tenant-ID` header, query param, CLI `--tenant` |
+| **5 built-in resolvers** | Subdomain, Origin header (SPA-friendly, allow-listed), `X-Tenant-ID` header, query param, CLI `--tenant` |
 | **Cache isolation** | Per-tenant cache namespace — no cross-tenant bleed |
 | **Messenger context** | `TenantStamp` on every envelope, re-booted on consume |
 | **CLI commands** | `tenancy:init`, `tenancy:migrate`, and `tenancy:run` |
