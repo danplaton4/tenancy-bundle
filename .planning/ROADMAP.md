@@ -43,7 +43,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 - [x] **Phase 19: Profiler Tab** — `TenantDataCollector` + Twig template, dev-only, three render states (resolved/null/error), stored-profile reload tested (DX-02) (completed 2026-05-19)
 - [x] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04) (completed 2026-05-20)
 - [x] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01) — *4/4 plans complete; verification gaps_found (CR-02 smoke gate)* (completed 2026-05-22)
-- [ ] **Phase 22: Docs Refresh** — install page rewrite, new pages (resolver/profiler/mailer/demo/roadmap), UPGRADE 0.2→0.3, docs-lint extended (DOC-19)
+- [x] **Phase 22: Docs Refresh** — install page rewrite, new pages (resolver/profiler/mailer/demo/roadmap), UPGRADE 0.2→0.3, docs-lint extended (DOC-19) (completed 2026-05-28; 4 human_needed items in 22-HUMAN-UAT.md — mkdocs --strict in CI, ASCII visual check, post-publish URL, cross-tree link rendering)
 
 **Architectural decisions ratified** (see `REQUIREMENTS.md#architectural-decisions-ratified`): DEC-MAIL-01 X-Transport strategy, DEC-MAIL-02 full BOOT-04 in v0.3, DEC-MAIL-03 BC break with trait, DEC-RESV-01 priority 25, DEC-PROF-01 TenantResolved subscriber, DEC-INST-01 programmatic invoke, DEC-INST-02 refuse-on-nonstandard, DEC-DEMO-01 Caddy + `*.tenancy.localhost`.
 
@@ -240,15 +240,15 @@ Plans:
 Plans:
 **Wave 1** *(parallel — no inter-dependencies)*
 
-- [ ] 22-01-PLAN.md — composer.json nikic suggest→require + installation.md one-command + index.md Quick Start (D-09/D-10/D-11/D-12)
-- [ ] 22-02-PLAN.md — UPGRADE.md new 0.3.2→0.3.3 section + 0.2→0.3 wording polish (D-13, SC5)
-- [ ] 22-03-PLAN.md — Profiler-tab 3-state ASCII renders + new mailer-bootstrapper.md page (D-01/D-02/D-14)
-- [ ] 22-04-PLAN.md — examples/ reorg + new saas-demo.md thin walkthrough + 4 cross-link updates (D-06/D-07/D-08)
-- [ ] 22-05-PLAN.md — Yellow page refresh: getting-started/configuration/resolvers/cli-commands surgical additions (D-17/D-18/D-19/D-20)
+- [x] 22-01-PLAN.md — composer.json nikic suggest→require + installation.md one-command + index.md Quick Start (D-09/D-10/D-11/D-12)
+- [x] 22-02-PLAN.md — UPGRADE.md new 0.3.2→0.3.3 section + 0.2→0.3 wording polish (D-13, SC5)
+- [x] 22-03-PLAN.md — Profiler-tab 3-state ASCII renders + new mailer-bootstrapper.md page (D-01/D-02/D-14)
+- [x] 22-04-PLAN.md — examples/ reorg + new saas-demo.md thin walkthrough + 4 cross-link updates (D-06/D-07/D-08)
+- [x] 22-05-PLAN.md — Yellow page refresh: getting-started/configuration/resolvers/cli-commands surgical additions (D-17/D-18/D-19/D-20)
 
 **Wave 2** *(blocked on Wave 1 — final assembly)*
 
-- [ ] 22-06-PLAN.md — roadmap mirror (canonical→docs) + mkdocs.yml nav reorg + docs-lint awk extension + integration smoke (D-03/D-04/D-05/D-15/D-16, SC4/SC6)
+- [x] 22-06-PLAN.md — roadmap mirror (canonical→docs) + mkdocs.yml nav reorg + docs-lint awk extension + integration smoke (D-03/D-04/D-05/D-15/D-16, SC4/SC6)
 
 > Full v0.3 phase-summary table and dependency notes live in `.planning/milestones/v0.3-ROADMAP.md`.
 

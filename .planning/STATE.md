@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: executing
-stopped_at: Phase 22 context gathered
-last_updated: "2026-05-28T14:14:43.125Z"
-last_activity: 2026-05-28 -- Phase 22 planning complete
+status: milestone_complete
+stopped_at: Phase 22 complete; v0.3 milestone done; ready to tag v0.3.3
+last_updated: "2026-05-28T17:10:00.000Z"
+last_activity: 2026-05-28 -- Phase 22 executed; 6/6 plans + 22-VERIFICATION human_needed (mkdocs --strict deferred to CI + 3 visual items)
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 46
-  completed_plans: 40
-  percent: 83
+  completed_phases: 6
+  total_plans: 52
+  completed_plans: 46
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 22 — Docs Refresh (DOC-19) — last phase in v0.3 milestone
+**Current focus:** v0.3 milestone COMPLETE. Ready to tag v0.3.3 (after CI confirms `mkdocs build --strict`). Then `/gsd:complete-milestone` and plan v0.4.
 
 ## Current Position
 
-Phase: 22 (docs-refresh) — PENDING
-Plans: 5 of 5 complete on Phase 21 (last phase shipped); 0 of TBD on Phase 22
-Status: Ready to execute
-Last activity: 2026-05-28 -- Phase 22 planning complete
+Phase: 22 (docs-refresh) — COMPLETE (verification: human_needed; 4 items in 22-HUMAN-UAT.md)
+Plans: 6 of 6 complete on Phase 22 — install UX rewrite, UPGRADE 0.3.2→0.3.3, profiler ASCII + mailer page, examples reorg, yellow-page refresh, roadmap mirror + docs-lint extension
+Status: Milestone v0.3 complete — ready to tag v0.3.3
+Last activity: 2026-05-28 -- Phase 22 executed; 4 human_needed items deferred (mkdocs --strict in CI, ASCII visual check, post-publish URL, cross-tree link rendering)
 
 ## Performance Metrics
 
