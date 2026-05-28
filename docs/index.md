@@ -17,9 +17,10 @@ Laravel has `stancl/tenancy`. Symfony had nothing comparable — until now. This
 
 ```bash
 composer require danplaton4/tenancy-bundle
+bin/console tenancy:install
 ```
 
-Register the bundle in `config/bundles.php`, then run `bin/console tenancy:init` to generate `config/packages/tenancy.yaml` with commented defaults.
+One command pulls the bundle in; the second registers it and scaffolds a commented `config/packages/tenancy.yaml`. See the [Installation guide](user-guide/installation.md) for the full walkthrough.
 
 **2. Configure** (`config/packages/tenancy.yaml`):
 
