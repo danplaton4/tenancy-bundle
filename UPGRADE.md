@@ -1,5 +1,46 @@
 # Upgrade Guide
 
+## 0.3.2 to 0.3.3
+
+This release moves `nikic/php-parser` from `composer.json#suggest` to
+`composer.json#require` so that `bin/console tenancy:install` works on a fresh
+project without any prerequisite installs. **No application code or schema
+changes are required.**
+
+### What changed
+
+In v0.3.0–v0.3.2 the bundle followed Phase 18 decision **DEC-INST-02**:
+`nikic/php-parser` was a soft suggestion. The README told users they had to run
+`composer require --dev nikic/php-parser` themselves before `tenancy:install`
+could rewrite `config/bundles.php`, and the install command exited with an
+instructional error if the package was missing. The intent was a leaner
+production dependency tree — nikic is a ~50 KB AST parser that's idle at
+runtime.
+
+In practice, the prerequisite step made the "one-command install" promise a
+two-command install with a confusing first error. Phase 22 reverses
+**DEC-INST-02** based on user feedback: `nikic/php-parser` is now a hard
+production dependency (`require`), so a single `composer require
+danplaton4/tenancy-bundle` pulls it in transitively and `tenancy:install`
+"just works" on first invocation. The trade-off — production deploys carry
+~50 KB of AST parser code that's idle after install — is accepted in exchange
+for the cleaner onboarding UX.
+
+### Action required
+
+**None.** Run `composer update danplaton4/tenancy-bundle` and the new
+dependency tree resolves automatically. No application code changes, no
+Doctrine migrations, no config edits.
+
+### Note for users who installed nikic manually
+
+If you previously ran `composer require --dev nikic/php-parser` as a workaround
+to make `tenancy:install` work on v0.3.0–v0.3.2, you may now remove it from
+your project's `require-dev` — Composer will resolve it as a transitive
+dependency of `danplaton4/tenancy-bundle`. Leaving it in `require-dev` is
+harmless (Composer dedupes), so this is purely a cleanup step.
+
+
 ## 0.3.1 to 0.3.2
 
 ### Custom tenant entities: extend `AbstractTenant`, not `Tenant`
