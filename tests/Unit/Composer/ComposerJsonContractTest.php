@@ -7,13 +7,14 @@ namespace Tenancy\Bundle\Tests\Unit\Composer;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Composer manifest contract test (DX-06 success criterion 5).
+ * Composer manifest contract test (Phase 22 D-09/D-10/D-13).
  *
- * Guards the invariant that `nikic/php-parser` is a developer-time dependency
- * only — never present in `require`. The library is used by `tenancy:install`
- * (a one-shot scaffolding command), not by any runtime code path the bundle
- * exposes to consumer applications. A leak into `require` would impose a
- * ~1 MB transitive dependency on every consumer.
+ * v0.3.3 reverses Phase 18 DEC-INST-02: `nikic/php-parser` is now a hard runtime
+ * dependency declared in `composer.json#require` so that `tenancy:install` works
+ * one-command for end users. The library is also kept in `require-dev` (so the
+ * bundle's own test suite continues to resolve it explicitly) and removed from
+ * `suggest` (since it's no longer a suggestion — it's required). This test
+ * guards the new contract.
  */
 final class ComposerJsonContractTest extends TestCase
 {
@@ -28,14 +29,21 @@ final class ComposerJsonContractTest extends TestCase
         return $decoded;
     }
 
-    public function testNikicPhpParserIsAbsentFromRuntimeRequire(): void
+    public function testNikicPhpParserIsPresentInRuntimeRequire(): void
     {
         $manifest = $this->manifest();
         $require = \is_array($manifest['require'] ?? null) ? $manifest['require'] : [];
-        self::assertArrayNotHasKey(
+        self::assertArrayHasKey(
             'nikic/php-parser',
             $require,
-            'nikic/php-parser must NEVER appear in composer.json `require` — it is a dev-only dependency for tenancy:install.'
+            'nikic/php-parser must appear in composer.json `require` (Phase 22 D-09 — promoted from suggest so tenancy:install works one-command).'
+        );
+        $version = $require['nikic/php-parser'];
+        self::assertIsString($version);
+        self::assertMatchesRegularExpression(
+            '/^\^5\./',
+            $version,
+            'nikic/php-parser must be pinned to ^5.x (the v5 namespace shape is what BundlesPhpInstaller targets).'
         );
     }
 
@@ -53,14 +61,14 @@ final class ComposerJsonContractTest extends TestCase
         );
     }
 
-    public function testNikicPhpParserIsSuggestedWithRationale(): void
+    public function testNikicPhpParserIsAbsentFromSuggest(): void
     {
         $manifest = $this->manifest();
         $suggest = \is_array($manifest['suggest'] ?? null) ? $manifest['suggest'] : [];
-        self::assertArrayHasKey('nikic/php-parser', $suggest);
-        self::assertNotEmpty(
-            $suggest['nikic/php-parser'],
-            'nikic/php-parser suggest entry must include a rationale string so `composer suggest` users see why.'
+        self::assertArrayNotHasKey(
+            'nikic/php-parser',
+            $suggest,
+            'nikic/php-parser must NOT appear in composer.json `suggest` (Phase 22 D-10 — it is required, not suggested).'
         );
     }
 }
