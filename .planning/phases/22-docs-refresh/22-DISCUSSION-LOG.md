@@ -133,9 +133,24 @@
 - Whether to include a silent footnote on installation.md mentioning that `nikic/php-parser` arrives transitively via the install, or to say nothing at all.
 - mkdocs nav ordering of new entries (logical/feature-grouped vs alphabetical) — captured loosely as D-16, planner can refine.
 
+## Follow-up scope expansion — yellow pages folded in
+
+After the main 4-area discussion completed and CONTEXT.md was first committed (commit `5eb4396`), the user asked about the "yellow but not red" pages listed in the deferred section. Discussion outcome:
+
+### Q — The 4 yellow pages: fold into Phase 22 or leave deferred?
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Fold into Phase 22 — ship docs truly complete in v0.3.3 (Recommended) | Add 4 page refreshes as surgical additions to existing pages. Phase 22 grows ~30-40%. v0.3.3 ships with docs genuinely complete for v0.3 surface. | ✓ |
+| Leave deferred — ship tight Phase 22, refresh later | Stay with original scope. Yellow pages stay yellow until user feedback or future docs sweep. | |
+| Mid — fold the worst two (getting-started + cli-commands), leave the others | Compromise. Refresh the two most-read pages now. | |
+
+**User's choice:** Fold into Phase 22
+**Notes:** v0.3.3 will ship `AbstractTenant` + nikic-in-require + new mailer + new demo page; better to have the docs site genuinely complete on that release rather than having half the User Guide silently predating the v0.3 surface. Triggered D-17/D-18/D-19/D-20 in CONTEXT.md.
+
 ## Deferred Ideas
 
-- `getting-started.md` + `configuration.md` v0.3 refresh — yellow but not red. Will land naturally when user friction surfaces or in a future docs phase.
 - Symfony Flex recipe automation — project decision holds (no-Flex memory).
 - `tenancy:install` shell-out to `composer require nikic/php-parser` — superseded by D-09 (nikic now a hard dep). Permanently retired.
-- Per-resolver subpages under a "Resolvers" nav group — cosmetic, out of scope.
+- Per-resolver subpages under a "Resolvers" nav group — cosmetic, out of scope. May revisit if `resolvers.md` grows past ~500 lines after the D-19 addition.
+- Documentation versioning (mike, mkdocs-versioning) — out of scope until adoption justifies maintenance cost.

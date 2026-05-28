@@ -15,9 +15,13 @@ The docs site catches up to what v0.3 actually shipped (Phases 17–21). Specifi
 5. `UPGRADE.md` 0.2→0.3 section already covers the `TenantInterface::getMailerDsn()` BC break + `TenantMailerConfigTrait` migration — verify wording is final, add a note that DEC-INST-02 (Phase 18) is reversed.
 6. `scripts/docs-lint.sh` extended: fail on any `bundles.php` reference in docs/ outside Migration/Upgrade sections (regression guard for SC1).
 
-**Scope expansion locked during discussion:** Add `nikic/php-parser` to `composer.json` `require` (was `suggest` per DEC-INST-02). Ship docs + dep change + install UX together as **v0.3.3** patch release. After this change, `tenancy:install` works without users having to know about nikic.
+**Scope expansion locked during discussion (1) — composer.json:** Add `nikic/php-parser` to `composer.json` `require` (was `suggest` per DEC-INST-02). Ship docs + dep change + install UX together as **v0.3.3** patch release. After this change, `tenancy:install` works without users having to know about nikic.
 
-**Existing pages out of scope for this phase** (yellow but not red — `getting-started.md`, `configuration.md`, `resolvers.md`, `cli-commands.md`). They're stale-but-not-misleading; will be refreshed organically when real user friction surfaces.
+**Scope expansion locked during discussion (2) — yellow page refresh:** Four existing User Guide pages predate the v0.3 surface and need surgical additions (not rewrites) so the docs are genuinely complete in v0.3.3:
+- `getting-started.md` — add v0.3 feature pointers (Origin resolver, Profiler tab, Mailer) with cross-links
+- `configuration.md` — add `origin.allow_list` config block + per-tenant mailer config notes
+- `resolvers.md` — add OriginHeaderResolver as the 5th built-in resolver (priority 25); cross-link to `origin-header-resolver.md`
+- `cli-commands.md` — add `tenancy:install` entry as the headline one-command-setup path
 
 </domain>
 
@@ -50,6 +54,12 @@ The docs site catches up to what v0.3 actually shipped (Phases 17–21). Specifi
 
 ### docs-lint rule (SC6)
 - **D-15:** Extend `scripts/docs-lint.sh` with a targeted check: `grep -rn 'bundles\.php' docs/ --include='*.md'` with `awk`-based filtering that excludes lines inside a `## Migration` or `## Upgrade` heading scope. Catches the regression case (install instructions sneaking `bundles.php` back in) without flagging legitimate references in upgrade guides.
+
+### Yellow page refresh — surgical additions to existing User Guide pages (scope expansion 2)
+- **D-17 (`getting-started.md`):** Add three short subsections to the existing page (do NOT rewrite the rest): (a) "Resolving tenants from SPA Origin headers" — 2-paragraph teaser pointing at `origin-header-resolver.md`; (b) "Inspecting the active tenant in dev" — 1-paragraph teaser pointing at `profiler-tab.md`; (c) "Per-tenant mailer config" — 2-paragraph teaser pointing at the new `mailer-bootstrapper.md`. Each subsection ends with a "Full guide → [page]" link. Keep the page's current install-and-config flow intact.
+- **D-18 (`configuration.md`):** Add `origin.allow_list` config block to the reference (mirror the syntax from `docs/user-guide/origin-header-resolver.md` § Configuration so the two pages don't drift). Add a "Per-tenant mailer config" subsection that documents the three nullable Tenant columns (`mailerDsn`, `mailerFrom`, `mailerReplyTo`) and the `TenantMailerConfigTrait` shortcut. Cross-link to `mailer-bootstrapper.md` for the full strategy explanation.
+- **D-19 (`resolvers.md`):** Add OriginHeaderResolver as the 5th built-in resolver with: priority (25), trust model summary (1 paragraph), allow-list requirement (1 sentence), and cross-link to `origin-header-resolver.md` for the full Trust Model section. Update the page's "4 built-in resolvers" intro to say 5. Do NOT duplicate the full Trust Model content from the dedicated page.
+- **D-20 (`cli-commands.md`):** Promote `tenancy:install` to the top of the page as the headline one-command-setup path. Demote `tenancy:init` to a "Manual config scaffold" sub-section under it (init still has standalone uses — e.g., regenerating tenancy.yaml without re-registering the bundle). Document `tenancy:install --dry-run` and `--force` flags. Do NOT touch the `tenancy:migrate` / `tenancy:run` sections.
 
 ### mkdocs nav reorganization (D-07 side effect)
 - **D-16:** mkdocs nav adds the following new entries (Claude discretion on ordering):
@@ -126,10 +136,10 @@ The docs site catches up to what v0.3 actually shipped (Phases 17–21). Specifi
 <deferred>
 ## Deferred Ideas
 
-- **`getting-started.md` + `configuration.md` refresh** to mention v0.3 features (Origin resolver allow-list, mailer config block, profiler panel auto-registration). Out of scope here because they're stale-but-not-misleading. Will land naturally when (a) a user opens an issue about a config option they couldn't find, or (b) some future docs phase consolidates everything.
+- **Per-resolver subpage refactor** under a "Resolvers" nav group (currently flat `resolvers.md`). Cosmetic and out of scope. May revisit if `resolvers.md` grows past ~500 lines after the D-19 addition.
+- **Documentation versioning** (mike, mkdocs-versioning, etc.) — when v0.4 and v1.0 ship, current docs site will only show the latest. Out of scope until adoption justifies the maintenance cost.
 - **Symfony Flex recipe** to automate the install path further. Project decision (see PROJECT.md / no-Flex memory) holds: recipe maintenance cost > current install friction. Revisit when install volume is meaningful.
 - **`tenancy:install` shell-out to `composer require nikic/php-parser`** if nikic is missing. D-09 supersedes the need — nikic is always present after this phase. The shell-out idea (option 4 in the nikic discussion) is permanently retired.
-- **Per-resolver subpage** under a "Resolvers" nav group (currently flat `resolvers.md`). Cosmetic and out of scope. May revisit if `resolvers.md` grows past ~500 lines.
 
 </deferred>
 
