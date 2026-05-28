@@ -70,17 +70,21 @@ nav:
     - Installation: user-guide/installation.md
     - Getting Started: user-guide/getting-started.md
     - Configuration Reference: user-guide/configuration.md
-    - Resolvers: user-guide/resolvers.md
     - Database-per-Tenant: user-guide/database-per-tenant.md
     - Shared-DB Driver: user-guide/shared-db.md
+    - Resolvers: user-guide/resolvers.md
+    - Origin Header Resolver: user-guide/origin-header-resolver.md
     - Cache Isolation: user-guide/cache-isolation.md
+    - Mailer Bootstrapper: user-guide/mailer-bootstrapper.md
     - Messenger Integration: user-guide/messenger.md
     - CLI Commands: user-guide/cli-commands.md
+    - Profiler Tab: user-guide/profiler-tab.md
     - Testing: user-guide/testing.md
     - Strict Mode: user-guide/strict-mode.md
-    - Examples:
-      - SaaS Subdomain: user-guide/examples/saas-subdomain.md
-      - API Header: user-guide/examples/api-header.md
+  - Examples:
+    - SaaS Subdomain: examples/saas-subdomain.md
+    - API Header: examples/api-header.md
+    - SaaS Demo (runnable): examples/saas-demo.md
   - Contributor Guide:
     - contributor-guide/index.md
     - Development Setup: contributor-guide/setup.md
@@ -98,6 +102,7 @@ nav:
     - SQL Filter Internals: architecture/sql-filter.md
     - Messenger Stamp Lifecycle: architecture/messenger-lifecycle.md
     - Design Decisions: architecture/design-decisions.md
+  - Roadmap: roadmap.md
 
 extra:
   social:
