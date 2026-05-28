@@ -1,6 +1,6 @@
 # Resolvers
 
-Resolvers identify the current tenant from each request. The bundle ships with four resolvers and supports unlimited custom resolvers via the standard Symfony DI tag system.
+Resolvers identify the current tenant from each request. The bundle ships with five resolvers and supports unlimited custom resolvers via the standard Symfony DI tag system.
 
 ---
 
@@ -15,6 +15,7 @@ At `kernel.request` priority 20, `TenantContextOrchestrator` calls `ResolverChai
 | Resolver | Priority | Trigger | Config Key |
 |----------|----------|---------|------------|
 | `HostResolver` | 30 | Subdomain: `acme.example.com` | `tenancy.host.app_domain` |
+| `OriginHeaderResolver` | 25 | Header: `Origin` (browser-locked) | `tenancy.origin.allow_list` |
 | `HeaderResolver` | 20 | Header: `X-Tenant-ID: acme` | *(none)* |
 | `QueryParamResolver` | 10 | Query param: `?_tenant=acme` | *(none)* |
 | `ConsoleResolver` | N/A | CLI option: `--tenant=acme` | *(none)* |
@@ -62,6 +63,22 @@ For multi-segment subdomains (e.g. `api.acme.example.com`), the resolver takes t
 ### When app_domain is null
 
 When `tenancy.host.app_domain` is `null` (the default), `HostResolver` always returns `null` and passes control to the next resolver. You must configure `app_domain` for subdomain resolution to work.
+
+---
+
+## OriginHeaderResolver
+
+**Priority: 25**
+
+Reads the browser-set `Origin` HTTP header and matches it against an allow-list configured under `tenancy.origin.allow_list`. Sits between `HostResolver` (30) and `HeaderResolver` (20) in the chain, designed for single-page apps that call a cross-origin API.
+
+### Trust model summary
+
+For cross-origin XHR, `fetch()`, and CORS preflight, the browser sets `Origin` itself — it is in the Fetch standard's "forbidden header name" list, so page-side JavaScript cannot override it. That makes `Origin` a strong tenant-routing signal **inside a browser context**. But `Origin` is **trivially settable from non-browser clients** (curl, Postman, native mobile, server-to-server, bots). Treat `OriginHeaderResolver` as a routing convenience for browser SPAs and always pair it with your real authentication layer (Bearer tokens, cookies + CSRF, signed requests) for any endpoint that does anything sensitive.
+
+Every entry must be allow-listed in `tenancy.origin.allow_list`; empty allow-lists and mid-string wildcards fail at container compile time, not at runtime, so misconfigurations cannot ship.
+
+[Full Trust Model →](origin-header-resolver.md#trust-model)
 
 ---
 
@@ -185,8 +202,8 @@ tenancy:
     Removing `console` from the `resolvers` list has no effect — `ConsoleResolver` is registered unconditionally as a `ConsoleCommandEvent` listener.
 
 !!! note "Custom resolvers always pass through"
-    The `tenancy.resolvers` config list only filters the four built-in resolvers (`host`,
-    `header`, `query_param`, `console`). Custom resolvers that implement
+    The `tenancy.resolvers` config list only filters the five built-in resolvers (`host`,
+    `origin`, `header`, `query_param`, `console`). Custom resolvers that implement
     `TenantResolverInterface` are **never** filtered — they are always added to the chain
     regardless of the `resolvers` config value. This means you cannot accidentally disable
     a custom resolver by omitting it from the config list.
