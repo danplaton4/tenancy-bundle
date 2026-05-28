@@ -210,8 +210,8 @@ and SQLite — no downtime, no data backfill required (a null mailerDsn falls
 back to your application's default Mailer DSN).
 
 For full BOOT-04 context — bootstrapper architecture, per-tenant transport
-cache, DSN sanitization, async Messenger interop — see the user-guide page
-`docs/user-guide/mailer-bootstrapper.md` (coming in the v0.3 docs refresh).
+cache, DSN sanitization, async Messenger interop — see the
+[Mailer Bootstrapper guide](docs/user-guide/mailer-bootstrapper.md).
 
 ## 0.1 to 0.2
 
