@@ -255,6 +255,34 @@ BootstrapperChain.clear()  (reverse order)
 
 ---
 
+## Beyond the basics
+
+The path above is the minimal install-and-resolve flow. Once it works, three v0.3 features come into play for production-shaped projects: a browser-locked resolver for SPAs, a Symfony Profiler panel for dev introspection, and per-tenant SMTP transports for outgoing email. Each has a dedicated guide — short teasers below.
+
+### Resolving tenants from SPA Origin headers
+
+`OriginHeaderResolver` reads the browser-set `Origin` HTTP header and matches it against a configurable allow-list. It sits in the resolver chain at priority **25** — above `HeaderResolver` (20), below `HostResolver` (30) — and is opt-in via the `tenancy.resolvers` config list.
+
+The use case is single-page apps running on a different origin from your API: a React app at `https://acme.app.example.com` calling `https://api.example.com`. Cross-origin CORS preflight makes custom headers awkward to ship reliably, but browsers stamp `Origin` automatically and JavaScript cannot forge it. Treat Origin as a routing convenience — pair it with real authentication for trust-sensitive routes.
+
+Full guide → [Origin Header Resolver](origin-header-resolver.md)
+
+### Inspecting the active tenant in dev
+
+The bundle ships a **Tenancy** panel in the Symfony Profiler and Web Debug Toolbar. It shows the active tenant slug, label, driver, connection, the resolver FQCN that resolved the request, and the list of bootstrappers that ran. The panel renders cleanly in three states (resolved tenant / no-tenant request / resolution error), making it easy to debug subdomain routing or header parsing during development. The data collector is only registered when `kernel.debug = true` — production containers never see profiler code, verified by CI.
+
+Full guide → [Profiler Tab](profiler-tab.md)
+
+### Per-tenant mailer config
+
+Each tenant can carry its own SMTP transport, `From` address, and `Reply-To` address via three nullable columns on the Tenant entity: `mailerDsn`, `mailerFrom`, `mailerReplyTo`. The `TenantMailerConfigTrait` shortcut supplies all three (columns + getters + setters) in a single `use` statement on your custom Tenant entity. Returning `null` from any getter falls back to the landlord's default Mailer config.
+
+The bootstrapper works under **both** synchronous Mailer dispatch and Messenger-routed async dispatch via an `X-Transport: tenant_<slug>` header stamped before serialization — the stamp survives the broker round-trip and the worker routes the send through the right tenant's transport. A message dequeued for a deleted tenant **must throw, not silently drop** — `MailerTransportContractPass` enforces this contract at container compile time.
+
+Full guide → [Mailer Bootstrapper](mailer-bootstrapper.md)
+
+---
+
 ## Next Steps
 
 - [Configuration Reference](configuration.md) — every `tenancy.yaml` key with types and defaults
