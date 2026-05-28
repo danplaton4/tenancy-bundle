@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: planning
-stopped_at: Phase 21 shipped (v0.3.2 on Packagist 2b17a621c7)
-last_updated: "2026-05-22T19:30:00.000Z"
-last_activity: 2026-05-22 -- Phase 21 verified end-to-end against live Docker stack; v0.3.2 released; history rewritten to strip Claude trailers
+status: Ready to discuss / plan Phase 22
+stopped_at: Phase 22 context gathered
+last_updated: "2026-05-28T13:27:36.040Z"
+last_activity: 2026-05-22 -- v0.3.2 released; Claude co-author trailers stripped from all history (37 commits rewritten); demo-smoke CI gate live and green
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 45
-  completed_plans: 44
+  total_plans: 40
+  completed_plans: 40
   percent: 83
 ---
 
@@ -181,6 +181,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-22T10:19:48.915Z
-Stopped at: Phase 21 context gathered
-Resume file: .planning/phases/21-demo-app/21-CONTEXT.md
+Last session: 2026-05-28T13:27:36.031Z
+Stopped at: Phase 22 context gathered
+Resume file: .planning/phases/22-docs-refresh/22-CONTEXT.md
