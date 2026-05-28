@@ -41,8 +41,55 @@ check 'ReflectionProperty' "Found 'ReflectionProperty' (v0.1 hack — middleware
 check 'TenantConnection' "Found 'TenantConnection' (class deleted in v0.2 — reference the middleware)" "${TARGETS[@]}"
 check 'sqlite://' "Found 'sqlite://' URL form (use discrete driver:/path: params instead)" "${TARGETS[@]}"
 
+# D-15: fail on bundles.php install-path references in docs/
+#
+# Phase 22 D-11 replaced the manual "register the bundle in config/bundles.php" install
+# instructions with the one-command `tenancy:install` flow. This check guards against
+# regression — any future PR that reintroduces "edit config/bundles.php yourself" prose
+# in a non-whitelisted docs section fails CI.
+#
+# Whitelisted H2 sections (legitimate references stay in these scopes):
+#   - Migration              — migration recipes from v0.1/v0.2
+#   - Upgrade                — upgrade guides
+#   - Manual setup           — explicit manual-install fallback sections
+#   - Troubleshooting        — diagnostic checks ("is the bundle registered?")
+#   - Do I have to do anything?  — profiler-tab.md's optional web-profiler-bundle install path
+#   - tenancy:install        — cli-commands.md documents the command's AUTO-MUTATION behavior
+#                              (the command's PRIMARY purpose IS to safely edit bundles.php;
+#                              describing that is not the regression we're guarding against)
+#
+# Note: the whitelist is wider than CONTEXT.md D-15's literal text ("Migration / Upgrade only")
+# because profiler-tab.md's bundles.php references (under "Do I have to do anything?" and
+# "Troubleshooting") document the optional web-profiler-bundle install path, NOT the tenancy
+# install regression we're guarding against. Similarly, cli-commands.md's `## tenancy:install`
+# H2 documents the command's AST mutation behavior, which is legitimately about bundles.php.
+# Restructuring those docs to fit a narrower whitelist would be more disruptive than widening
+# the whitelist. See RESEARCH Open Q1 / Landmine #3 for the full rationale.
+#
+# Implementation: awk tracks the current H2 heading; when in a whitelisted section, body lines
+# are skipped before the grep stage. Heading lines themselves never reach the grep (the `next`
+# after the section detection ensures this).
+
+BUNDLES_VIOLATIONS=$(awk '
+    /^## / {
+        section = $0
+        sub(/^## /, "", section)
+        in_whitelist = (section ~ /^(Migration|Upgrade|Manual setup|Troubleshooting|Do I have to do anything\?|tenancy:install)/)
+        next
+    }
+    !in_whitelist { print FILENAME ":" FNR ":" $0 }
+' $(find docs/ -name '*.md') | grep -E 'bundles\.php' || true)
+
+if [ -n "$BUNDLES_VIOLATIONS" ]; then
+    echo ""
+    echo "ERROR: 'bundles.php' install-path reference found in docs/ outside whitelisted sections"
+    echo "       (Migration / Upgrade / Manual setup / Troubleshooting / Do I have to do anything? / tenancy:install)."
+    echo "$BUNDLES_VIOLATIONS"
+    EXIT=1
+fi
+
 if [[ $EXIT -eq 0 ]]; then
-    echo "docs-lint: OK — no stale v0.1 terms in docs/ or tenancy:init command."
+    echo "docs-lint: OK — no stale v0.1 terms in docs/ or tenancy:init command, and no bundles.php install-path regressions."
 fi
 
 exit $EXIT
