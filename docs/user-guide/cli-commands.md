@@ -1,8 +1,58 @@
 # CLI Commands
 
-The bundle provides three console commands: `tenancy:init` for scaffolding configuration,
-`tenancy:migrate` for running Doctrine Migrations across all tenants, and `tenancy:run` for
-executing any Symfony console command within a specific tenant's context.
+The bundle provides four commands: a one-shot setup command — `tenancy:install` — that
+auto-registers the bundle and scaffolds `config/packages/tenancy.yaml` in a single step, plus
+three subcommands: `tenancy:init` for regenerating the config file standalone, `tenancy:migrate`
+for running Doctrine Migrations across all tenants, and `tenancy:run` for executing any Symfony
+console command within a specific tenant's context.
+
+## tenancy:install
+
+One-command setup. Auto-registers `TenancyBundle::class` in `config/bundles.php` via AST
+detection (`nikic/php-parser`), invokes `tenancy:init` programmatically to scaffold the config
+file, and prints next-step guidance. Use this once per project right after
+`composer require danplaton4/tenancy-bundle`.
+
+### Usage
+
+```bash
+# One-shot setup — registers the bundle + scaffolds config/packages/tenancy.yaml
+bin/console tenancy:install
+
+# Preview the mutation without writing anything
+bin/console tenancy:install --dry-run
+
+# Overwrite an existing config/packages/tenancy.yaml (forwarded to tenancy:init)
+bin/console tenancy:install --force
+```
+
+### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--dry-run` | Prints the proposed `bundles.php` mutation and the YAML scaffold without writing either file. Safe to run on any project to see what would change. |
+| `--force` | Forwarded to the delegated `tenancy:init` call so an existing `config/packages/tenancy.yaml` is overwritten. Does NOT force the bundles.php mutation (that step is always idempotent and aborts on non-standard shapes — see below). |
+
+### Behavior on non-standard `bundles.php`
+
+If the command detects that `config/bundles.php` does not match the canonical Symfony skeleton
+shape — for example, a DDD project with a custom `registerBundles()` override in `src/Kernel.php`,
+or env-conditional loading via a wrapping `if (...)` — it does NOT mutate the file. Instead, it
+prints the exact PHP snippet to add manually and exits with code `0`. The command will never
+produce an invalid `bundles.php`: writes are atomic, a `.bak` copy is created before any
+mutation, and the result is syntax-validated with `php -l` before being committed to disk.
+
+### Idempotency
+
+Re-running `tenancy:install` on an already-installed project exits `0` with an informational
+message. The `bundles.php` AST scan detects the existing `TenancyBundle::class => …` entry and
+skips the mutation; `tenancy:init` refuses to overwrite an existing
+`config/packages/tenancy.yaml` unless `--force` is passed. Safe to run repeatedly in CI or
+provisioning scripts.
+
+See also: [Installation](installation.md) for the full v0.3.3 one-command install flow.
+
+---
 
 ## tenancy:init
 
