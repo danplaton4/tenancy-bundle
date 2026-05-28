@@ -4,8 +4,8 @@
 
 This release moves `nikic/php-parser` from `composer.json#suggest` to
 `composer.json#require` so that `bin/console tenancy:install` works on a fresh
-project without any prerequisite installs. **No application code or schema
-changes are required.**
+project without any prerequisite installs.
+**No application code or schema changes are required.**
 
 ### What changed
 
@@ -29,8 +29,9 @@ for the cleaner onboarding UX.
 ### Action required
 
 **None.** Run `composer update danplaton4/tenancy-bundle` and the new
-dependency tree resolves automatically. No application code changes, no
-Doctrine migrations, no config edits.
+dependency tree resolves automatically — no application code or schema changes
+are required for the 0.3.2 → 0.3.3 upgrade, no Doctrine migrations, no config
+edits.
 
 ### Note for users who installed nikic manually
 
