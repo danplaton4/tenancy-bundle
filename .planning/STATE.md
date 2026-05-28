@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: Ready to discuss / plan Phase 22
+status: executing
 stopped_at: Phase 22 context gathered
-last_updated: "2026-05-28T13:27:36.040Z"
-last_activity: 2026-05-22 -- v0.3.2 released; Claude co-author trailers stripped from all history (37 commits rewritten); demo-smoke CI gate live and green
+last_updated: "2026-05-28T14:14:43.125Z"
+last_activity: 2026-05-28 -- Phase 22 planning complete
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 40
+  total_plans: 46
   completed_plans: 40
   percent: 83
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 Phase: 22 (docs-refresh) — PENDING
 Plans: 5 of 5 complete on Phase 21 (last phase shipped); 0 of TBD on Phase 22
-Status: Ready to discuss / plan Phase 22
-Last activity: 2026-05-22 -- v0.3.2 released; Claude co-author trailers stripped from all history (37 commits rewritten); demo-smoke CI gate live and green
+Status: Ready to execute
+Last activity: 2026-05-28 -- Phase 22 planning complete
 
 ## Performance Metrics
 
