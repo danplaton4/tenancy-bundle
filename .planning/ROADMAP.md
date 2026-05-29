@@ -33,9 +33,9 @@
 
 </details>
 
-### 📋 v0.3 Adoption Surface — Phases 17–22 (6 active)
+### 📋 v0.3 Adoption Surface — Phases 17–23 (7 active)
 
-Goal: lower install friction + ship the highest-leverage missing features. 6 active phases, 6 active requirements. Phase 16 / GOV-01 skipped as a non-functional gate (see below). See `.planning/REQUIREMENTS.md` for full acceptance criteria and `.planning/research/SUMMARY.md` for the research synthesis.
+Goal: lower install friction + ship the highest-leverage missing features. 7 active phases, 6 active requirements + 1 closure phase. Phase 16 / GOV-01 skipped as a non-functional gate (see below). See `.planning/REQUIREMENTS.md` for full acceptance criteria and `.planning/research/SUMMARY.md` for the research synthesis.
 
 - ⊘ **Phase 16: Governance Carry-Forward** — **SKIPPED.** Non-functional process tooling (`audit-open` extension). Retrospective items #1 (plan↔summary parity) and #2 (`human_needed` 72h TTL) acknowledged as gaps in `RETROSPECTIVE.md` but intentionally not enforced via tooling. Bundle-user value is zero; the v0.2 retrospective surfaces the lessons humans need without machine enforcement. Phase number retained for stable references; downstream phase numbers (17–22) unchanged.
 - [x] **Phase 17: OriginHeaderResolver** — SPA-friendly resolver at priority 25, allow-list config, `OriginHeaderResolverConfigPass` guard (RESV-06) (completed 2026-05-15)
@@ -44,6 +44,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 6 act
 - [x] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04) (completed 2026-05-20)
 - [x] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01) — *4/4 plans complete; verification gaps_found (CR-02 smoke gate)* (completed 2026-05-22)
 - [x] **Phase 22: Docs Refresh** — install page rewrite, new pages (resolver/profiler/mailer/demo/roadmap), UPGRADE 0.2→0.3, docs-lint extended (DOC-19) (completed 2026-05-28; 4 human_needed items in 22-HUMAN-UAT.md — mkdocs --strict in CI, ASCII visual check, post-publish URL, cross-tree link rendering)
+- [ ] **Phase 23: v0.3 tech-debt closure** — close the accumulated tech-debt surfaced by `v0.3-MILESTONE-AUDIT.md` before tagging v0.3.3: INT-01 Profiler/Mailer Twig contract drift, CR-01 nullable-provider drift guard, WR-01 LogicException for misconfiguration, IN-01..IN-05 ZeroConfigKernelBootTest cleanup, smoke.sh mailer assertion, CHANGELOG Unreleased→0.3.2/0.3.3 promotion.
 
 **Architectural decisions ratified** (see `REQUIREMENTS.md#architectural-decisions-ratified`): DEC-MAIL-01 X-Transport strategy, DEC-MAIL-02 full BOOT-04 in v0.3, DEC-MAIL-03 BC break with trait, DEC-RESV-01 priority 25, DEC-PROF-01 TenantResolved subscriber, DEC-INST-01 programmatic invoke, DEC-INST-02 refuse-on-nonstandard, DEC-DEMO-01 Caddy + `*.tenancy.localhost`.
 
@@ -250,6 +251,34 @@ Plans:
 
 - [x] 22-06-PLAN.md — roadmap mirror (canonical→docs) + mkdocs.yml nav reorg + docs-lint awk extension + integration smoke (D-03/D-04/D-05/D-15/D-16, SC4/SC6)
 
+### Phase 23: v0.3 Tech-Debt Closure
+
+**Goal:** Close the accumulated tech-debt surfaced by `.planning/v0.3-MILESTONE-AUDIT.md` (2026-05-29) before tagging v0.3.3. Driven by the audit findings, not by a new requirement.
+
+**Requirements:** none new — closure items map to v0.3 REQ-IDs (DX-02, BOOT-04, DX-06, DEMO-01, DOC-19) that are already SATISFIED in VERIFICATION but carry deferred polish.
+
+**Scope (audit-driven):**
+
+1. **INT-01 (Twig contract drift)** — Move `{% if collector.data.mailer is defined %}` block in `src/Resources/views/Collector/tenant.html.twig` out of the resolved-only branch so mailer cache metrics are visible on null/error states (where `TenantDataCollector::collectMailerState()` already populates the data). Re-assert `TenantDataCollectorMailerSectionTest::testMailerKeyPresentWhenNoTenantButCacheWired` against the rendered template, not just the data array.
+2. **CR-01 (nullable-provider drift guard)** — Make all 6 sites consistent (`?TenantProviderInterface $tenantProvider = null` everywhere) AND add a contract test or PHPStan rule that pins the invariant. Builds on existing `NullableProviderInjectionContractTest`.
+3. **WR-01 (Messenger retry semantics)** — Introduce `Tenancy\Bundle\Exception\MissingTenantProviderException extends \LogicException`; swap `\RuntimeException` for it in `TenantRunCommand` and `TenantWorkerMiddleware` so Messenger treats it as a permanent config error, not a transient failure.
+4. **WR-02..WR-04 (intra-bundle consistency nits)** — `ConsoleResolver` guard-ordering docblock at the Application-mutation site; `QueryParamResolver` empty-string check pattern-aligned with `ConsoleResolver`; `TenantRunCommand` shell-injection trust-boundary docblock at `Process::fromShellCommandline` site.
+5. **IN-01..IN-05 (ZeroConfigKernelBootTest cosmetics)** — Drop stale `@group canary-red` + class-docblock framing; remove double-removal in `tearDownAfterClass`; add PID to cache-dir hash to prevent parallel-PHPUnit race; add explicit `use TenantStamp` in `TenantWorkerMiddleware`.
+6. **Smoke.sh mailer assertion** — Extend `examples/saas/bin/smoke.sh` to POST `/_demo/send-test-mail` for two tenants and query Mailpit's `/api/v1/messages` endpoint to assert per-tenant `From:` isolation.
+7. **CHANGELOG promotion** — Promote `## [Unreleased]` entries into versioned `## [0.3.2]` (AbstractTenant split + demo fixes) and `## [0.3.3]` (nikic require move) sections; UPGRADE.md sections already exist.
+8. **REQUIREMENTS.md checkbox refresh** — Flip RESV-06, DEMO-01, DOC-19 from `[ ]` to `[x]` to reflect shipped status (cosmetic, complete-milestone workflow handles in archival, doing it inline here for cleanliness).
+
+**Success criteria:**
+
+1. Mailer subsection in `tenant.html.twig` renders on all 3 panel states when LruTransportCache is wired; `TenantDataCollectorMailerSectionTest` updated to assert rendered HTML, not just data.
+2. All 6 nullable-provider sites use identical signature (`?TenantProviderInterface $tenantProvider = null`); contract test fails if any one drops the `?` or omits the default.
+3. `MissingTenantProviderException` exists, extends `\LogicException`, is thrown by both fail-loud sites; Messenger middleware test asserts no-retry behavior.
+4. `bin/smoke.sh` exits non-zero when per-tenant mailer isolation is broken (verified by a deliberate-break test in a feature branch); `.github/workflows/demo-smoke.yml` runs the extended check.
+5. CHANGELOG.md has dated 0.3.2 + 0.3.3 sections; Unreleased is empty (or contains only items not yet shipped).
+6. Full PHPUnit suite + PHPStan level 9 + php-cs-fixer all green.
+
+**Plans:** TBD (run `/gsd:plan-phase 23` after `/gsd:discuss-phase 23`).
+
 > Full v0.3 phase-summary table and dependency notes live in `.planning/milestones/v0.3-ROADMAP.md`.
 
 ### 📋 Later Milestones
@@ -269,6 +298,6 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 | Milestone | Phases | Plans | Status      | Shipped    |
 | --------- | ------ | ----- | ----------- | ---------- |
 | v0.2      | 1–15   | 48/48 | Complete    | 2026-04-20 |
-| v0.3      | 16–22  | 5/?   | In Progress | —          |
+| v0.3      | 16–23  | 46/?  | In Progress | —          |
 
-*v0.3: Phase 16 skipped (non-functional gate). Phase 17 complete (5 plans). Phases 18–22 not yet planned — plan counts derived once `/gsd-plan-phase` runs for each.*
+*v0.3: Phase 16 skipped (non-functional gate). Phases 17–22 complete (46 plans shipped). Phase 23 added 2026-05-29 — audit-driven tech-debt closure before tagging v0.3.3.*

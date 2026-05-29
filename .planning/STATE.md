@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: milestone_complete
-stopped_at: Phase 22 complete; v0.3 milestone done; ready to tag v0.3.3
-last_updated: "2026-05-28T17:10:00.000Z"
-last_activity: 2026-05-28 -- Phase 22 executed; 6/6 plans + 22-VERIFICATION human_needed (mkdocs --strict deferred to CI + 3 visual items)
+status: phase_added
+stopped_at: Phase 23 (tech-debt closure) added per v0.3-MILESTONE-AUDIT.md; awaiting /gsd:discuss-phase 23
+last_updated: "2026-05-29T13:20:00.000Z"
+last_activity: 2026-05-29 -- v0.3-MILESTONE-AUDIT.md produced (status tech_debt, 6/6 REQs satisfied, 1 WARNING + tech debt). Phase 23 added at end of v0.3 to close audit findings before tagging v0.3.3.
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 6
   total_plans: 52
   completed_plans: 46
-  percent: 100
+  percent: 86
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** v0.3 milestone COMPLETE. Ready to tag v0.3.3 (after CI confirms `mkdocs build --strict`). Then `/gsd:complete-milestone` and plan v0.4.
+**Current focus:** v0.3 audit complete (status `tech_debt`); Phase 23 added to close audit findings (INT-01 Twig drift, CR-01 nullable-provider guard, WR-01 LogicException, IN-01..IN-05, smoke.sh mailer assertion, CHANGELOG promotion). Run `/gsd:discuss-phase 23` next. Then `/gsd:validate-phase` sweep for 19/20/21/22, then `/gsd:complete-milestone v0.3` → tag v0.3.3 → plan v0.4.
 
 ## Current Position
 
-Phase: 22 (docs-refresh) — COMPLETE (verification: human_needed; 4 items in 22-HUMAN-UAT.md)
-Plans: 6 of 6 complete on Phase 22 — install UX rewrite, UPGRADE 0.3.2→0.3.3, profiler ASCII + mailer page, examples reorg, yellow-page refresh, roadmap mirror + docs-lint extension
-Status: Milestone v0.3 complete — ready to tag v0.3.3
-Last activity: 2026-05-28 -- Phase 22 executed; 4 human_needed items deferred (mkdocs --strict in CI, ASCII visual check, post-publish URL, cross-tree link rendering)
+Phase: 23 (tech-debt-closure) — ADDED 2026-05-29, awaiting discuss/plan/execute
+Plans: 0 of TBD planned on Phase 23
+Status: v0.3 milestone gated on Phase 23 + Nyquist refresh sweep before tagging
+Last activity: 2026-05-29 -- v0.3 milestone audit produced tech_debt status; Phase 23 added to close 17 tech-debt items across phases 18/19/20/21 + 1 cross-phase WARNING (INT-01) + pre-tag CHANGELOG housekeeping
 
 ## Performance Metrics
 
@@ -96,6 +96,7 @@ Last activity: 2026-05-28 -- Phase 22 executed; 4 human_needed items deferred (m
 - Phase 11 added: Documentation Site — MkDocs Material docs with user guide, contributor guide, and architecture reference, deployed to GitHub Pages
 - Phase 12 added: Developer Onboarding — tenancy:init scaffolding command
 - Phase 14 added: Documentation refresh — update docs for phase 12-13 changes (tenancy:init command, resolver config filtering, EM targeting behavior)
+- Phase 23 added (2026-05-29): v0.3 tech-debt closure — audit-driven; closes INT-01 Twig contract drift, CR-01/WR-01 Phase 18 advisory findings, IN-01..IN-05 ZeroConfigKernelBootTest cosmetics, smoke.sh mailer assertion, CHANGELOG Unreleased→0.3.2/0.3.3 promotion. Gate before tagging v0.3.3.
 
 ### Decisions
 
