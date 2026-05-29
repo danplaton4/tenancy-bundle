@@ -27,12 +27,15 @@ final class QueryParamResolver implements TenantResolverInterface
 
         $slug = $request->query->get(self::PARAM_NAME);
 
-        if (null === $slug || '' === $slug) {
+        // WR-03: type-narrow early (Request::query->get() may return string|null;
+        // pattern-aligned with ConsoleResolver) and reject whitespace-only slugs
+        // by trimming before the empty-string check.
+        if (!is_string($slug) || '' === trim($slug)) {
             return null;
         }
 
         try {
-            return $this->tenantProvider->findBySlug((string) $slug);
+            return $this->tenantProvider->findBySlug($slug);
         } catch (TenantNotFoundException) {
             return null;
         }

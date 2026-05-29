@@ -52,6 +52,16 @@ final class TenantRunCommand extends Command
         // Validate tenant exists — let TenantNotFoundException / TenantInactiveException bubble
         $this->tenantProvider->findBySlug($tenantSlug);
 
+        /**
+         * @security Trust boundary (WR-04): the caller of `tenancy:run` is a developer
+         * at the CLI. `$commandString` is read from `$input->getArgument('command_string')`
+         * and is NOT escaped. The v0.3.0 fix switched from `Process::fromShellCommandline()`
+         * (shell-quoted) to `new Process(array $argv)` (execve-direct), making shell
+         * metacharacters inert in any single token. Do NOT expose this command via HTTP,
+         * queued jobs, or any context where untrusted input can reach `$commandString` —
+         * the array-argv defense covers shell metas, but a malicious token could still
+         * invoke unintended bin/console commands.
+         */
         // Tokenize on whitespace; NO shell interpretation. The argv array is
         // passed to Process directly, so each element becomes its own
         // execve() argument: shell metacharacters in any token are inert.

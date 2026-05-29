@@ -44,6 +44,22 @@ final class QueryParamResolverTest extends TestCase
         $this->assertNull($result);
     }
 
+    /**
+     * WR-03: trim()-aware empty-string check rejects whitespace-only slugs
+     * (URL-encoded `%20%20%20` decodes to three spaces). The prior pattern
+     * `null === $slug || '' === $slug` would have ACCEPTED the whitespace-only
+     * slug and passed it to findBySlug() — the new pattern rejects it cleanly.
+     */
+    public function testReturnsNullWhenParamWhitespaceOnly(): void
+    {
+        $this->provider->expects($this->never())->method('findBySlug');
+
+        $request = Request::create('/?_tenant=%20%20%20');
+        $result = $this->resolver->resolve($request);
+
+        $this->assertNull($result);
+    }
+
     public function testReturnsTenantWhenParamPresent(): void
     {
         $tenant = $this->createMock(TenantInterface::class);

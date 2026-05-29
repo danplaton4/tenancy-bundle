@@ -49,6 +49,13 @@ final class ConsoleResolver
         // input is already bound at this point — without adding the option to
         // the Application definition and rebinding, Symfony throws
         // InvalidArgumentException: The "tenant" option does not exist.
+        //
+        // GUARD ORDERING (WR-02): the null-tenantProvider guard at the top of
+        // this method MUST stay ABOVE this Application-definition mutation. The
+        // mutation adds --tenant to the global Application options; running it
+        // in zero-config mode (no provider bound) would pollute every console
+        // command with a useless flag. ConsoleResolverGuardOrderingTest pins
+        // this invariant via source-order inspection.
         $appDefinition = $application->getDefinition();
         if (!$appDefinition->hasOption('tenant')) {
             $appDefinition->addOption(
