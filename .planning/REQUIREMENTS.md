@@ -17,7 +17,7 @@ For prior-milestone (v0.2) requirements, see `.planning/milestones/v0.2-REQUIREM
   - Acceptance: refuses to mutate non-standard `bundles.php` shapes (DDD `registerBundles()` overrides, env-conditional loading) — prints a clean manual snippet, exits 0 (not a failure)
   - Acceptance: atomic write via `Filesystem::dumpFile()`, timestamped `.bak`, `php -l` post-mutation, automatic restore on parse failure
   - Acceptance: fixture corpus quality gate — passes on ≥6 distinct `bundles.php` shapes (standard skeleton, API Platform, Sulu, DDD-override, with-comments, with-env-conditionals)
-- [ ] **DEMO-01**: `examples/saas/` ships a runnable two-tenant Symfony app — `docker compose up` → two tenant subdomains resolve and serve isolated content out of the box. Doubles as a CI smoke test that gates `master` merges.
+- [x] **DEMO-01**: `examples/saas/` ships a runnable two-tenant Symfony app — `docker compose up` → two tenant subdomains resolve and serve isolated content out of the box. Doubles as a CI smoke test that gates `master` merges.
   - Acceptance: FrankenPHP + Caddy + MariaDB 11 composition, single `docker compose up`
   - Acceptance: `*.tenancy.localhost` subdomain routing via Caddy + internal CA (no `/etc/hosts` edits required on Chrome/macOS/Linux)
   - Acceptance: README documents a three-step fallback ladder for Firefox/Safari/WSL2: curl with `Host:` header → `/etc/hosts` line → browser-native `*.localhost`
@@ -49,7 +49,7 @@ For prior-milestone (v0.2) requirements, see `.planning/milestones/v0.2-REQUIREM
 
 ### Resolvers
 
-- [ ] **RESV-06**: `OriginHeaderResolver` resolves the active tenant from the `Origin` HTTP header — SPA-friendly alternative to `X-Tenant-ID`. Registered in the resolver chain at priority 25 (above `HeaderResolver`/20, below `HostResolver`/30): when both `Origin` and `X-Tenant-ID` are present, `Origin` wins because it is browser-locked for cross-origin XHR.
+- [x] **RESV-06**: `OriginHeaderResolver` resolves the active tenant from the `Origin` HTTP header — SPA-friendly alternative to `X-Tenant-ID`. Registered in the resolver chain at priority 25 (above `HeaderResolver`/20, below `HostResolver`/30): when both `Origin` and `X-Tenant-ID` are present, `Origin` wins because it is browser-locked for cross-origin XHR.
   - Acceptance: implements `TenantResolverInterface`; tagged `tenancy.resolver` priority 25; mirrors the shape of existing `HeaderResolver`
   - Acceptance: parsed-URL exact-equality matching (scheme + host + port); allow-list entries with at most one left-most wildcard label (`*.app.example.com` allowed, mid-string wildcards rejected)
   - Acceptance: returns `null` on absent `Origin` header (falls through resolver chain)
@@ -60,7 +60,7 @@ For prior-milestone (v0.2) requirements, see `.planning/milestones/v0.2-REQUIREM
 
 ### Documentation
 
-- [ ] **DOC-19**: Documentation reflects everything v0.3 ships. Install page replaces "manually add to `bundles.php`" with `tenancy:install`; new pages for `OriginHeaderResolver`, Profiler tab, and Mailer bootstrapper; demo walkthrough; public roadmap page on the docs site mirroring `ROADMAP.md` at the repo root.
+- [x] **DOC-19**: Documentation reflects everything v0.3 ships. Install page replaces "manually add to `bundles.php`" with `tenancy:install`; new pages for `OriginHeaderResolver`, Profiler tab, and Mailer bootstrapper; demo walkthrough; public roadmap page on the docs site mirroring `ROADMAP.md` at the repo root.
   - Acceptance: install page updated — single command, no manual `bundles.php` step
   - Acceptance: new `user-guide/origin-header-resolver.md` with trust-model section
   - Acceptance: new `user-guide/profiler-tab.md` with screenshots
@@ -108,12 +108,12 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | GOV-01 | Phase 16 — Governance Carry-Forward | ⊘ Skipped (non-functional, 2026-05-15) |
-| RESV-06 | Phase 17 — OriginHeaderResolver | Pending |
+| RESV-06 | Phase 17 — OriginHeaderResolver | Complete |
 | DX-06 | Phase 18 — tenancy:install | Complete |
 | DX-02 | Phase 19 — Profiler Tab | Complete |
 | BOOT-04 | Phase 20 — Mailer Bootstrapper | Complete |
-| DEMO-01 | Phase 21 — Demo App | Pending |
-| DOC-19 | Phase 22 — Docs Refresh | Pending |
+| DEMO-01 | Phase 21 — Demo App | Complete |
+| DOC-19 | Phase 22 — Docs Refresh | Complete |
 
 **Coverage:**
 - v0.3 requirements: 7 total (1 skipped non-functional)
