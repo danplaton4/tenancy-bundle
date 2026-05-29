@@ -277,7 +277,24 @@ Plans:
 5. CHANGELOG.md has dated 0.3.2 + 0.3.3 sections; Unreleased is empty (or contains only items not yet shipped).
 6. Full PHPUnit suite + PHPStan level 9 + php-cs-fixer all green.
 
-**Plans:** TBD (run `/gsd:plan-phase 23` after `/gsd:discuss-phase 23`).
+**Plans:** 7 plans
+
+Plans:
+**Wave 1** *(parallel — independent edits)*
+
+- [ ] 23-01-PLAN.md — INT-01 Twig contract drift fix (mailer subsection hoisted out of resolved-only branch + rendered-HTML test)
+- [ ] 23-02-PLAN.md — CR-01 + WR-01 nullable-provider drift guard (`= null` default on 6 sites, contract test strengthening, MissingTenantProviderException LogicException assertions)
+- [ ] 23-03-PLAN.md — WR-02/03/04 intra-bundle consistency + IN-01..05 ZeroConfigKernelBootTest cosmetics + explicit `use TenantStamp` import
+
+**Wave 2** *(depends on Wave 1)*
+
+- [ ] 23-04-PLAN.md — smoke.sh per-tenant mailer-isolation section (Mailpit /api/v1/messages jq assertion)
+- [ ] 23-05-PLAN.md — CHANGELOG promotion (Unreleased → 0.3.2 + 0.3.3 sections)
+- [ ] 23-06-PLAN.md — REQUIREMENTS.md checkbox refresh (RESV-06 / DEMO-01 / DOC-19 → [x])
+
+**Wave 3** *(depends on Wave 2 — final green-bar verification + optional live-stack smoke)*
+
+- [ ] 23-07-PLAN.md — Full PHPUnit + PHPStan + cs-fixer + docs-lint green-bar + optional live `docker compose up` smoke
 
 > Full v0.3 phase-summary table and dependency notes live in `.planning/milestones/v0.3-ROADMAP.md`.
 
