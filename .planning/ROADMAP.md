@@ -4,7 +4,7 @@
 
 - ✅ **v0.2 Architectural Fixes** — Phases 1–15 (shipped 2026-04-20)
 - ✅ **v0.3 Adoption Surface** — Phases 17–23 (shipped 2026-05-29, tag v0.3.3)
-- 📋 **v0.4 Storage & Shared Entities** — Filesystem bootstrapper, shared entities sync/async, PHPStan extension
+- 🚧 **v0.4 Storage & Shared Entities** — Phases 24–29 (in progress; defined 2026-05-29) — Filesystem bootstrapper, shared entities sync/async, PHPStan extension
 - 📋 **v0.5 Operations & Scale** — maintenance mode, health checks, parallel migrations
 - 📋 **v0.6 Advanced Isolation** *(demand-gated)* — PostgreSQL RLS driver; v1.0 candidate if adoption validates
 
@@ -49,11 +49,27 @@
 
 </details>
 
+### 📋 v0.4 Storage & Shared Entities — Phases 24–29 (6 active, in progress)
+
+Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage + data-sharing gaps. 6 active phases, 6 active requirements. See `.planning/REQUIREMENTS.md` for full acceptance criteria.
+
+- [ ] **Phase 24: Filesystem Bootstrapper** — Flysystem integration with prefix + per-tenant-adapter strategies, `FilesystemContractPass` compile-time guard, in-memory test integration (BOOT-03)
+- [ ] **Phase 25: Shared Entities (Sync mode)** — `#[Shared]` attribute + `SharedEntitySyncSubscriber` on landlord postFlush + tenant-side write protection + `SharedEntityWriteInTenantContextException` (SHARE-01)
+- [ ] **Phase 26: `tenancy:shared:resync` command** — bulk-initial-sync console command with continue-on-failure + dry-run + per-tenant pass/fail summary (SHARE-02)
+- [ ] **Phase 27: Async Shared Entities** — opt-in `tenancy.shared.async: true` mode with Messenger fan-out via `SharedEntityChangedMessage` + AsyncCanaryTest pattern (SHARE-03)
+- [ ] **Phase 28: PHPStan Extension** — rules for `#[TenantAware]` + `#[Shared]` correctness, `phpstan/extension-installer` auto-load (DX-03)
+- [ ] **Phase 29: Docs Refresh** — new pages for filesystem-bootstrapper, shared-entities, phpstan-extension; UPGRADE 0.3 → 0.4 (if BC breaks land); docs-lint shared-entity ambiguity check (DOC-20)
+
+**Tentative architectural defaults** (subject to flip in `/gsd:discuss-phase`): DEC-FILE-01 prefix-mode default, DEC-FILE-02 optional trait for getFilesystemConfig() (no BC break), DEC-SHARE-01 sync default, DEC-SHARE-02 one-level cascade, DEC-SHARE-03 #[Shared]+#[TenantAware] mutually exclusive at compile time, DEC-PHPSTAN-01 phpstan/extension-installer distribution.
+
+**Carry-forward from v0.3 retrospective:** refresh `examples/saas/composer.lock` PHP version drift early; closure-phase CONTEXT.md should `git log --since=<audit-date>` over canonical_refs (lesson from Phase 23 stale-audit on CR-01 + IN-05); reconsider Phase 16 GOV-01 only if v0.4 surfaces a concrete recurrence.
+
+**Explicit non-goals (carried from v0.3):** Symfony Flex recipe (revisit when install volume justifies cost), v1.0 tag (deferred until external adoption signals validation).
+
 ### 📋 Later Milestones
 
 | Milestone | Theme | Key items |
 |-----------|-------|-----------|
-| v0.4 | Storage & Shared Entities | BOOT-03, SHARE-01/02/03, DX-03 PHPStan extension |
 | v0.5 | Operations & Scale | OPS-01, OPS-02, ISOL-07 parallel migrations |
 | v0.6 | Advanced Isolation | ISOL-06 PostgreSQL RLS (demand-gated; v1.0 candidate) |
 
@@ -63,9 +79,10 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 
 ## Progress
 
-| Milestone | Phases | Plans   | Status   | Shipped    | Tag     |
-| --------- | ------ | ------- | -------- | ---------- | ------- |
-| v0.2      | 1–15   | 48/48   | Complete | 2026-04-20 | v0.2.0  |
-| v0.3      | 17–23  | 53/53   | Complete | 2026-05-29 | v0.3.3  |
+| Milestone | Phases | Plans   | Status      | Shipped    | Tag     |
+| --------- | ------ | ------- | ----------- | ---------- | ------- |
+| v0.2      | 1–15   | 48/48   | Complete    | 2026-04-20 | v0.2.0  |
+| v0.3      | 17–23  | 53/53   | Complete    | 2026-05-29 | v0.3.3  |
+| v0.4      | 24–29  | 0/?     | In Progress | —          | —       |
 
-*Next milestone: v0.4 Storage & Shared Entities — start with `/gsd:new-milestone`.*
+*v0.4: defined 2026-05-29 after v0.3.3 ship. Phases 24–29 placeholders; plan counts derived once `/gsd:plan-phase` runs for each. Start with `/gsd:plan-phase 24` for BOOT-03 (Filesystem Bootstrapper).*

@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.3
-milestone_name: Adoption Surface
-status: milestone_archived
-stopped_at: v0.3 milestone archived to .planning/milestones/v0.3-*; tag v0.3.3 created. Ready for /gsd:new-milestone (v0.4 Storage & Shared Entities).
-last_updated: "2026-05-29T15:00:00.000Z"
-last_activity: 2026-05-29 -- v0.3 Adoption Surface milestone complete and archived. 7 phases (16 skipped, 17-23 shipped), 53 plans, 568 tests / 2122 assertions, PHPStan level 9 clean, all 6 active requirements SATISFIED. Audit-driven Phase 23 closed remaining tech-debt. Nyquist VALIDATION docs refreshed for 19/20/21/22 (created from scratch for 22). REQUIREMENTS.md deleted in archival commit (fresh for v0.4 via /gsd:new-milestone).
+milestone: v0.4
+milestone_name: Storage & Shared Entities
+status: planning
+stopped_at: v0.4 milestone started; REQUIREMENTS.md drafted, ROADMAP.md entry added. Run /gsd:plan-phase 24 to start the first phase.
+last_updated: "2026-05-29T15:30:00.000Z"
+last_activity: 2026-05-29 -- v0.4 Storage & Shared Entities milestone initialized after v0.3.3 ship. 6 candidate requirements drafted (BOOT-03 Filesystem, SHARE-01/02/03 shared entities, DX-03 PHPStan extension, DOC-20 docs refresh). Roadmap scaffold added with phases 24-29 placeholders. Carry-forward items from v0.3 retro folded into requirements + roadmap notes.
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 53
-  completed_plans: 53
-  percent: 100
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** v0.3 milestone ARCHIVED 2026-05-29 (tag v0.3.3). Ready for v0.4 Storage & Shared Entities via `/gsd:new-milestone`. Carry-forward: refresh `examples/saas/composer.lock` (pre-existing PHP version drift), close 22-HUMAN-UAT items via post-tag CI run (mkdocs --strict + post-publish URL checks).
+**Current focus:** v0.4 Storage & Shared Entities — make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage + data-sharing gaps. Start with `/gsd:plan-phase 24` for Phase 24 (Filesystem bootstrapper, BOOT-03).
 
 ## Current Position
 
-Milestone: v0.3 ARCHIVED. Roadmap collapsed to one-line entry; full details in `.planning/milestones/v0.3-ROADMAP.md` + `.planning/milestones/v0.3-REQUIREMENTS.md` + `.planning/milestones/v0.3-MILESTONE-AUDIT.md`. REQUIREMENTS.md deleted (fresh for v0.4).
-Plans: 53/53 complete across all v0.3 phases (16 skipped, 17-23 shipped)
-Status: Ready for next milestone. Run `/gsd:new-milestone` to start v0.4.
-Last activity: 2026-05-29 -- v0.3 archived; tag v0.3.3 created against the green-bar HEAD; MILESTONES.md, PROJECT.md, ROADMAP.md all updated.
+Phase: Not started (defining requirements for v0.4)
+Plan: —
+Status: Requirements drafted, roadmap scaffolded; ready to start phase planning
+Last activity: 2026-05-29 — v0.4 milestone initialized after v0.3.3 ship. REQUIREMENTS.md drafted with 6 candidate requirements (BOOT-03, SHARE-01/02/03, DX-03, DOC-20). ROADMAP.md updated with v0.4 entry + phases 24-29 placeholders.
 
 ## Performance Metrics
 
