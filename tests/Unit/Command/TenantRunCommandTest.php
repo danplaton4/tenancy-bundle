@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Process\Process;
 use Tenancy\Bundle\Command\TenantRunCommand;
+use Tenancy\Bundle\Exception\MissingTenantProviderException;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\TenantInterface;
@@ -117,6 +118,55 @@ final class TenantRunCommandTest extends TestCase
 
         $this->expectException(TenantNotFoundException::class);
         $tester->execute(['tenant' => 'unknown', 'command_string' => 'app:some-command']);
+    }
+
+    /**
+     * Closes WR-01 (.planning/v0.3-MILESTONE-AUDIT.md).
+     *
+     * MissingTenantProviderException MUST extend \LogicException (not
+     * \RuntimeException) so that when this command is invoked under a
+     * Messenger-dispatched context (or any retry-aware runner) the
+     * failure is recognized as a permanent operator error — not a
+     * transient fault eligible for retry.
+     */
+    public function testMissingTenantProviderExceptionExtendsLogicException(): void
+    {
+        // Build the command with a null provider — the zero-config-boot
+        // path where `tenancy.provider->nullOnInvalid()` resolved to null
+        // because the bundle was never configured.
+        $command = new TenantRunCommand(null, '/app', null);
+        $tester = new CommandTester($command);
+
+        $caught = null;
+        try {
+            $tester->execute(['tenant' => 'acme', 'command_string' => 'cache:clear']);
+        } catch (\Throwable $e) {
+            $caught = $e;
+        }
+
+        $this->assertNotNull($caught, 'Expected MissingTenantProviderException was not thrown');
+        $this->assertInstanceOf(
+            MissingTenantProviderException::class,
+            $caught,
+            'Null provider in TenantRunCommand::execute() must throw MissingTenantProviderException.',
+        );
+        $this->assertInstanceOf(
+            \LogicException::class,
+            $caught,
+            'MissingTenantProviderException MUST extend \LogicException so retry-aware runners do NOT retry. See WR-01.',
+        );
+        // Explicit not-RuntimeException assertion — redundant at the type
+        // level (PHPStan can prove it from MissingTenantProviderException's
+        // declared ancestry) but kept as runtime documentation: if anyone
+        // ever changes the parent class to RuntimeException, this fails.
+        // @phpstan-ignore method.alreadyNarrowedType
+        $this->assertNotInstanceOf(
+            \RuntimeException::class,
+            $caught,
+            'MissingTenantProviderException MUST NOT extend \RuntimeException — retry-aware runners would treat it as transient. See WR-01.',
+        );
+        $this->assertStringContainsString('tenancy:run', $caught->getMessage(), 'Exception message must identify the caller context (tenancy:run command).');
+        $this->assertStringContainsString('tenancy:install', $caught->getMessage(), 'Exception message must point operators at the install command.');
     }
 
     /**
