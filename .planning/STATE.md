@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
 status: phase_added
-stopped_at: Phase 23 plan 02 executed — WR-01 LogicException tests landed at both throw sites; CR-01 portion skipped per Option D (already closed by commit 31465dc on 2026-05-21 in opposite direction)
-last_updated: "2026-05-29T14:30:00.000Z"
-last_activity: 2026-05-29 -- 23-02 WR-01 closure (Option D): added 3 runtime tests pinning MissingTenantProviderException as \LogicException at TenantWorkerMiddleware::handle() and TenantRunCommand::execute() throw sites; Task 1+2 (CR-01) skipped because commit 31465dc had already closed CR-01 in the opposite direction. Test count 562 → 565.
+stopped_at: Phase 23 plan 03 executed — WR-02/03/04 + IN-01..IN-04 closed; IN-05 skipped (cs-fixer @Symfony auto-strips same-namespace imports); 3 new regression tests landed (568 total)
+last_updated: "2026-05-29T11:20:00.000Z"
+last_activity: 2026-05-29 -- 23-03 closure: defensive GUARD ORDERING comment + 2 source-order tripwire tests in ConsoleResolver, trim()-aware slug check in QueryParamResolver, @security PHPDoc in TenantRunCommand, IN-01..IN-04 canary cleanup in ZeroConfigKernelBootTest. IN-05 (explicit use TenantStamp) skipped — same-namespace imports are auto-stripped by the project's cs-fixer @Symfony ruleset. Test count 565 → 568.
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 52
-  completed_plans: 48
-  percent: 92
+  completed_plans: 49
+  percent: 94
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 23 (tech-debt-closure) — 2 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests via Option D)
-Plans: 2 of 7 complete on Phase 23
-Status: v0.3 milestone gated on remaining Phase 23 plans (23-03 WR-02/03/04 + IN-01..05, 23-04 smoke.sh, 23-05 CHANGELOG, 23-06 REQUIREMENTS, 23-07 green-bar) before tagging v0.3.3
-Last activity: 2026-05-29 -- 23-02 executed under Option D: only Task 3 (WR-01 LogicException tests) ran because Task 1+2 (CR-01 source edits + contract-test default-value) targeted an invariant that 31465dc had already closed in the opposite direction. Recommend audit hygiene: validate findings against post-audit commits before authoring closure-phase CONTEXT.md.
+Phase: 23 (tech-debt-closure) — 3 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests via Option D, 23-03 WR-02/03/04 + IN-01..04)
+Plans: 3 of 7 complete on Phase 23
+Status: v0.3 milestone gated on remaining Phase 23 plans (23-04 smoke.sh, 23-05 CHANGELOG, 23-06 REQUIREMENTS, 23-07 green-bar) before tagging v0.3.3
+Last activity: 2026-05-29 -- 23-03 executed: WR-02 GUARD ORDERING comment + 2 source-order tripwire tests, WR-03 is_string+trim slug check, WR-04 @security docblock, IN-01..IN-04 canary cleanup; IN-05 skipped (cs-fixer @Symfony policy conflict). Pre-commit hook passed each of 3 commits (php-cs-fixer + PHPStan level 9 + full PHPUnit 568/2122).
 
 ## Performance Metrics
 
@@ -88,6 +88,7 @@ Last activity: 2026-05-29 -- 23-02 executed under Option D: only Task 3 (WR-01 L
 | Phase 07-cli-commands P02 | 2 | 1 tasks | 4 files |
 | Phase 08 P02 | 14 | 1 tasks | 5 files |
 | Phase 23-tech-debt-closure P02 | 12 | 1 task (3 skipped by design — Option D) | 3 files |
+| Phase 23-tech-debt-closure P03 | 35 | 3 tasks (IN-05 skipped — cs-fixer policy conflict) | 6 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,11 @@ Recent decisions affecting current work:
 - [Phase 08-developer-experience]: Synthetic tenant in initializeTenant() must carry {memory:true, path:null} connection config so DBAL SQLite driver uses :memory: (path:null bypasses isset check)
 - [Phase 23-02]: Option D scope reduction — CR-01 already closed by 31465dc on 2026-05-21 in opposite direction (drop `= null` defaults, not add them). Reason: 3 of 6 nullable-provider sites have `$tenantProvider` BEFORE required positional params; PHP 8.0+ deprecates optional-before-required. Audit + 23-CONTEXT.md D-02 were stale. Recommend pre-plan git-log validation of post-audit commits to prevent re-opening closed invariants.
 - [Phase 23-02]: WR-01 LogicException invariant is now pinned at the test level (not just by comment in MissingTenantProviderException docblock). Both throw sites (TenantWorkerMiddleware + TenantRunCommand) have runtime assertions: `instanceof \LogicException` + `NOT instanceof \RuntimeException`. The negative assertion is redundant at static-analysis time (PHPStan proves it from the declared ancestry) — kept inline with `@phpstan-ignore method.alreadyNarrowedType` so the test continues to document the WR-01 invariant for future readers.
+- [Phase 23-03]: WR-02 guard-precedes-mutation invariant in ConsoleResolver is now pinned by a comment-anchored source-order test (`ConsoleResolverGuardOrderingTest`). The test reads ConsoleResolver.php and asserts both source order (guard line < mutation line) AND comment-marker presence ("GUARD ORDERING" + "MUST"). Stripping the comment is itself a tripwire signaling intent-altering refactor.
+- [Phase 23-03]: WR-03 QueryParamResolver pattern aligned with ConsoleResolver (is_string() type-narrow + trim()-aware empty-string check). Old pattern `null === $slug || '' === $slug` accepted whitespace-only slugs (`?_tenant=%20%20%20`); new pattern rejects them. Plan called out the `(string) $slug` cast as potentially load-bearing under PHPStan level 9 — in practice the cast is redundant after `is_string()` narrows and PHPStan accepts the change clean.
+- [Phase 23-03]: WR-04 reduced to documentation-only — the shell-injection vector (Process::fromShellCommandline) was closed in v0.3.0 (array-argv replaced the shell call at HEAD L71). New PHPDoc `@security` block above the Process site documents the trust boundary, the v0.3.0 fix history, and the remaining "do NOT expose via HTTP" guidance for the unescaped tokens.
+- [Phase 23-03]: IN-05 (explicit `use Tenancy\\Bundle\\Messenger\\TenantStamp;` in TenantWorkerMiddleware) SKIPPED because the project's php-cs-fixer @Symfony ruleset includes `no_unused_imports`, which treats same-namespace imports as redundant and auto-strips them. The audit-flagged "minor consistency drift" is policed by the project's enforced cs-fixer config in the opposite direction — the consistency stance is "no same-namespace use statements", not "always import". IN-05 is therefore moot.
+- [Phase 23-03]: IN-02 canary-test fix follows 18-VERIFICATION.md L41 ("setCatchExceptions(false) may suppress diagnostic assertion message"), NOT 23-CONTEXT.md's `expectException` misquote. The test is GREEN-path (zero-config kernel SHOULD boot and `list` SHOULD exit zero) — not a deliberate-throw test. Correct fix: drop the `setCatchExceptions(false)` line, keep the assertSame + getDisplay() diagnostic message; ApplicationTester's default exception handling captures errors into the display so the assertion message surfaces both status code AND captured output on regression.
 
 ### Pending Todos
 
@@ -185,6 +191,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-28T13:27:36.031Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-docs-refresh/22-CONTEXT.md
+Last session: 2026-05-29T11:20:00.000Z
+Stopped at: Phase 23 plan 03 complete — WR-02/03/04 + IN-01..IN-04 closed, IN-05 skipped (cs-fixer @Symfony policy)
+Resume file: .planning/phases/23-tech-debt-closure/23-04-PLAN.md

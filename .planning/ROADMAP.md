@@ -284,7 +284,7 @@ Plans:
 
 - [ ] 23-01-PLAN.md — INT-01 Twig contract drift fix (mailer subsection hoisted out of resolved-only branch + rendered-HTML test)
 - [x] 23-02-PLAN.md — WR-01 LogicException assertions at both throw sites (TenantWorkerMiddleware + TenantRunCommand). **Scope reduced via Option D 2026-05-29:** Task 1+2 (CR-01 `= null` default + contract-test strengthening) skipped because 31465dc had already closed CR-01 on 2026-05-21 in opposite direction (drop defaults, not add — 3 of 6 sites have `$tenantProvider` before required params, which PHP 8.0+ deprecates as optional-before-required). See 23-02-SUMMARY.md.
-- [ ] 23-03-PLAN.md — WR-02/03/04 intra-bundle consistency + IN-01..05 ZeroConfigKernelBootTest cosmetics + explicit `use TenantStamp` import
+- [x] 23-03-PLAN.md — WR-02/03/04 intra-bundle consistency + IN-01..04 ZeroConfigKernelBootTest cosmetics. **IN-05 skipped 2026-05-29:** the project's php-cs-fixer @Symfony ruleset (via `no_unused_imports`) auto-strips same-namespace `use` statements, making the explicit `use TenantStamp` import the audit asked for unachievable. The "drift" IN-05 flagged is policed in the opposite direction by enforced cs-fixer config. See 23-03-SUMMARY.md.
 
 **Wave 2** *(depends on Wave 1)*
 
@@ -317,4 +317,4 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 | v0.2      | 1–15   | 48/48 | Complete    | 2026-04-20 |
 | v0.3      | 16–23  | 46/?  | In Progress | —          |
 
-*v0.3: Phase 16 skipped (non-functional gate). Phases 17–22 complete (46 plans shipped). Phase 23 added 2026-05-29 — audit-driven tech-debt closure before tagging v0.3.3; 2 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests).*
+*v0.3: Phase 16 skipped (non-functional gate). Phases 17–22 complete (46 plans shipped). Phase 23 added 2026-05-29 — audit-driven tech-debt closure before tagging v0.3.3; 3 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests, 23-03 WR-02/03/04 + IN-01..04 with IN-05 skipped per cs-fixer policy).*
