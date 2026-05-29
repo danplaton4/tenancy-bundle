@@ -21,19 +21,15 @@ use Tenancy\Bundle\Resolver\QueryParamResolver;
 use Tenancy\Bundle\TenancyBundle;
 
 /**
- * RED-bar canary test: verifies that the zero-config boot regression is correctly
- * detected before any fix is applied.
+ * Permanent GREEN-bar regression gate: zero-config kernel boot (no `tenancy:`
+ * extension block).
  *
- * Registers TenancyBundle with NO tenancy: extension config block — exactly the
- * state a fresh `composer require danplaton4/tenancy-bundle` skeleton is in.
- * Without the fix (plans 18-09/18-10), the resolver services receive null for
- * their non-nullable TenantProviderInterface constructor argument, throwing a
- * TypeError on first service instantiation.
- *
- * This test MUST fail on master before plans 18-09/18-10 land.
- * After those plans, it becomes the GREEN-bar regression gate.
- *
- * @group canary-red
+ * Registers TenancyBundle with NO `tenancy:` extension config block — exactly
+ * the state a fresh `composer require danplaton4/tenancy-bundle` skeleton is in.
+ * In that mode the resolver services receive null for their nullable
+ * TenantProviderInterface constructor argument (via nullOnInvalid()); a
+ * regression dropping the `?` from the type or the `= null` default would
+ * re-introduce the TypeError this gate catches.
  */
 final class ZeroConfigKernelBootTest extends TestCase
 {
@@ -51,7 +47,6 @@ final class ZeroConfigKernelBootTest extends TestCase
         }
 
         $cacheDir = static::$kernel->getCacheDir();
-        $logDir = static::$kernel->getLogDir();
 
         try {
             static::$kernel->shutdown();
@@ -59,12 +54,14 @@ final class ZeroConfigKernelBootTest extends TestCase
             // Kernel may not have booted; shutdown is best-effort.
         }
 
+        // IN-04: $cacheDir and $logDir share the same parent dir (see
+        // ZeroConfigTestKernel::getCacheDir/getLogDir) — remove the parent
+        // exactly once. Removing it twice was a cosmetic no-op that
+        // implied per-path semantics that don't exist.
         $fs = new Filesystem();
-        foreach ([$cacheDir, $logDir] as $dir) {
-            $parent = \dirname($dir);
-            if ($fs->exists($parent)) {
-                $fs->remove($parent);
-            }
+        $parent = \dirname($cacheDir);
+        if ($fs->exists($parent)) {
+            $fs->remove($parent);
         }
 
         static::$kernel = null;
@@ -138,7 +135,14 @@ final class ZeroConfigKernelBootTest extends TestCase
 
         $application = new Application(static::$kernel);
         $application->setAutoExit(false);
-        $application->setCatchExceptions(false);
+        // IN-02: deliberately do NOT disable the Application's default
+        // exception-catching here. If a regression makes the resolver throw
+        // on instantiation, letting the exception propagate bypasses the
+        // assertSame() diagnostic message and leaves the failure explanation
+        // in the PHPUnit trace alone. With default exception handling, the
+        // ApplicationTester captures the error into getDisplay() and the
+        // assertion message surfaces both the status code AND the captured
+        // output — making regressions self-explanatory in CI logs.
 
         $tester = new ApplicationTester($application);
         $tester->run(['command' => 'list']);
@@ -206,12 +210,16 @@ final class ZeroConfigTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir().'/tenancy_bundle_test_'.md5(static::class).'_'.$this->environment.'/cache';
+        // IN-03: include getmypid() in the hash input so parallel PHPUnit
+        // processes (e.g. paratest workers) do not collide on the same
+        // cache-dir path. Stable within a single process run.
+        return sys_get_temp_dir().'/tenancy_bundle_test_'.md5(static::class.$this->environment.getmypid()).'/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir().'/tenancy_bundle_test_'.md5(static::class).'_'.$this->environment.'/logs';
+        // IN-03: see getCacheDir() — PID-suffixed hash for parallel safety.
+        return sys_get_temp_dir().'/tenancy_bundle_test_'.md5(static::class.$this->environment.getmypid()).'/logs';
     }
 }
 
