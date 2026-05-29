@@ -51,4 +51,26 @@ grep -q 'Acme Corporation' <<<"$body" || {
     echo "FAIL: HostResolver should win — acme host should serve acme content (got globex Origin)"; exit 1;
 }
 
+# Per-tenant mailer isolation — dispatch one test mail per tenant, then query
+# Mailpit's REST API to assert that each tenant's distinct From: address landed.
+# A regression in Phase 20 TenantMessageDecorator (per-tenant From/Reply-To
+# injection) would silently strip tenant identity from outbound mail; this
+# assertion catches that.
+# Initech intentionally skipped — two tenants prove isolation; the per-tenant
+# landing-page block above already exercises initech end-to-end.
+echo "==> Per-tenant mailer isolation (Mailpit assertion)"
+MAILPIT_PORT="${PORT_MAILPIT_UI:-8025}"
+for slug in acme globex; do
+    $CURL -X POST -H "Host: ${slug}.tenancy.localhost" "$BASE/_demo/send-test-mail" >/dev/null
+done
+# Give Mailpit a brief moment to ingest both messages (sync transport in the
+# demo, but a 1s buffer is cheap insurance against worker-drain timing).
+sleep 1
+MESSAGES=$($CURL "http://127.0.0.1:${MAILPIT_PORT}/api/v1/messages")
+echo "$MESSAGES" | jq -e '.messages[] | select(.From.Address == "noreply@acme.example")' >/dev/null \
+    || { echo "FAIL: mailer isolation — acme From: address not found in Mailpit (TenantMessageDecorator regression?)"; exit 1; }
+echo "$MESSAGES" | jq -e '.messages[] | select(.From.Address == "noreply@globex.example")' >/dev/null \
+    || { echo "FAIL: mailer isolation — globex From: address not found in Mailpit (TenantMessageDecorator regression?)"; exit 1; }
+echo "    PASS: acme + globex From: addresses isolated correctly"
+
 echo "==> All smoke assertions PASSED"
