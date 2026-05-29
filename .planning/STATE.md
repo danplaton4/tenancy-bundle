@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: phase_added
-stopped_at: Phase 23 plan 03 executed — WR-02/03/04 + IN-01..IN-04 closed; IN-05 skipped (cs-fixer @Symfony auto-strips same-namespace imports); 3 new regression tests landed (568 total)
-last_updated: "2026-05-29T11:20:00.000Z"
-last_activity: 2026-05-29 -- 23-03 closure: defensive GUARD ORDERING comment + 2 source-order tripwire tests in ConsoleResolver, trim()-aware slug check in QueryParamResolver, @security PHPDoc in TenantRunCommand, IN-01..IN-04 canary cleanup in ZeroConfigKernelBootTest. IN-05 (explicit use TenantStamp) skipped — same-namespace imports are auto-stripped by the project's cs-fixer @Symfony ruleset. Test count 565 → 568.
+status: ready_to_tag
+stopped_at: Phase 23 plan 07 executed — Wave 3 green-bar verification complete. PHPUnit 568/2122, PHPStan [OK], cs-fixer clean, docs-lint OK. Phase 23 closure certified; v0.3.3 tag is unblocked.
+last_updated: "2026-05-29T11:30:00.000Z"
+last_activity: 2026-05-29 -- 23-07 closure: ran the full verification matrix against HEAD ec4804e (post-Phase-23). All 5 required gates exit 0 (PHPUnit 568 tests / 2122 assertions, PHPStan level 9 [OK] No errors, php-cs-fixer 0 files needing fix, docs-lint OK, smoke.sh syntax clean). composer validate optional gate exit 0 with pre-existing nikic advisory. Live-stack docker run skipped — pre-existing examples/saas Dockerfile (PHP 8.2) vs composer.lock (Symfony v8.0.x needs PHP >=8.4) drift blocks composer install inside Docker; deferred to .github/workflows/demo-smoke.yml on next push. All 12 Phase 23 marker greps confirmed.
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 52
-  completed_plans: 49
-  percent: 94
+  completed_plans: 52
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** v0.3 audit complete (status `tech_debt`); Phase 23 added to close audit findings (INT-01 Twig drift, CR-01 nullable-provider guard, WR-01 LogicException, IN-01..IN-05, smoke.sh mailer assertion, CHANGELOG promotion). Run `/gsd:discuss-phase 23` next. Then `/gsd:validate-phase` sweep for 19/20/21/22, then `/gsd:complete-milestone v0.3` → tag v0.3.3 → plan v0.4.
+**Current focus:** Phase 23 v0.3 tech-debt closure COMPLETE (7/7 plans). Next operator action: `git tag v0.3.3` against HEAD (post-Plan-23-07 SUMMARY commit), then run `/gsd:complete-milestone v0.3` to archive v0.3 phases, then begin v0.4 (Storage & Shared Entities) planning.
 
 ## Current Position
 
-Phase: 23 (tech-debt-closure) — 3 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests via Option D, 23-03 WR-02/03/04 + IN-01..04)
-Plans: 3 of 7 complete on Phase 23
-Status: v0.3 milestone gated on remaining Phase 23 plans (23-04 smoke.sh, 23-05 CHANGELOG, 23-06 REQUIREMENTS, 23-07 green-bar) before tagging v0.3.3
-Last activity: 2026-05-29 -- 23-03 executed: WR-02 GUARD ORDERING comment + 2 source-order tripwire tests, WR-03 is_string+trim slug check, WR-04 @security docblock, IN-01..IN-04 canary cleanup; IN-05 skipped (cs-fixer @Symfony policy conflict). Pre-commit hook passed each of 3 commits (php-cs-fixer + PHPStan level 9 + full PHPUnit 568/2122).
+Phase: 23 (tech-debt-closure) — **COMPLETE** (7 of 7 plans). All audit findings closed: INT-01 Twig contract drift, WR-01 LogicException retry semantics, WR-02/03/04 intra-bundle consistency, IN-01..IN-04 canary cleanup, SMOKE-MAILER-01 Mailpit assertion, CHANGELOG promotion to 0.3.2 + 0.3.3, REQUIREMENTS.md checkbox refresh, and green-bar verification.
+Plans: 7 of 7 complete on Phase 23
+Status: v0.3 milestone unblocked — ready to tag v0.3.3. Live-stack `docker compose up` run deferred to CI (`.github/workflows/demo-smoke.yml`) due to pre-existing examples/saas Dockerfile/composer.lock PHP version drift documented in 23-04 + 23-07 SUMMARYs.
+Last activity: 2026-05-29 -- 23-07 verification: PHPUnit 568/2122 PASS, PHPStan level 9 [OK] No errors, php-cs-fixer 0 files, docs-lint OK, smoke.sh -n exit 0, composer validate exit 0 (pre-existing nikic advisory). 23-07-SUMMARY.md created documenting verification matrix verbatim for the v0.3.3 tag audit trail.
 
 ## Performance Metrics
 
@@ -89,6 +89,10 @@ Last activity: 2026-05-29 -- 23-03 executed: WR-02 GUARD ORDERING comment + 2 so
 | Phase 08 P02 | 14 | 1 tasks | 5 files |
 | Phase 23-tech-debt-closure P02 | 12 | 1 task (3 skipped by design — Option D) | 3 files |
 | Phase 23-tech-debt-closure P03 | 35 | 3 tasks (IN-05 skipped — cs-fixer policy conflict) | 6 files |
+| Phase 23-tech-debt-closure P04 | 4 | 1 task | 1 files |
+| Phase 23-tech-debt-closure P05 | 8 | 1 task | 1 files |
+| Phase 23-tech-debt-closure P06 | 1 | 1 task | 1 files |
+| Phase 23-tech-debt-closure P07 | 6 | 1 task (live-stack deferred to CI) | 0 files (verification-only; SUMMARY only) |
 
 ## Accumulated Context
 
@@ -172,6 +176,10 @@ Recent decisions affecting current work:
 - [Phase 23-03]: WR-04 reduced to documentation-only — the shell-injection vector (Process::fromShellCommandline) was closed in v0.3.0 (array-argv replaced the shell call at HEAD L71). New PHPDoc `@security` block above the Process site documents the trust boundary, the v0.3.0 fix history, and the remaining "do NOT expose via HTTP" guidance for the unescaped tokens.
 - [Phase 23-03]: IN-05 (explicit `use Tenancy\\Bundle\\Messenger\\TenantStamp;` in TenantWorkerMiddleware) SKIPPED because the project's php-cs-fixer @Symfony ruleset includes `no_unused_imports`, which treats same-namespace imports as redundant and auto-strips them. The audit-flagged "minor consistency drift" is policed by the project's enforced cs-fixer config in the opposite direction — the consistency stance is "no same-namespace use statements", not "always import". IN-05 is therefore moot.
 - [Phase 23-03]: IN-02 canary-test fix follows 18-VERIFICATION.md L41 ("setCatchExceptions(false) may suppress diagnostic assertion message"), NOT 23-CONTEXT.md's `expectException` misquote. The test is GREEN-path (zero-config kernel SHOULD boot and `list` SHOULD exit zero) — not a deliberate-throw test. Correct fix: drop the `setCatchExceptions(false)` line, keep the assertSame + getDisplay() diagnostic message; ApplicationTester's default exception handling captures errors into the display so the assertion message surfaces both status code AND captured output on regression.
+- [Phase 23-04]: smoke.sh per-tenant mailer-isolation section dispatches `/_demo/send-test-mail` for acme + globex, then asserts via `jq -e '.messages[] | select(.From.Address == "noreply@<tenant>.example")'` against Mailpit's `/api/v1/messages` endpoint. Two-tenant proof is sufficient (initech skipped per CONTEXT.md D-05). The assertion exits non-zero with explicit "TenantMessageDecorator regression?" hint so a future broken CI run points directly at the offending Phase 20 component.
+- [Phase 23-05]: CHANGELOG promotion inserted 0.3.3 ABOVE 0.3.2 per Keep-a-Changelog newest-first convention. Compare-link footnote block rewritten end-to-end (8 entries: Unreleased + v0.3.3 + v0.3.2 + v0.3.1 + v0.3.0 + v0.2.1 + v0.2.0 + v0.1.0). Concurrent agent race condition swept Plan 23-04's belated SUMMARY into the e7eb08b commit — net effect benign, both files legitimately needed to land; documented in 23-05-SUMMARY.
+- [Phase 23-06]: Three v0.3 traceability checkboxes (RESV-06 / DEMO-01 / DOC-19) flipped from [ ] to [x] inline rather than deferred to /gsd:complete-milestone archival, keeping the milestone-archive commit a pure file move (cleaner git history).
+- [Phase 23-07]: Live-stack `docker compose up --wait --build` skipped because pre-existing examples/saas Dockerfile (PHP 8.2) vs composer.lock (resolves Symfony to v8.0.x, requires PHP >=8.4) drift blocks `composer install` inside the demo container. NOT introduced by Phase 23. Deferred to CI workflow `.github/workflows/demo-smoke.yml` on next push to master, which constructs its own image from current sources and inherits Plan 23-04's mailer-isolation assertion. Recommended follow-up: open v0.3.3 hotfix plan to either bump Dockerfile to PHP 8.4 OR `composer update --prefer-lowest` to pin Symfony to PHP-8.2-compatible series.
 
 ### Pending Todos
 
@@ -191,6 +199,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-29T11:20:00.000Z
-Stopped at: Phase 23 plan 03 complete — WR-02/03/04 + IN-01..IN-04 closed, IN-05 skipped (cs-fixer @Symfony policy)
-Resume file: .planning/phases/23-tech-debt-closure/23-04-PLAN.md
+Last session: 2026-05-29T11:30:00.000Z
+Stopped at: Phase 23 plan 07 complete — Wave 3 green-bar verification certified; v0.3.3 tag unblocked
+Resume file: (next action — `git tag v0.3.3` then `/gsd:complete-milestone v0.3` then begin v0.4 planning)

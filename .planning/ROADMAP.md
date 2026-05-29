@@ -44,7 +44,7 @@ Goal: lower install friction + ship the highest-leverage missing features. 7 act
 - [x] **Phase 20: Mailer Bootstrapper** — `X-Transport` strategy (sync + async safe), `TenantInterface` BC break + trait migration, `MailerTransportContractPass` guard, async canary test (BOOT-04) (completed 2026-05-20)
 - [x] **Phase 21: Demo App** — `examples/saas/` with FrankenPHP + Caddy + MariaDB, three-step fallback ladder, `bin/smoke.sh` CI release-gate (DEMO-01) — *4/4 plans complete; verification gaps_found (CR-02 smoke gate)* (completed 2026-05-22)
 - [x] **Phase 22: Docs Refresh** — install page rewrite, new pages (resolver/profiler/mailer/demo/roadmap), UPGRADE 0.2→0.3, docs-lint extended (DOC-19) (completed 2026-05-28; 4 human_needed items in 22-HUMAN-UAT.md — mkdocs --strict in CI, ASCII visual check, post-publish URL, cross-tree link rendering)
-- [ ] **Phase 23: v0.3 tech-debt closure** — close the accumulated tech-debt surfaced by `v0.3-MILESTONE-AUDIT.md` before tagging v0.3.3: INT-01 Profiler/Mailer Twig contract drift, CR-01 nullable-provider drift guard, WR-01 LogicException for misconfiguration, IN-01..IN-05 ZeroConfigKernelBootTest cleanup, smoke.sh mailer assertion, CHANGELOG Unreleased→0.3.2/0.3.3 promotion.
+- [x] **Phase 23: v0.3 tech-debt closure** — closed the accumulated tech-debt surfaced by `v0.3-MILESTONE-AUDIT.md` before tagging v0.3.3: INT-01 Profiler/Mailer Twig contract drift, WR-01 LogicException retry semantics, WR-02/03/04 intra-bundle consistency, IN-01..IN-04 ZeroConfigKernelBootTest cleanup, smoke.sh per-tenant mailer assertion, CHANGELOG Unreleased→0.3.2/0.3.3 promotion, REQUIREMENTS.md checkbox refresh, green-bar verification. CR-01 + IN-05 closed at the audit level (CR-01 was already fixed in 31465dc 2026-05-21; IN-05 moot per cs-fixer @Symfony policy). Final: 568 PHPUnit tests / 2122 assertions, PHPStan level 9 [OK], cs-fixer clean.
 
 **Architectural decisions ratified** (see `REQUIREMENTS.md#architectural-decisions-ratified`): DEC-MAIL-01 X-Transport strategy, DEC-MAIL-02 full BOOT-04 in v0.3, DEC-MAIL-03 BC break with trait, DEC-RESV-01 priority 25, DEC-PROF-01 TenantResolved subscriber, DEC-INST-01 programmatic invoke, DEC-INST-02 refuse-on-nonstandard, DEC-DEMO-01 Caddy + `*.tenancy.localhost`.
 
@@ -288,13 +288,13 @@ Plans:
 
 **Wave 2** *(depends on Wave 1)*
 
-- [ ] 23-04-PLAN.md — smoke.sh per-tenant mailer-isolation section (Mailpit /api/v1/messages jq assertion)
-- [ ] 23-05-PLAN.md — CHANGELOG promotion (Unreleased → 0.3.2 + 0.3.3 sections)
-- [ ] 23-06-PLAN.md — REQUIREMENTS.md checkbox refresh (RESV-06 / DEMO-01 / DOC-19 → [x])
+- [x] 23-04-PLAN.md — smoke.sh per-tenant mailer-isolation section (Mailpit /api/v1/messages jq assertion). Live-stack docker-run verification deferred to CI per pre-existing Dockerfile/composer.lock drift; syntax + grep gates green. See 23-04-SUMMARY.md.
+- [x] 23-05-PLAN.md — CHANGELOG promotion (Unreleased → 0.3.2 + 0.3.3 sections, Keep-a-Changelog newest-first, footnote block rewritten with all v0.2.x + v0.3.x tags). See 23-05-SUMMARY.md.
+- [x] 23-06-PLAN.md — REQUIREMENTS.md checkbox refresh (RESV-06 / DEMO-01 / DOC-19 flipped to [x]; Traceability table rows updated to Complete). See 23-06-SUMMARY.md.
 
 **Wave 3** *(depends on Wave 2 — final green-bar verification + optional live-stack smoke)*
 
-- [ ] 23-07-PLAN.md — Full PHPUnit + PHPStan + cs-fixer + docs-lint green-bar + optional live `docker compose up` smoke
+- [x] 23-07-PLAN.md — Full PHPUnit (568/2122) + PHPStan level 9 [OK] + cs-fixer (0 files) + docs-lint OK + smoke.sh syntax. Live-stack `docker compose up` skipped (pre-existing demo Dockerfile/composer.lock PHP-version drift; deferred to CI workflow). See 23-07-SUMMARY.md.
 
 > Full v0.3 phase-summary table and dependency notes live in `.planning/milestones/v0.3-ROADMAP.md`.
 
@@ -312,9 +312,9 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 
 ## Progress
 
-| Milestone | Phases | Plans | Status      | Shipped    |
-| --------- | ------ | ----- | ----------- | ---------- |
-| v0.2      | 1–15   | 48/48 | Complete    | 2026-04-20 |
-| v0.3      | 16–23  | 46/?  | In Progress | —          |
+| Milestone | Phases | Plans | Status        | Shipped    |
+| --------- | ------ | ----- | ------------- | ---------- |
+| v0.2      | 1–15   | 48/48 | Complete      | 2026-04-20 |
+| v0.3      | 16–23  | 53/53 | Ready to Tag  | (v0.3.3 pending) |
 
-*v0.3: Phase 16 skipped (non-functional gate). Phases 17–22 complete (46 plans shipped). Phase 23 added 2026-05-29 — audit-driven tech-debt closure before tagging v0.3.3; 3 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests, 23-03 WR-02/03/04 + IN-01..04 with IN-05 skipped per cs-fixer policy).*
+*v0.3: Phase 16 skipped (non-functional gate). Phases 17–22 complete (46 plans shipped). Phase 23 complete 2026-05-29 — audit-driven tech-debt closure; all 7 plans landed (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests, 23-03 WR-02/03/04 + IN-01..04, 23-04 smoke.sh mailer assertion, 23-05 CHANGELOG promotion, 23-06 REQUIREMENTS.md refresh, 23-07 green-bar verification). Total v0.3: 53 plans shipped. Ready to `git tag v0.3.3`.*
