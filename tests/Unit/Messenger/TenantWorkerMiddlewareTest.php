@@ -13,6 +13,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Event\TenantContextCleared;
+use Tenancy\Bundle\Exception\MissingTenantProviderException;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Messenger\TenantStamp;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
@@ -176,6 +177,83 @@ final class TenantWorkerMiddlewareTest extends TestCase
         $middleware = $this->buildMiddleware();
         $middleware->handle($envelope, $this->stack);
 
+        $this->assertFalse($this->tenantContext->hasTenant());
+    }
+
+    /**
+     * Closes WR-01 (.planning/v0.3-MILESTONE-AUDIT.md).
+     *
+     * MissingTenantProviderException MUST extend \LogicException (not
+     * \RuntimeException) so Symfony Messenger's default retry strategy does
+     * NOT re-queue a worker that is misconfigured at the container level —
+     * a permanent operator error, never a transient fault.
+     */
+    public function testMissingTenantProviderExceptionExtendsLogicException(): void
+    {
+        $middleware = new TenantWorkerMiddleware(
+            $this->tenantContext,
+            $this->bootstrapperChain,
+            null, // ← provider absent (nullOnInvalid resolved to null in the container)
+            $this->eventDispatcher,
+        );
+
+        $envelope = new Envelope(new \stdClass(), [new TenantStamp('acme')]);
+
+        $caught = null;
+        try {
+            $middleware->handle($envelope, $this->stack);
+        } catch (\Throwable $e) {
+            $caught = $e;
+        }
+
+        $this->assertNotNull($caught, 'Expected MissingTenantProviderException was not thrown');
+        $this->assertInstanceOf(
+            MissingTenantProviderException::class,
+            $caught,
+            'Null provider + present stamp must throw MissingTenantProviderException.',
+        );
+        $this->assertInstanceOf(
+            \LogicException::class,
+            $caught,
+            'MissingTenantProviderException MUST extend \LogicException so Messenger does NOT retry. See WR-01.',
+        );
+        // Explicit not-RuntimeException assertion — redundant at the type
+        // level (PHPStan can prove it from MissingTenantProviderException's
+        // declared ancestry) but kept as runtime documentation: if anyone
+        // ever changes the parent class to RuntimeException, this fails.
+        // @phpstan-ignore method.alreadyNarrowedType
+        $this->assertNotInstanceOf(
+            \RuntimeException::class,
+            $caught,
+            'MissingTenantProviderException MUST NOT extend \RuntimeException — Messenger would treat it as transient and retry. See WR-01.',
+        );
+        $this->assertStringContainsString('acme', $caught->getMessage(), 'Exception message must include the stamp slug for forensic debugging.');
+        $this->assertStringContainsString('tenancy:install', $caught->getMessage(), 'Exception message must point operators at the install command.');
+    }
+
+    public function testNoThrowWhenProviderIsNullAndStampAbsent(): void
+    {
+        // Regression for TenantWorkerMiddleware L29-33: when no TenantStamp
+        // is present we early-return through the stack BEFORE the null-provider
+        // guard runs. A null provider on a stamp-less envelope must NOT throw.
+        $middleware = new TenantWorkerMiddleware(
+            $this->tenantContext,
+            $this->bootstrapperChain,
+            null,
+            $this->eventDispatcher,
+        );
+
+        $envelope = new Envelope(new \stdClass());
+
+        $this->nextMiddleware
+            ->expects($this->once())
+            ->method('handle')
+            ->with($envelope, $this->stack)
+            ->willReturn($envelope);
+
+        $result = $middleware->handle($envelope, $this->stack);
+
+        $this->assertSame($envelope, $result);
         $this->assertFalse($this->tenantContext->hasTenant());
     }
 
