@@ -7,6 +7,143 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-05-29
+
+v0.3.3 closes the v0.3 milestone tech-debt audit and finalizes the install
+ergonomics promotion. This is the tag that ships v0.3 Adoption Surface in its
+final shape. The next milestone is v0.4 Storage & Shared Entities.
+
+### Changed
+
+- **`nikic/php-parser` promoted from `require-dev`+`suggest` to `require`** —
+  the bundle now hard-requires `nikic/php-parser ^5.0`. Rationale (DEC-INST-02
+  reversal, Phase 22): `tenancy:install` is the canonical onboarding path and
+  it depends on the AST detector. Asking users to `composer require --dev
+  nikic/php-parser` before running `tenancy:install` was a stumbling block on
+  the install funnel; the dep is small (~150 KB), zero-runtime-cost when
+  unused, and is already a transitive dep of every Symfony-Flex-aware
+  project. The bundle's own runtime never touches the parser at request time
+  — it loads only during the one-time install command.
+
+### Fixed
+
+- **Profiler mailer subsection now renders on all panel states** — the
+  `{% if collector.data.mailer is defined %}` block in
+  `src/Resources/views/Collector/tenant.html.twig` was previously nested
+  inside `{% if collector.data.state == 'resolved' %}`, hiding cache
+  hit/eviction counters on landlord, public, and health-check routes where
+  operators most need to see them. Hoisted to the top level of the panel
+  block. INT-01 from `.planning/v0.3-MILESTONE-AUDIT.md`. Affects DX-02 + BOOT-04.
+- **Nullable-provider drift guard strengthened** — all six
+  `tenancy.provider->nullOnInvalid()` consumer constructors now use the
+  identical signature `?TenantProviderInterface $tenantProvider = null`.
+  Previously three of six (ConsoleResolver, TenantRunCommand,
+  TenantWorkerMiddleware) declared the parameter nullable but omitted the
+  `= null` default, allowing a future contributor to drop the `?` without
+  tripping a downstream caller. `NullableProviderInjectionContractTest` now
+  locks the default-null contract via reflection across all seven registered
+  sites (the six listed plus TenantAwareTransportsDecorator). CR-01.
+- **Messenger retry semantics for misconfiguration** — `TenantRunCommand` and
+  `TenantWorkerMiddleware` were already throwing
+  `MissingTenantProviderException` (which extends `\LogicException`, NOT
+  `\RuntimeException`) since v0.3.0, but unit tests asserted only the
+  concrete class. New tests pin the `\LogicException` base class so a future
+  refactor cannot regress Messenger's retry semantics: Symfony Messenger's
+  default retry strategy excludes `LogicException` from re-queue, treating
+  it as a permanent config error. WR-01.
+
+### Changed (internal)
+
+- **`ConsoleResolver` guard-ordering tripwire** — defensive comment block
+  marks the WR-02 invariant (`null === $this->tenantProvider` guard MUST
+  precede the Application::addOption mutation that adds `--tenant` to the
+  global definition); `ConsoleResolverGuardOrderingTest` asserts the source
+  order via file-read line scan. WR-02.
+- **`QueryParamResolver` empty-string check tightened** — changed from
+  `null === $slug || '' === $slug` to `!is_string($slug) || '' === trim($slug)`,
+  matching `ConsoleResolver`'s pattern and additionally rejecting
+  whitespace-only `?_tenant=   ` query strings. Behavior is strictly stricter;
+  any tenant slug that survived the prior check survives this one. WR-03.
+- **`TenantRunCommand` `@security` trust-boundary docblock** added above the
+  `new Process($command)` call to document the array-argv defense (the
+  actual shell-injection vector was closed in v0.3.0 by switching from
+  `Process::fromShellCommandline()` to array-argv `new Process()`). WR-04.
+- **`ZeroConfigKernelBootTest` housekeeping** — dropped the stale
+  `@group canary-red` annotation and historical RED-bar framing (the canary
+  has been green since plans 18-09/18-10 landed); removed
+  `setCatchExceptions(false)` from the `bin/console list` regression test so
+  the captured output surfaces in the failure message; added `getmypid()` to
+  the cache-dir hash to prevent parallel-PHPUnit cache-dir collisions;
+  deduped the parent-directory removal loop in `tearDownAfterClass`.
+  IN-01..IN-04.
+- **`TenantWorkerMiddleware` explicit `use TenantStamp` import** — the
+  class now imports `Tenancy\Bundle\Messenger\TenantStamp` explicitly
+  instead of relying on same-namespace resolution; aligns with the rest of
+  the bundle's import style and future-proofs the class against a stamp
+  relocation. IN-05.
+- **`examples/saas/bin/smoke.sh` per-tenant mailer assertion** — the demo
+  smoke script now POSTs `/_demo/send-test-mail` for acme + globex, queries
+  Mailpit's `/api/v1/messages` API, and asserts distinct `From:` addresses
+  per tenant via `jq -e`. A regression in `TenantMessageDecorator` that
+  broke per-tenant `From:` injection would now fail demo-smoke CI loudly
+  instead of being caught only by human UAT. Closure of the audit's
+  "smoke.sh has no per-tenant mailer assertion" tech-debt item.
+
+## [0.3.2] — 2026-05-22
+
+Phase 21 live-stack pass 3 hardening. The demo app would not boot end-to-end
+on a fresh clone before this release; seven docker-layout + Doctrine ORM 3
++ FrankenPHP integration bugs were discovered only when `docker compose up`
+was finally run as part of phase verification. All seven are fixed here.
+
+### Changed
+
+- **`Tenant` entity split into `AbstractTenant` + concrete `Tenant`** —
+  Doctrine ORM 3 refuses two `#[ORM\Entity]` root classes pointing at the
+  same `tenancy_tenants` table, which prevented the demo's `DemoTenant`
+  from extending the bundle's `Tenant`. The split moves the slug/name/active
+  column definitions onto an `#[ORM\MappedSuperclass]` abstract base
+  (`Tenancy\Bundle\AbstractTenant`); the concrete bundle `Tenant` becomes
+  a thin `#[ORM\Entity]` carrying nothing of its own. **Custom tenant
+  entities MUST extend `AbstractTenant`, not `Tenant`** — see `UPGRADE.md`
+  § 0.3.1 → 0.3.2 for the trivial migration. BOOT-01.
+
+### Fixed
+
+- **Demo Composer path-repo broken inside Docker** — `examples/saas/composer.json`
+  declared a path repository at `../../` which resolved to the bundle root
+  on the host but to `/` inside the container, silently falling through to
+  Packagist's published `v0.3.1` and running the demo against the published
+  tag instead of the dev tree. Fixed by mirroring the host layout in the
+  container: `/srv/bundle/` (bundle root) + `/srv/bundle/examples/saas/`
+  (demo root). BOOT-02.
+- **Stale `wrapper_class:` reference in demo `doctrine.yaml`** — pointed at
+  `Tenancy\Bundle\Doctrine\TenantConnection`, a class removed in v0.2.0
+  when the bundle migrated to DBAL 4 `TenantDriverMiddleware` connection
+  switching. Removed. BOOT-03.
+- **`final class Post` rejected by Doctrine ORM 3 lazy-ghost proxy
+  generation** in the demo. Removed `final`. BOOT-04.
+- **Demo `config/services.yaml` missing** — controllers had no
+  autoconfiguration, every route returned 500 `"has no container set"`.
+  Added the standard Symfony services skeleton with controller resource
+  tagging. BOOT-05.
+- **`bin/console` returned Kernel instead of Application** — Symfony
+  Runtime under FrankenPHP's `SERVER_NAME` env then dispatched the CLI as
+  an HTTP request and threw `Invalid Host ":80,"`. Fixed by returning
+  `Application` from `bin/console` and wrapping the entrypoint script in
+  `env -u SERVER_NAME` as belt-and-braces. BOOT-06.
+- **Caddyfile served HTTPS only** — `tls internal` on the wildcard block
+  meant `smoke.sh` (plain HTTP) and the Dockerfile healthcheck both got
+  redirects they could not follow. Split into explicit `http://` and
+  `https://` site blocks. BOOT-07.
+
+### Changed (demo packaging)
+
+- **Mailpit UI port parameterized** — `${PORT_MAILPIT_UI:-8025}` in
+  `compose.yaml`, `.env`, and `.env.example` so the demo coexists with
+  other dev stacks on the same host. `smoke.sh` now accepts a `BASE_PORT`
+  env override for the same reason.
+
 ## [0.3.1] — 2026-05-22
 
 ### Fixed
@@ -263,6 +400,11 @@ Initial public release. Multi-tenancy for Symfony with zero boilerplate and zero
   - CI jobs for no-Doctrine, no-Messenger, and prefer-lowest dependency validation
   - Codecov coverage reporting
 
-[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/danplaton4/tenancy-bundle/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/danplaton4/tenancy-bundle/releases/tag/v0.2.0
 [0.1.0]: https://github.com/danplaton4/tenancy-bundle/releases/tag/v0.1.0
