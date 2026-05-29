@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
-status: ready_to_tag
-stopped_at: Phase 23 plan 07 executed — Wave 3 green-bar verification complete. PHPUnit 568/2122, PHPStan [OK], cs-fixer clean, docs-lint OK. Phase 23 closure certified; v0.3.3 tag is unblocked.
-last_updated: "2026-05-29T11:30:00.000Z"
-last_activity: 2026-05-29 -- 23-07 closure: ran the full verification matrix against HEAD ec4804e (post-Phase-23). All 5 required gates exit 0 (PHPUnit 568 tests / 2122 assertions, PHPStan level 9 [OK] No errors, php-cs-fixer 0 files needing fix, docs-lint OK, smoke.sh syntax clean). composer validate optional gate exit 0 with pre-existing nikic advisory. Live-stack docker run skipped — pre-existing examples/saas Dockerfile (PHP 8.2) vs composer.lock (Symfony v8.0.x needs PHP >=8.4) drift blocks composer install inside Docker; deferred to .github/workflows/demo-smoke.yml on next push. All 12 Phase 23 marker greps confirmed.
+status: milestone_archived
+stopped_at: v0.3 milestone archived to .planning/milestones/v0.3-*; tag v0.3.3 created. Ready for /gsd:new-milestone (v0.4 Storage & Shared Entities).
+last_updated: "2026-05-29T15:00:00.000Z"
+last_activity: 2026-05-29 -- v0.3 Adoption Surface milestone complete and archived. 7 phases (16 skipped, 17-23 shipped), 53 plans, 568 tests / 2122 assertions, PHPStan level 9 clean, all 6 active requirements SATISFIED. Audit-driven Phase 23 closed remaining tech-debt. Nyquist VALIDATION docs refreshed for 19/20/21/22 (created from scratch for 22). REQUIREMENTS.md deleted in archival commit (fresh for v0.4 via /gsd:new-milestone).
 progress:
   total_phases: 7
   completed_phases: 7
-  total_plans: 52
-  completed_plans: 52
+  total_plans: 53
+  completed_plans: 53
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 23 v0.3 tech-debt closure COMPLETE (7/7 plans). Next operator action: `git tag v0.3.3` against HEAD (post-Plan-23-07 SUMMARY commit), then run `/gsd:complete-milestone v0.3` to archive v0.3 phases, then begin v0.4 (Storage & Shared Entities) planning.
+**Current focus:** v0.3 milestone ARCHIVED 2026-05-29 (tag v0.3.3). Ready for v0.4 Storage & Shared Entities via `/gsd:new-milestone`. Carry-forward: refresh `examples/saas/composer.lock` (pre-existing PHP version drift), close 22-HUMAN-UAT items via post-tag CI run (mkdocs --strict + post-publish URL checks).
 
 ## Current Position
 
-Phase: 23 (tech-debt-closure) — **COMPLETE** (7 of 7 plans). All audit findings closed: INT-01 Twig contract drift, WR-01 LogicException retry semantics, WR-02/03/04 intra-bundle consistency, IN-01..IN-04 canary cleanup, SMOKE-MAILER-01 Mailpit assertion, CHANGELOG promotion to 0.3.2 + 0.3.3, REQUIREMENTS.md checkbox refresh, and green-bar verification.
-Plans: 7 of 7 complete on Phase 23
-Status: v0.3 milestone unblocked — ready to tag v0.3.3. Live-stack `docker compose up` run deferred to CI (`.github/workflows/demo-smoke.yml`) due to pre-existing examples/saas Dockerfile/composer.lock PHP version drift documented in 23-04 + 23-07 SUMMARYs.
-Last activity: 2026-05-29 -- 23-07 verification: PHPUnit 568/2122 PASS, PHPStan level 9 [OK] No errors, php-cs-fixer 0 files, docs-lint OK, smoke.sh -n exit 0, composer validate exit 0 (pre-existing nikic advisory). 23-07-SUMMARY.md created documenting verification matrix verbatim for the v0.3.3 tag audit trail.
+Milestone: v0.3 ARCHIVED. Roadmap collapsed to one-line entry; full details in `.planning/milestones/v0.3-ROADMAP.md` + `.planning/milestones/v0.3-REQUIREMENTS.md` + `.planning/milestones/v0.3-MILESTONE-AUDIT.md`. REQUIREMENTS.md deleted (fresh for v0.4).
+Plans: 53/53 complete across all v0.3 phases (16 skipped, 17-23 shipped)
+Status: Ready for next milestone. Run `/gsd:new-milestone` to start v0.4.
+Last activity: 2026-05-29 -- v0.3 archived; tag v0.3.3 created against the green-bar HEAD; MILESTONES.md, PROJECT.md, ROADMAP.md all updated.
 
 ## Performance Metrics
 

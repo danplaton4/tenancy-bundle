@@ -2,23 +2,47 @@
 
 ## Current State
 
-**Shipped:** v0.2.0 (2026-04-20) — Packagist-published at `danplaton4/tenancy-bundle`. 15 phases, 48 plans, 304 tests (739 assertions), PHPStan level 9 clean. All four v0.2 post-release architectural fixes (FIX-01–04, issues #5–#8) resolved; retroactive v1.0 tag was retracted and line restarted at v0.1.0 before reaching stable at v0.2.0.
+**Shipped:** v0.3.3 (2026-05-29) — Packagist-published at `danplaton4/tenancy-bundle`. 7 v0.3 phases (16 skipped, 17–23), 53 plans, 568 PHPUnit tests / 2122 assertions, PHPStan level 9 clean, php-cs-fixer @Symfony clean, docs-lint clean, composer validates. v0.3 closed the install-funnel gap (one-command `tenancy:install`), shipped per-tenant Mailer + Profiler tab + OriginHeaderResolver, gated by a runnable demo (`examples/saas/`) under FrankenPHP + Caddy + MariaDB.
 
-**In progress:** v0.3 Adoption Surface — see [Current Milestone](#current-milestone--v03-adoption-surface) below.
+**Up next:** v0.4 Storage & Shared Entities — see [Next Milestone Goals](#next-milestone-goals--v04-storage--shared-entities) below.
 
-## Current Milestone — v0.3 Adoption Surface
+<details>
+<summary>Prior milestone — v0.3 Adoption Surface (shipped 2026-05-29)</summary>
 
-**Goal:** Lower install friction and ship the highest-leverage missing features. v0.2 shipped to two self-installs / zero external dependents; v0.3 attacks the install funnel.
+**Goal:** Lower install friction and ship the highest-leverage missing features. v0.2 shipped to two self-installs / zero external dependents; v0.3 attacked the install funnel.
 
-**Target features:**
+**Target features (all shipped):**
 - `tenancy:install` single-command setup (auto-registers bundle, runs `tenancy:init`)
-- Demo app in `examples/` — two tenants, docker-compose, subdomain routing
+- Demo app in `examples/saas` — two tenants, `docker compose up`, subdomain routing
 - Symfony Profiler "Tenancy" WDT tab
 - Mailer bootstrapper (per-tenant SMTP + From)
 - `OriginHeaderResolver` (SPA-friendly)
-- Docs refresh + public ROADMAP.md page
+- Docs refresh + canonical roadmap mirrored to docs site
 
-**Key context:** No Symfony Flex recipe (revisit when install volume justifies cost). No v1.0 tag (deferred until external adoption signals validation). Tight scope on purpose — ~6 phases, ship in weeks not months.
+**Key context:** No Symfony Flex recipe (revisit when install volume justifies cost). No v1.0 tag (deferred until external adoption signals validation). Tight scope held — 7 active phases shipped in ~14 days.
+
+Full milestone history: `.planning/milestones/v0.3-ROADMAP.md` + `.planning/MILESTONES.md`.
+
+</details>
+
+## Next Milestone Goals — v0.4 Storage & Shared Entities
+
+**Theme:** Make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage and data-sharing gaps that block real SaaS use cases.
+
+**Candidate requirements (to be refined in `/gsd:new-milestone`):**
+- **BOOT-03:** Filesystem (Flysystem) bootstrapper for per-tenant uploads
+- **SHARE-01/02:** Shared entity sync mode via Doctrine events (landlord-side master record, tenant-side denormalized copy)
+- **SHARE-03:** Async shared entities via Messenger fan-out
+- **DX-03:** PHPStan extension for `#[TenantAware]` correctness (pairs naturally with SHARE-* work where attribute misuse risk increases)
+- Docs refresh: sharing model, filesystem guide, PHPStan rules
+
+**Retrospective carry-forward (to consider during planning):**
+- 72-hour TTL on `human_needed` VERIFICATION status
+- Plan↔summary parity check (Phase 16 GOV-01 was skipped in v0.3 as non-functional; consider whether v0.4 work justifies it)
+- Closure-phase CONTEXT.md should `git log --since=<audit-date>` over canonical_refs files before generating decisions (lesson from Phase 23 stale-audit findings on CR-01 and IN-05)
+- `examples/saas/composer.lock` vs `Dockerfile` PHP version drift — refresh early (tech debt carried from v0.3)
+
+**Start with:** `/gsd:new-milestone`.
 
 ## What This Is
 
@@ -110,21 +134,17 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 ### Active
 
-*(No active requirements — all v1 scope shipped under v0.2. v0.3 scope below.)*
+*(No active requirements — v0.3 scope fully shipped. v0.4 scope below pending `/gsd:new-milestone`.)*
 
-### Next Milestone — v0.3 Adoption Surface
+### Validated — v0.3 Adoption Surface (Shipped 2026-05-29, tag v0.3.3)
 
-Goal: turn a Packagist page into a successful first install. v0.2 shipped two self-installs / zero external dependents; v0.3 attacks the install funnel and ships the highest-leverage missing features. Tight scope on purpose.
-
-- [x] **DX-06** `tenancy:install` command — auto-registers bundle in `config/bundles.php`, runs `tenancy:init`, prints next steps. Single-command setup; no Flex. Validated in Phase 18.
-- [ ] **DEMO-01** Demo app in `examples/` — two tenants, `docker compose up`, subdomain routing works out of the box. Doubles as integration test.
-- [ ] **DX-02** Symfony Profiler "Tenancy" WDT tab — active tenant, ID, connection, resolved-by
-- [ ] **BOOT-04** Mailer bootstrapper — per-tenant SMTP transport + From headers
-- [x] **RESV-06** `OriginHeaderResolver` — SPA-friendly alternative to `X-Tenant-ID`. Validated in Phase 17.
-- [ ] **DOC-19** Docs refresh — install page (no manual `bundles.php` step), demo walkthrough, Mailer + Profiler guides, public ROADMAP.md page
-- [ ] Retro carry-forward: plan↔summary parity check in `audit-open` tooling
-
-Explicit non-goals: Symfony Flex recipe (see Future / By Demand), v1.0 tag (deferred until external adoption signals validation).
+- ✓ **DX-06** `tenancy:install` command — auto-registers bundle in `config/bundles.php`, delegates to `tenancy:init`. Idempotent, `--dry-run` mode, AST detect via `nikic/php-parser`, refuse non-standard shapes with clean exit. ZeroConfigKernelBootTest canary added during gap closure (2026-05-21) pins zero-config boot path. — v0.3 (Phase 18)
+- ✓ **DEMO-01** Demo app `examples/saas/` — two-tenant SaaS under FrankenPHP + Caddy + MariaDB + Mailpit, `bin/smoke.sh` CI release-gate, three-step fallback ladder (curl Host: → /etc/hosts → browser-native `*.localhost`). Live-stack Pass 3 found and fixed 7 latent boot blockers including AbstractTenant entity split (BC break). — v0.3 (Phase 21)
+- ✓ **DX-02** Symfony Profiler "Tenancy" panel — three render states (resolved / null / error), scalar-only data for serialized profile round-trip, kernel.debug compile-out, DSN-redaction tripwire defense-in-depth. Mailer subsection hoisted in Phase 23 (INT-01 closure) so it renders on all panel states. — v0.3 (Phase 19)
+- ✓ **BOOT-04** Mailer bootstrapper — X-Transport strategy correct under sync AND async Messenger dispatch (TenantMailerDecorator at decoration_priority 10 INNER), `TenantInterface::getMailerDsn()` BC break mitigated by `TenantMailerConfigTrait`, MailerTransportContractPass compile-time guard, DSN sanitization, LRU transport cache with TenantContextCleared listener. AsyncCanaryTest proves tenant-A DSN survives Messenger round-trip. — v0.3 (Phase 20)
+- ✓ **RESV-06** `OriginHeaderResolver` — SPA-friendly resolver at priority 25 with browser-locked Origin allow-list, CORS preflight short-circuit, OriginHeaderResolverConfigPass compile-time guard, mismatch warning when Origin and X-Tenant-ID resolve to different tenants. Trust Model docs section explains spoofability from non-browser clients. — v0.3 (Phase 17)
+- ✓ **DOC-19** Docs refresh — new pages for OriginHeaderResolver / Profiler tab / Mailer Bootstrapper, thin saas-demo walkthrough, canonical roadmap mirrored to docs site, UPGRADE 0.2→0.3 + 0.3.1→0.3.2 + 0.3.2→0.3.3 sections, `scripts/docs-lint.sh` extended with bundles.php install-path regression guard. — v0.3 (Phase 22)
+- ⊘ **GOV-01** Plan↔summary parity check + 72-hour TTL on `human_needed` — SKIPPED as non-functional governance gate (bundle-user value zero). Retrospective items #1 and #2 acknowledged as known gaps; humans surface via RETROSPECTIVE.md. May revisit as part of v0.4 retro carry-forward.
 
 ### Later Milestones (planned, scope subject to v0.3 telemetry)
 
@@ -191,4 +211,4 @@ Tracked but not scheduled. **Open an issue to request prioritization** — these
 | Retract v1.0.0, restart at v0.1.0, graduate to v0.2.0 | Four defects (#5–#8) surfaced in downstream demo projects post-tag; architectural fixes rather than patches | ✓ Good (Phase 15 — semver integrity) |
 
 ---
-*Last updated: 2026-05-18 — Phase 18 complete: `tenancy:install` command shipped, DX-06 validated*
+*Last updated: 2026-05-29 — v0.3 milestone complete: tag v0.3.3 shipped, 568 PHPUnit tests / 2122 assertions, ready for v0.4 (Storage & Shared Entities)*

@@ -1,5 +1,32 @@
 # Milestones
 
+## v0.3 Adoption Surface (Shipped: 2026-05-29, Tag: v0.3.3)
+
+**Phases completed:** 7 phases (17–23; Phase 16 GOV-01 skipped as non-functional gate), 53 plans, ~110 tasks
+**Git range:** v0.2.0 → v0.3.3 (~14 days of active work across 2026-05-15 to 2026-05-29)
+**Test suite:** 568 PHPUnit tests / 2122 assertions (up from 304 in v0.2); PHPStan level 9 clean; php-cs-fixer @Symfony clean; docs-lint clean; composer validates.
+
+**Key accomplishments:**
+
+- **OriginHeaderResolver (RESV-06, Phase 17):** SPA-friendly tenant resolver at priority 25 with browser-locked Origin header + allow-list, compile-time guard, CORS preflight short-circuit, and Trust Model docs section. 333/333 tests pass.
+- **`tenancy:install` one-command setup (DX-06, Phase 18):** AST-based `bundles.php` registration via `nikic/php-parser` (later promoted to `require` in Phase 22), idempotent re-run, `--dry-run` mode, atomic write with `.bak` restore, refuse-non-standard-shapes contract. ZeroConfigKernelBootTest canary added during Phase 18 gap closure pins the zero-config boot path against future regressions.
+- **Symfony Profiler "Tenancy" panel (DX-02, Phase 19):** Three-state Web Debug Toolbar tab (resolved / null / error), scalar-only `$this->data` for serialized profile round-trip, kernel.debug compile-out from prod containers, DSN-redaction tripwire defense-in-depth.
+- **Per-tenant Mailer bootstrapper (BOOT-04, Phase 20):** X-Transport strategy correct under BOTH sync AND async (Messenger) dispatch via TenantMailerDecorator at decoration_priority 10 INNER. AsyncCanaryTest proves tenant A's DSN survives Messenger round-trip in a clean worker context. TenantInterface gets `getMailerDsn()` BC break, mitigated by `TenantMailerConfigTrait`. DSN redaction (DsnSanitizer + sanitizing decorator) keeps credentials out of exception traces.
+- **Runnable demo app (DEMO-01, Phase 21):** `examples/saas/` ships a two-tenant SaaS with FrankenPHP + Caddy + MariaDB + Mailpit, three-step fallback ladder (curl Host: → /etc/hosts → browser-native `*.localhost`), `bin/smoke.sh` CI release-gate. Live-stack Pass 3 found and fixed 7 latent boot blockers including bundle Tenant entity split into AbstractTenant (MappedSuperclass) + concrete Tenant — BC break for downstream users.
+- **Docs refresh (DOC-19, Phase 22):** New user-guide pages for OriginHeaderResolver / Profiler / Mailer Bootstrapper + thin saas-demo walkthrough + canonical roadmap mirrored to docs site + UPGRADE 0.2→0.3 (Mailer trait migration) + 0.3.1→0.3.2 (AbstractTenant split) + 0.3.2→0.3.3 (nikic require). `scripts/docs-lint.sh` extended with `bundles.php` install-path regression guard.
+- **Audit-driven tech-debt closure (Phase 23):** `/gsd:audit-milestone` produced status `tech_debt`; 7-plan closure phase fixed INT-01 Profiler/Mailer Twig contract drift, added LogicException test pinning (WR-01) for Messenger no-retry semantics, extended smoke.sh with per-tenant mailer-isolation assertion via Mailpit `/api/v1/messages` + `jq -e`, promoted CHANGELOG Unreleased → 0.3.2/0.3.3 versioned sections, refreshed REQUIREMENTS.md checkboxes. Two documented stale-audit deviations: CR-01 source edits skipped (already closed by commit 31465dc in opposite direction — PHP 8.0+ optional-before-required deprecation), IN-05 `use TenantStamp` skipped (cs-fixer `no_unused_imports` strips same-namespace imports).
+- **Nyquist VALIDATION sweep:** Phases 19/20/21 frontmatter refreshed from `status: draft, nyquist_compliant: false` (pre-execution planning state) to `status: complete, nyquist_compliant: true` matching shipped reality. Phase 22 VALIDATION.md generated from scratch (was missing); 18 task IDs mapped to source-assertion / functional commands; 4 manual-only items preserved (mkdocs --strict CI-gated + 3 visual checks).
+
+**Audit findings, all closed:**
+
+- v0.3 milestone audit produced status `tech_debt` (0 BLOCKERs, 6/6 REQs satisfied, 17 tech-debt items + 1 cross-phase WARNING). Phase 23 closure phase landed all closeable items; the 4 human-UAT items in 22-HUMAN-UAT.md remain non-blocking (CI-gated).
+
+**v0.3 Architectural Decisions Ratified:** DEC-MAIL-01 X-Transport strategy, DEC-MAIL-02 full BOOT-04 in v0.3, DEC-MAIL-03 BC break with trait, DEC-RESV-01 priority 25, DEC-PROF-01 TenantResolved subscriber, DEC-INST-01 programmatic invoke, DEC-INST-02 refuse-on-nonstandard, DEC-DEMO-01 Caddy + `*.tenancy.localhost`.
+
+**Explicit non-goal still:** Symfony Flex recipe. `tenancy:install` is the supported onboarding path; revisit `symfony/recipes-contrib` only when install volume justifies the maintenance cost.
+
+---
+
 ## v0.2 v0.2 (Shipped: 2026-04-20)
 
 **Phases completed:** 15 phases, 48 plans, 82 tasks
