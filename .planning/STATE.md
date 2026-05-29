@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Adoption Surface
 status: phase_added
-stopped_at: Phase 23 (tech-debt closure) added per v0.3-MILESTONE-AUDIT.md; awaiting /gsd:discuss-phase 23
-last_updated: "2026-05-29T13:20:00.000Z"
-last_activity: 2026-05-29 -- v0.3-MILESTONE-AUDIT.md produced (status tech_debt, 6/6 REQs satisfied, 1 WARNING + tech debt). Phase 23 added at end of v0.3 to close audit findings before tagging v0.3.3.
+stopped_at: Phase 23 plan 02 executed — WR-01 LogicException tests landed at both throw sites; CR-01 portion skipped per Option D (already closed by commit 31465dc on 2026-05-21 in opposite direction)
+last_updated: "2026-05-29T14:30:00.000Z"
+last_activity: 2026-05-29 -- 23-02 WR-01 closure (Option D): added 3 runtime tests pinning MissingTenantProviderException as \LogicException at TenantWorkerMiddleware::handle() and TenantRunCommand::execute() throw sites; Task 1+2 (CR-01) skipped because commit 31465dc had already closed CR-01 in the opposite direction. Test count 562 → 565.
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 52
-  completed_plans: 46
-  percent: 86
+  completed_plans: 48
+  percent: 92
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 23 (tech-debt-closure) — ADDED 2026-05-29, awaiting discuss/plan/execute
-Plans: 0 of TBD planned on Phase 23
-Status: v0.3 milestone gated on Phase 23 + Nyquist refresh sweep before tagging
-Last activity: 2026-05-29 -- v0.3 milestone audit produced tech_debt status; Phase 23 added to close 17 tech-debt items across phases 18/19/20/21 + 1 cross-phase WARNING (INT-01) + pre-tag CHANGELOG housekeeping
+Phase: 23 (tech-debt-closure) — 2 of 7 plans complete (23-01 INT-01 Twig hoist, 23-02 WR-01 LogicException tests via Option D)
+Plans: 2 of 7 complete on Phase 23
+Status: v0.3 milestone gated on remaining Phase 23 plans (23-03 WR-02/03/04 + IN-01..05, 23-04 smoke.sh, 23-05 CHANGELOG, 23-06 REQUIREMENTS, 23-07 green-bar) before tagging v0.3.3
+Last activity: 2026-05-29 -- 23-02 executed under Option D: only Task 3 (WR-01 LogicException tests) ran because Task 1+2 (CR-01 source edits + contract-test default-value) targeted an invariant that 31465dc had already closed in the opposite direction. Recommend audit hygiene: validate findings against post-audit commits before authoring closure-phase CONTEXT.md.
 
 ## Performance Metrics
 
@@ -87,6 +87,7 @@ Last activity: 2026-05-29 -- v0.3 milestone audit produced tech_debt status; Pha
 | Phase 06-messenger-integration P02 | 20 | 2 tasks | 11 files |
 | Phase 07-cli-commands P02 | 2 | 1 tasks | 4 files |
 | Phase 08 P02 | 14 | 1 tasks | 5 files |
+| Phase 23-tech-debt-closure P02 | 12 | 1 task (3 skipped by design — Option D) | 3 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,8 @@ Recent decisions affecting current work:
 - [Phase 07-cli-commands]: symfony/process promoted from absent/dev to production require block (^6.4||^7.0) as tenancy:run is a core production feature
 - [Phase 08-developer-experience]: Schema must be created AFTER chain->boot() so DatabaseSwitchBootstrapper does not destroy the :memory: SQLite DB
 - [Phase 08-developer-experience]: Synthetic tenant in initializeTenant() must carry {memory:true, path:null} connection config so DBAL SQLite driver uses :memory: (path:null bypasses isset check)
+- [Phase 23-02]: Option D scope reduction — CR-01 already closed by 31465dc on 2026-05-21 in opposite direction (drop `= null` defaults, not add them). Reason: 3 of 6 nullable-provider sites have `$tenantProvider` BEFORE required positional params; PHP 8.0+ deprecates optional-before-required. Audit + 23-CONTEXT.md D-02 were stale. Recommend pre-plan git-log validation of post-audit commits to prevent re-opening closed invariants.
+- [Phase 23-02]: WR-01 LogicException invariant is now pinned at the test level (not just by comment in MissingTenantProviderException docblock). Both throw sites (TenantWorkerMiddleware + TenantRunCommand) have runtime assertions: `instanceof \LogicException` + `NOT instanceof \RuntimeException`. The negative assertion is redundant at static-analysis time (PHPStan proves it from the declared ancestry) — kept inline with `@phpstan-ignore method.alreadyNarrowedType` so the test continues to document the WR-01 invariant for future readers.
 
 ### Pending Todos
 
