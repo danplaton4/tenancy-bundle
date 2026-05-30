@@ -50,6 +50,14 @@ abstract class AbstractTenant implements TenantInterface
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $mailerReplyTo = null;
 
+    // Filesystem config (Phase 24 / BOOT-03).
+    // Users with a custom Tenant entity can equivalently `use \Tenancy\Bundle\Filesystem\TenantFilesystemConfigTrait;`
+    // instead of inlining this column. See UPGRADE.md §0.3→0.4 and
+    // .planning/phases/24-filesystem-bootstrapper/24-CONTEXT.md §DEC-FILE-CONFIG.
+    /** @var array{prefix?: string, adapter_dsn?: string, services?: array<string>}|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $filesystemConfig = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -140,6 +148,20 @@ abstract class AbstractTenant implements TenantInterface
     public function setMailerReplyTo(?string $mailerReplyTo): self
     {
         $this->mailerReplyTo = $mailerReplyTo;
+
+        return $this;
+    }
+
+    /** @return array{prefix?: string, adapter_dsn?: string, services?: array<string>}|null */
+    public function getFilesystemConfig(): ?array
+    {
+        return $this->filesystemConfig;
+    }
+
+    /** @param array{prefix?: string, adapter_dsn?: string, services?: array<string>}|null $filesystemConfig */
+    public function setFilesystemConfig(?array $filesystemConfig): self
+    {
+        $this->filesystemConfig = $filesystemConfig;
 
         return $this;
     }
