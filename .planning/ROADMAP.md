@@ -54,6 +54,19 @@
 Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage + data-sharing gaps. 6 active phases, 6 active requirements. See `.planning/REQUIREMENTS.md` for full acceptance criteria.
 
 - [ ] **Phase 24: Filesystem Bootstrapper** — Flysystem integration with prefix + per-tenant-adapter strategies, `FilesystemContractPass` compile-time guard, in-memory test integration (BOOT-03)
+  - **Goal:** When a tenant is resolved, every Flysystem service tagged `tenancy.scoped` automatically points at the active tenant's storage — either as a sub-prefix on a shared adapter (prefix mode, default) or as a per-tenant adapter instance (per-tenant-adapter mode, opt-in).
+  - **Plans:** 10 plans
+  - Plans:
+    - [ ] 24-00-PLAN.md — Wave 0 scaffolding: composer deps (league/flysystem-bundle + league/flysystem-memory require-dev/suggest), 11 stub test files, FilesystemTestKernel + MakeFilesystemServicesPublicPass, StubTenantFilesystemExtension trait
+    - [ ] 24-01-PLAN.md — Wave 1: TenantFilesystemConfigTrait + AbstractTenant.filesystemConfig nullable JSON column (DEC-FILE-CONFIG, zero BC break)
+    - [ ] 24-02-PLAN.md — Wave 1: MissingFilesystemConfigException + UnsupportedAdapterDsnSchemeException, both extends \\LogicException (Messenger no-retry)
+    - [ ] 24-03-PLAN.md — Wave 1: LruFilesystemCache (bounded, default 32) + TenantContextClearedListener (belt-and-suspenders flush)
+    - [ ] 24-04-PLAN.md — Wave 1: AdapterDsnParser with 3 schemes (local://, memory://, s3://) + addScheme() extension point + credential-leak guard
+    - [ ] 24-05-PLAN.md — Wave 2: FilesystemPrefixingDecorator (prefix mode, 21-method FilesystemOperator surface, live-read invariant, Q1 strip-on-listContents)
+    - [ ] 24-06-PLAN.md — Wave 2: TenantAwareFilesystemDecorator (per_tenant_adapter mode, cache+parser integration, MissingFilesystemConfigException raise)
+    - [ ] 24-07-PLAN.md — Wave 3: FilesystemBootstrapper (priority -30) + FilesystemContractPass (3 compile-time guards + tag→decorator rewrite) + TenancyBundle config node + DI wiring
+    - [ ] 24-08-PLAN.md — Wave 4: 5-scenario integration suite + autowiring-regression test (Pitfall 6) + 100-tenant LRU long-worker simulation
+    - [ ] 24-09-PLAN.md — Wave 5: examples/saas/ upload page (live-stack verification) + docs/user-guide/filesystem-bootstrapper.md seed + UPGRADE 0.3 → 0.4 section
 - [ ] **Phase 25: Shared Entities (Sync mode)** — `#[Shared]` attribute + `SharedEntitySyncSubscriber` on landlord postFlush + tenant-side write protection + `SharedEntityWriteInTenantContextException` (SHARE-01)
 - [ ] **Phase 26: `tenancy:shared:resync` command** — bulk-initial-sync console command with continue-on-failure + dry-run + per-tenant pass/fail summary (SHARE-02)
 - [ ] **Phase 27: Async Shared Entities** — opt-in `tenancy.shared.async: true` mode with Messenger fan-out via `SharedEntityChangedMessage` + AsyncCanaryTest pattern (SHARE-03)
@@ -83,6 +96,6 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 | --------- | ------ | ------- | ----------- | ---------- | ------- |
 | v0.2      | 1–15   | 48/48   | Complete    | 2026-04-20 | v0.2.0  |
 | v0.3      | 17–23  | 53/53   | Complete    | 2026-05-29 | v0.3.3  |
-| v0.4      | 24–29  | 0/?     | In Progress | —          | —       |
+| v0.4      | 24–29  | 0/10+   | In Progress | —          | —       |
 
-*v0.4: defined 2026-05-29 after v0.3.3 ship. Phases 24–29 placeholders; plan counts derived once `/gsd:plan-phase` runs for each. Start with `/gsd:plan-phase 24` for BOOT-03 (Filesystem Bootstrapper).*
+*v0.4: defined 2026-05-29 after v0.3.3 ship. Phase 24 planned 2026-05-30 (10 plans across 6 waves). Phases 25–29 plan counts derived once `/gsd:plan-phase` runs for each. Next: `/gsd:execute-phase 24` to start BOOT-03 implementation.*
