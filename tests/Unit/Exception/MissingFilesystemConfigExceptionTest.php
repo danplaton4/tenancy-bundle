@@ -5,22 +5,56 @@ declare(strict_types=1);
 namespace Tenancy\Bundle\Tests\Unit\Exception;
 
 use PHPUnit\Framework\TestCase;
+use Tenancy\Bundle\Exception\MissingFilesystemConfigException;
 
 /**
- * Stub test pinning the Phase 24 MissingFilesystemConfigException ancestry.
+ * Tests pinning the Phase 24 MissingFilesystemConfigException ancestry and
+ * factory message shape.
  *
- * Filled in by Plan 24-02.
+ * Per .planning/phases/24-filesystem-bootstrapper/24-CONTEXT.md §DEC-FILE-EXCEPTION:
+ * extends \LogicException (not \RuntimeException) so Symfony Messenger's default
+ * retry strategy does NOT re-queue a misconfigured tenant — misconfiguration is a
+ * programmer/operator error, not a transient fault.
  *
- * Per .planning/phases/24-filesystem-bootstrapper/24-CONTEXT.md §DEC-FILE-EXCEPTION
- * (extends \LogicException — Messenger's default retry strategy treats
- * RuntimeException as transient; a misconfigured tenant is a programmer error
- * and MUST NOT be retried, so the exception's LogicException ancestry is
- * load-bearing).
+ * The forTenant() factory message must name the tenant slug and include "adapter_dsn"
+ * so the operator knows exactly what to set.
  */
 final class MissingFilesystemConfigExceptionTest extends TestCase
 {
-    public function testStub(): void
+    public function testForTenantReturnsLogicException(): void
     {
-        $this->markTestIncomplete('Stub — implemented in Plan 24-02. See .planning/phases/24-filesystem-bootstrapper/24-VALIDATION.md.');
+        $e = MissingFilesystemConfigException::forTenant('acme');
+
+        self::assertInstanceOf(\LogicException::class, $e);
+    }
+
+    public function testForTenantIsNotRuntimeException(): void
+    {
+        // Load-bearing Messenger no-retry invariant: LogicException is NOT a
+        // RuntimeException, so Messenger's default retry strategy excludes it.
+        $e = MissingFilesystemConfigException::forTenant('acme');
+
+        self::assertNotInstanceOf(\RuntimeException::class, $e);
+    }
+
+    public function testForTenantMessageContainsSlug(): void
+    {
+        $e = MissingFilesystemConfigException::forTenant('acme');
+
+        self::assertStringContainsString('acme', $e->getMessage());
+    }
+
+    public function testForTenantMessageContainsAdapterDsnGuidance(): void
+    {
+        $e = MissingFilesystemConfigException::forTenant('acme');
+
+        self::assertStringContainsString('adapter_dsn', $e->getMessage());
+    }
+
+    public function testForTenantIsSelfType(): void
+    {
+        $e = MissingFilesystemConfigException::forTenant('globex');
+
+        self::assertInstanceOf(MissingFilesystemConfigException::class, $e);
     }
 }
