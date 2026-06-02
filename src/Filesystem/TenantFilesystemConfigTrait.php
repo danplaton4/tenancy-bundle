@@ -26,12 +26,17 @@ use Doctrine\ORM\Mapping as ORM;
  * ?array{
  *   prefix?: string,           // prefix mode override — defaults to "tenant_{slug}/"
  *   adapter_dsn?: string,      // per_tenant_adapter mode — e.g. "s3:///bucket?region=eu-central-1"
- *   services?: array<string>,  // optional: limit scoping to these service IDs (empty = all tagged)
+ *   services?: array<string>,  // NOT yet honored in v0.4 — reserved for future per-service
+ *                              // scoping; setting this key is a no-op in the current release.
  * }
  * ```
  *
  * The #[ORM\Column] attribute is only honored when doctrine/orm is installed;
  * with Doctrine absent the trait still works as plain PHP property storage.
+ *
+ * Do NOT combine with {@see \Tenancy\Bundle\Entity\AbstractTenant}, which
+ * already inlines this column. Using both in the same entity will cause
+ * Doctrine to see a duplicate column mapping and fail.
  *
  * See UPGRADE.md §0.3→0.4 (owned by Plan 24-09) for the migration path.
  */

@@ -19,6 +19,10 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * The Doctrine Column attribute mirrors StubTenantMailerExtension — Doctrine
  * is a require-dev dep of the bundle so the attribute is unconditional.
+ *
+ * Do NOT combine with {@see \Tenancy\Bundle\Entity\AbstractTenant}: AbstractTenant
+ * already inlines the filesystemConfig column. Using both in the same entity will
+ * cause Doctrine to see a duplicate column mapping and fail.
  */
 trait StubTenantFilesystemExtension
 {
