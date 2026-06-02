@@ -14,3 +14,9 @@ tenancy:
             - { origin: 'http://*.tenancy.localhost' }
     filesystem:
         enabled: true
+        # Phase 24: the AbstractTenant.filesystemConfig column (JSON, nullable) is
+        # added in v0.4. This demo uses SchemaTool::updateSchema (mapping-driven,
+        # see src/Command/SeedDemoCommand.php) — NOT doctrine/migrations — so the
+        # column is auto-created on the next `app:seed-demo` run. No manual ALTER
+        # TABLE is needed for the demo. End-user apps that use doctrine/migrations
+        # should follow the UPGRADE.md §0.3→0.4 guide instead.
