@@ -44,9 +44,10 @@ final class MakeFilesystemServicesPublicPass implements CompilerPassInterface
             'tenant_buckets.storage',
             'public.storage',
             // Phase 24 services — populated in Wave 1-3.
+            // Note: prefixing_decorator and tenant_aware_decorator are registered
+            // per-storage by FilesystemContractPass under <id>.tenant_scoped, not
+            // under these names — they were removed to avoid misleading dead entries.
             'tenancy.filesystem.lru_cache',
-            'tenancy.filesystem.prefixing_decorator',
-            'tenancy.filesystem.tenant_aware_decorator',
             'tenancy.filesystem.bootstrapper',
             'tenancy.filesystem.context_cleared_listener',
             // Symfony framework surface used by integration assertions.
