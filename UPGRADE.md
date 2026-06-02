@@ -1,5 +1,89 @@
 # Upgrade Guide
 
+## 0.3 → 0.4
+
+### Breaking changes
+
+**None.** `TenantInterface` is unchanged (DEC-FILE-CONFIG locked). Every class that
+implemented `TenantInterface` in v0.3 continues to work without modification in v0.4.
+
+### New: Filesystem Bootstrapper (BOOT-03)
+
+v0.4 ships per-tenant filesystem scoping via [Flysystem](https://flysystem.thephpleague.com/).
+When a tenant is resolved, Flysystem services tagged `tenancy.scoped` are automatically
+scoped to the active tenant — either as a sub-prefix on a shared adapter (prefix mode, the
+default) or as a per-tenant adapter instance (per-tenant-adapter mode, opt-in).
+
+For full details see [docs/user-guide/filesystem-bootstrapper.md](docs/user-guide/filesystem-bootstrapper.md).
+
+#### Adoption path
+
+**1. Install the Flysystem bundle (required for the bootstrapper):**
+
+```bash
+composer require league/flysystem-bundle
+```
+
+The bundle no-ops if the dep is absent — installing it is only necessary when you want
+per-tenant filesystem scoping.
+
+**2. Tag the storage(s) you want tenant-scoped:**
+
+```yaml
+# config/services.yaml
+services:
+    users.storage:
+        tags:
+            - { name: tenancy.scoped, strategy: prefix }
+    # Other storages without the tag are unaffected — landlord-wide access preserved.
+```
+
+**3. Enable the bootstrapper:**
+
+```yaml
+# config/packages/tenancy.yaml
+tenancy:
+    filesystem:
+        enabled: true
+```
+
+**4. (Optional) For per-tenant-adapter mode:** add `TenantFilesystemConfigTrait` to your
+custom Tenant entity and run a Doctrine migration to add the `filesystem_config` JSON column:
+
+```php
+use Tenancy\Bundle\Filesystem\TenantFilesystemConfigTrait;
+
+class AppTenant extends AbstractTenant
+{
+    use TenantFilesystemConfigTrait;
+}
+```
+
+Then apply the migration. For the default `tenancy_tenants` table:
+
+```sql
+ALTER TABLE tenancy_tenants
+    ADD COLUMN filesystem_config JSON DEFAULT NULL;
+```
+
+If you use `doctrine/migrations`, run `bin/console doctrine:migrations:diff` after adding
+the trait — the migration will be generated for you.
+
+#### No action required for prefix mode
+
+If you don't declare `strategy: per_tenant_adapter` anywhere, the `filesystemConfig` column
+is never read. No Doctrine migration is needed for prefix-mode-only deployments.
+
+#### No action required if filesystem isolation is not needed
+
+The `tenancy.filesystem.enabled` parameter defaults to `false`. Projects that don't opt in
+see zero behaviour change when upgrading from v0.3 to v0.4.
+
+> **Note:** This section will be expanded with troubleshooting tips and additional adoption
+> notes in the v0.4 docs refresh (Phase 29 / DOC-20).
+
+---
+
 ## 0.3.2 to 0.3.3
 
 This release moves `nikic/php-parser` from `composer.json#suggest` to
