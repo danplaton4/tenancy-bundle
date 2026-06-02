@@ -251,6 +251,10 @@ final class FilesystemPrefixingDecorator implements FilesystemOperator
 
         $prefix = str_replace('{slug}', $tenant->getSlug(), $this->prefixTemplate);
 
+        if ('' !== $prefix && !str_ends_with($prefix, '/')) {
+            $prefix .= '/';
+        }
+
         return new PathPrefixer($prefix);
     }
 }

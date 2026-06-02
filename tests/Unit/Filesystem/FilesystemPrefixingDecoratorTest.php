@@ -245,6 +245,28 @@ final class FilesystemPrefixingDecoratorTest extends TestCase
         $this->assertTrue($adapter->fileExists('tenant_acme/acme_data/doc.pdf'));
     }
 
+    /**
+     * WR-01: a prefix_template WITHOUT a trailing slash must still produce
+     * tenant-relative paths from listContents() (no leading '/').
+     *
+     * Without the trailing-slash normalisation in prefixer(), stripPrefix()
+     * strips e.g. "tenant_acme" from "tenant_acme/reports.txt" leaving
+     * "/reports.txt" — the leading slash breaks any round-trip into read().
+     */
+    public function testNoTrailingSlashTemplateProducesRelativeListPaths(): void
+    {
+        // No trailing slash in the template — prefixer() must normalise it.
+        [$decorator] = $this->fixture('tenant_{slug}');
+
+        $decorator->write('reports.txt', 'data');
+
+        $listing = $decorator->listContents('');
+        $paths = array_map(static fn (StorageAttributes $e): string => $e->path(), iterator_to_array($listing));
+
+        $this->assertContains('reports.txt', $paths, 'listContents() must return "reports.txt", not "/reports.txt"');
+        $this->assertNotContains('/reports.txt', $paths, 'listContents() must not produce a leading-slash path');
+    }
+
     // -------------------------------------------------------------------------
     // writeStream passes through prefixed path
     // -------------------------------------------------------------------------
