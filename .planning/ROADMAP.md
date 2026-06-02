@@ -53,7 +53,7 @@
 
 Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage + data-sharing gaps. 6 active phases, 6 active requirements. See `.planning/REQUIREMENTS.md` for full acceptance criteria.
 
-- [ ] **Phase 24: Filesystem Bootstrapper** — Flysystem integration with prefix + per-tenant-adapter strategies, `FilesystemContractPass` compile-time guard, in-memory test integration (BOOT-03)
+- [x] **Phase 24: Filesystem Bootstrapper** — Flysystem integration with prefix + per-tenant-adapter strategies, `FilesystemContractPass` compile-time guard, in-memory test integration (BOOT-03) (completed 2026-06-02)
   - **Goal:** When a tenant is resolved, every Flysystem service tagged `tenancy.scoped` automatically points at the active tenant's storage — either as a sub-prefix on a shared adapter (prefix mode, default) or as a per-tenant adapter instance (per-tenant-adapter mode, opt-in).
   - **Plans:** 10 plans
   - Plans:
