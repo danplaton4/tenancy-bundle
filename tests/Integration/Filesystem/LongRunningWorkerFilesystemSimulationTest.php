@@ -219,7 +219,7 @@ final class LongRunningWorkerFilesystemSimulationTest extends TestCase
      * Note: this test drives its own independent writes to ensure deterministic
      * adapter state — it does not rely on state from other test methods.
      */
-    public function testCrossTenatLeakNegativeAssertion(): void
+    public function testCrossTenantLeakNegativeAssertion(): void
     {
         $container = $this->kernel()->getContainer();
 

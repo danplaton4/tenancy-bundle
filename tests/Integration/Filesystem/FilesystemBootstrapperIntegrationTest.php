@@ -345,7 +345,7 @@ final class FilesystemBootstrapperIntegrationTest extends KernelTestCase
     // Scenario 6: autowiring-through-decorator regression (RESEARCH.md Pitfall 6)
     // -------------------------------------------------------------------------
 
-    public function testAutowiringDelivesDecorator(): void
+    public function testAutowiringDeliversDecorator(): void
     {
         $container = $this->kernel()->getContainer();
 
