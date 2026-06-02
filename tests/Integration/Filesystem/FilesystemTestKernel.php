@@ -145,7 +145,7 @@ class FilesystemTestKernel extends Kernel
             }
 
             $container->loadFromExtension('tenancy', [
-                'driver' => 'shared_database',
+                'driver' => 'database_per_tenant',
                 'strict_mode' => false,
                 'filesystem' => [
                     'enabled' => true,

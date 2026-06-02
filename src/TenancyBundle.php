@@ -38,7 +38,12 @@ class TenancyBundle extends AbstractBundle
     {
         $definition->rootNode()
             ->children()
-            ->scalarNode('driver')->defaultValue('database_per_tenant')->end()
+            ->scalarNode('driver')->defaultValue('database_per_tenant')
+                ->validate()
+                    ->ifNotInArray(['database_per_tenant', 'shared_db'])
+                    ->thenInvalid('Invalid tenancy driver "%s"; expected "database_per_tenant" or "shared_db".')
+                ->end()
+            ->end()
             ->booleanNode('strict_mode')->defaultTrue()->end()
             ->scalarNode('landlord_connection')->defaultValue('default')->end()
             ->scalarNode('tenant_entity_class')->defaultValue('Tenancy\\Bundle\\Entity\\Tenant')->end()
