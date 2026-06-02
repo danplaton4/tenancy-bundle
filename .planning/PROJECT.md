@@ -211,4 +211,4 @@ Tracked but not scheduled. **Open an issue to request prioritization** — these
 | Retract v1.0.0, restart at v0.1.0, graduate to v0.2.0 | Four defects (#5–#8) surfaced in downstream demo projects post-tag; architectural fixes rather than patches | ✓ Good (Phase 15 — semver integrity) |
 
 ---
-*Last updated: 2026-05-29 — v0.3 milestone complete: tag v0.3.3 shipped, 568 PHPUnit tests / 2122 assertions, ready for v0.4 (Storage & Shared Entities)*
+*Last updated: 2026-06-02 — v0.4 Storage & Shared Entities in progress: Phase 24 (BOOT-03 Filesystem Bootstrapper) complete — prefix + per-tenant-adapter Flysystem strategies, `FilesystemContractPass` compile-time guards, 689 PHPUnit tests / 2950 assertions, PHPStan level 9 clean. Phases 25–29 (shared entities sync/async, PHPStan extension) remain.*
