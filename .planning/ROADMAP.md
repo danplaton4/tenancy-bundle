@@ -63,7 +63,7 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
     - [x] 24-03-PLAN.md — Wave 1: LruFilesystemCache (bounded, default 32) + TenantContextClearedListener (belt-and-suspenders flush)
     - [x] 24-04-PLAN.md — Wave 1: AdapterDsnParser with 3 schemes (local://, memory://, s3://) + addScheme() extension point + credential-leak guard
     - [x] 24-05-PLAN.md — Wave 2: FilesystemPrefixingDecorator (prefix mode, 21-method FilesystemOperator surface, live-read invariant, Q1 strip-on-listContents)
-    - [ ] 24-06-PLAN.md — Wave 2: TenantAwareFilesystemDecorator (per_tenant_adapter mode, cache+parser integration, MissingFilesystemConfigException raise)
+    - [x] 24-06-PLAN.md — Wave 2: TenantAwareFilesystemDecorator (per_tenant_adapter mode, cache+parser integration, MissingFilesystemConfigException raise)
     - [ ] 24-07-PLAN.md — Wave 3: FilesystemBootstrapper (priority -30) + FilesystemContractPass (3 compile-time guards + tag→decorator rewrite) + TenancyBundle config node + DI wiring
     - [ ] 24-08-PLAN.md — Wave 4: 5-scenario integration suite + autowiring-regression test (Pitfall 6) + 100-tenant LRU long-worker simulation
     - [ ] 24-09-PLAN.md — Wave 5: examples/saas/ upload page (live-stack verification) + docs/user-guide/filesystem-bootstrapper.md seed + UPGRADE 0.3 → 0.4 section
