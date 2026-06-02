@@ -6,6 +6,7 @@ namespace Tenancy\Bundle\Tests\Integration\Filesystem;
 
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
 use Tenancy\Bundle\TenancyBundle;
@@ -14,13 +15,22 @@ use Tenancy\Bundle\TenancyBundle;
  * Minimal Symfony kernel for Phase 24 Filesystem Bootstrapper integration tests.
  *
  * Registers FrameworkBundle + DoctrineBundle (guarded) + FlysystemBundle (guarded)
- * + TenancyBundle with two memory-adapter storages:
- *   - users.storage  — TAGGED tenancy.scoped (strategy: prefix, prefix_template:
- *                      "tenant_{slug}/") per CONTEXT §DEC-FILE-MULTI; this is the
- *                      "uploads" storage that scopes per tenant.
- *   - public.storage — UNTAGGED → bypasses Phase 24 scoping entirely (landlord-only
- *                      asset path; DEC-FILE-MULTI's "escape hatch" for shared
- *                      filesystems).
+ * + TenancyBundle with THREE memory-adapter storages:
+ *   - users.storage         — TAGGED tenancy.scoped (strategy: prefix,
+ *                             prefix_template: "tenant_{slug}/")
+ *   - tenant_buckets.storage — TAGGED tenancy.scoped (strategy: per_tenant_adapter)
+ *   - public.storage        — UNTAGGED → bypasses Phase 24 scoping entirely
+ *
+ * tenancy.filesystem is enabled with allow_per_tenant_adapter: true and
+ * cache_size: 2 (deliberately low so the 100-tenant LRU test forces evictions
+ * deterministically — only 2 adapters live in the cache at any time, so
+ * 100 tenants always produce >= 98 evictions).
+ *
+ * The `tenancy.provider` definition is swapped out by ReplaceFilesystemProviderPass
+ * for StubFilesystemTenantProvider which pre-seeds:
+ *   - 'acme' / 'globex' → filesystemConfig = ['adapter_dsn' => 'memory://']
+ *   - 'broken'          → filesystemConfig = null (triggers MissingFilesystemConfigException)
+ *   - 'tenant_000'–'tenant_099' → filesystemConfig = ['adapter_dsn' => 'memory://']
  *
  * Doctrine ORM is wired against an in-memory SQLite so the TenancyBundle's
  * landlord EntityManager + Tenant entity discovery work end-to-end without
@@ -29,6 +39,11 @@ use Tenancy\Bundle\TenancyBundle;
  * Bundles are conditionally registered behind class_exists / interface_exists
  * so a `--no-dev` install (without flysystem-bundle / doctrine-bundle) does
  * not break the kernel class autoload.
+ *
+ * Pass registration order (critical):
+ *   ScopedStorageTaggingPass (priority 10)  — tags storage services BEFORE
+ *   FilesystemContractPass (bundle, default) — walks findTaggedServiceIds()
+ * Both run at TYPE_BEFORE_OPTIMIZATION; higher priority means earlier execution.
  */
 class FilesystemTestKernel extends Kernel
 {
@@ -58,17 +73,27 @@ class FilesystemTestKernel extends Kernel
     {
         parent::build($container);
 
-        // Tag users.storage with tenancy.scoped (strategy: prefix,
-        // prefix_template: "tenant_{slug}/") at the BEFORE_OPTIMIZATION stage,
-        // AFTER FlysystemExtension has built the storage Definition. Compiler
-        // pass is the canonical attach-tag-to-bundle-supplied-service pattern
-        // (registerContainerConfiguration closures all run BEFORE extension
-        // processing, so they cannot see users.storage yet).
-        $container->addCompilerPass(new ScopedStorageTaggingPass());
+        // Swap tenancy.provider for the filesystem stub that yields tenants
+        // with filesystemConfig pre-seeded.
+        $container->addCompilerPass(new ReplaceFilesystemProviderPass());
 
-        // Expose private storage services (`users.storage`, `public.storage`) +
-        // any Phase 24 tenancy.filesystem.* services that subsequent waves wire,
-        // so integration tests can call $container->get() directly.
+        // Tag users.storage and tenant_buckets.storage with tenancy.scoped at
+        // priority 10 (higher than default 0) so this pass runs BEFORE the
+        // production FilesystemContractPass (added by TenancyBundle::build() at
+        // priority 0) that walks findTaggedServiceIds('tenancy.scoped').
+        //
+        // registerContainerConfiguration closures run BEFORE extension
+        // processing so they cannot see bundle-built definitions. The compiler
+        // pass is the canonical tag-attachment pattern (Plan 24-00 deviation
+        // analysis, confirmed in 24-00-SUMMARY §Deviations).
+        $container->addCompilerPass(
+            new ScopedStorageTaggingPass(),
+            PassConfig::TYPE_BEFORE_OPTIMIZATION,
+            10,
+        );
+
+        // Expose private storage services + Phase 24 tenancy.filesystem.* service
+        // IDs so integration tests can call $container->get() directly.
         $container->addCompilerPass(new MakeFilesystemServicesPublicPass());
     }
 
@@ -109,6 +134,9 @@ class FilesystemTestKernel extends Kernel
                         'users.storage' => [
                             'adapter' => 'memory',
                         ],
+                        'tenant_buckets.storage' => [
+                            'adapter' => 'memory',
+                        ],
                         'public.storage' => [
                             'adapter' => 'memory',
                         ],
@@ -119,6 +147,11 @@ class FilesystemTestKernel extends Kernel
             $container->loadFromExtension('tenancy', [
                 'driver' => 'shared_database',
                 'strict_mode' => false,
+                'filesystem' => [
+                    'enabled' => true,
+                    'allow_per_tenant_adapter' => true,
+                    'cache_size' => 2,
+                ],
             ]);
         });
     }

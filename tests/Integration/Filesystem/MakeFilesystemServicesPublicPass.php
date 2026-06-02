@@ -39,11 +39,11 @@ final class MakeFilesystemServicesPublicPass implements CompilerPassInterface
             'tenancy.bootstrapper_chain',
             // Flysystem-bundle storage services (bare names per the bundle's
             // FlysystemExtension — see RESEARCH §Pitfall 1). The FilesystemTestKernel
-            // registers exactly these two.
+            // registers exactly these three.
             'users.storage',
+            'tenant_buckets.storage',
             'public.storage',
-            // Phase 24 services — populated in Wave 1-3; absent in Wave 0 → the
-            // hasDefinition guard makes those entries no-op for now.
+            // Phase 24 services — populated in Wave 1-3.
             'tenancy.filesystem.lru_cache',
             'tenancy.filesystem.prefixing_decorator',
             'tenancy.filesystem.tenant_aware_decorator',
