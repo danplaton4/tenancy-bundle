@@ -11,6 +11,7 @@ use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Bootstrapper\DoctrineBootstrapper;
+use Tenancy\Bundle\Bootstrapper\FilesystemBootstrapper;
 use Tenancy\Bundle\Bootstrapper\MailerBootstrapper;
 use Tenancy\Bundle\Cache\TenantAwareCacheAdapter;
 use Tenancy\Bundle\Cache\TenantAwareTagAwareCacheAdapter;
@@ -21,6 +22,9 @@ use Tenancy\Bundle\Command\TenantInitCommand;
 use Tenancy\Bundle\Command\TenantRunCommand;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\EventListener\TenantContextOrchestrator;
+use Tenancy\Bundle\Filesystem\AdapterDsnParser;
+use Tenancy\Bundle\Filesystem\LruFilesystemCache;
+use Tenancy\Bundle\Filesystem\TenantContextClearedListener as FilesystemTenantContextClearedListener;
 use Tenancy\Bundle\Mailer\LruTransportCache;
 use Tenancy\Bundle\Mailer\SanitizingMailerDecorator;
 use Tenancy\Bundle\Mailer\TenantAwareTransportsDecorator;
@@ -237,6 +241,31 @@ return function (ContainerConfigurator $container): void {
         // (roadmap success criterion 6).
         $services->set('tenancy.mailer.context_cleared_listener', TenantContextClearedListener::class)
             ->args([service('tenancy.mailer.lru_cache')])
+            ->autoconfigure(true);
+    }
+
+    if (interface_exists(\League\Flysystem\FilesystemOperator::class)) {
+        // LruFilesystemCache — bounded per-tenant filesystem operator cache (default 32 slots).
+        // Mirrors tenancy.mailer.lru_cache shape: constructor arg from %tenancy.filesystem.cache_size%.
+        $services->set('tenancy.filesystem.lru_cache', LruFilesystemCache::class)
+            ->args([param('tenancy.filesystem.cache_size')]);
+
+        // AdapterDsnParser — zero-arg service; parses adapter DSNs for per_tenant_adapter mode.
+        $services->set('tenancy.filesystem.adapter_dsn_parser', AdapterDsnParser::class);
+
+        // FilesystemBootstrapper — joins the chain at priority -30 (runs AFTER Mailer at -20
+        // on boot, BEFORE Mailer on clear per DEC-FILE-PRIORITY). The clear() step flushes
+        // the LRU so per-tenant adapter instances are released cleanly.
+        $services->set('tenancy.filesystem.bootstrapper', FilesystemBootstrapper::class)
+            ->args([service('tenancy.filesystem.lru_cache')->nullOnInvalid()])
+            ->tag('tenancy.bootstrapper', ['priority' => -30]);
+
+        // FilesystemTenantContextClearedListener — subscribes to TenantContextCleared and flushes
+        // the LruFilesystemCache. Belt-and-suspenders alongside FilesystemBootstrapper::clear() —
+        // guarantees the cache is emptied regardless of which teardown path the kernel takes.
+        // Mirrors tenancy.mailer.context_cleared_listener.
+        $services->set('tenancy.filesystem.context_cleared_listener', FilesystemTenantContextClearedListener::class)
+            ->args([service('tenancy.filesystem.lru_cache')])
             ->autoconfigure(true);
     }
 };

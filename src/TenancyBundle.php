@@ -21,6 +21,7 @@ use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\FilesystemContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MailerTransportContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\OriginHeaderResolverConfigPass;
@@ -99,6 +100,15 @@ class TenancyBundle extends AbstractBundle
             ->end()
             ->end()
             ->end()
+            ->arrayNode('filesystem')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->booleanNode('enabled')->defaultFalse()->end()
+            ->booleanNode('allow_per_tenant_adapter')->defaultTrue()->end()
+            ->scalarNode('prefix_template')->defaultValue('tenant_{slug}/')->end()
+            ->integerNode('cache_size')->defaultValue(32)->min(1)->end()
+            ->end()
+            ->end()
             ->end()
             ->validate()
                 ->ifTrue(function (array $v): bool {
@@ -138,6 +148,17 @@ class TenancyBundle extends AbstractBundle
         $mailerAsyncRaw = $mailerConfig['async'] ?? 'auto';
         $mailerAsync = is_scalar($mailerAsyncRaw) ? (string) $mailerAsyncRaw : 'auto';
 
+        /** @var array<string, mixed> $filesystemConfig */
+        $filesystemConfig = $config['filesystem'] ?? [];
+        $filesystemEnabledRaw = $filesystemConfig['enabled'] ?? false;
+        $filesystemEnabled = is_scalar($filesystemEnabledRaw) ? (bool) $filesystemEnabledRaw : false;
+        $filesystemAllowPerTenantRaw = $filesystemConfig['allow_per_tenant_adapter'] ?? true;
+        $filesystemAllowPerTenant = is_scalar($filesystemAllowPerTenantRaw) ? (bool) $filesystemAllowPerTenantRaw : true;
+        $filesystemPrefixTemplateRaw = $filesystemConfig['prefix_template'] ?? 'tenant_{slug}/';
+        $filesystemPrefixTemplate = is_scalar($filesystemPrefixTemplateRaw) ? (string) $filesystemPrefixTemplateRaw : 'tenant_{slug}/';
+        $filesystemCacheSizeRaw = $filesystemConfig['cache_size'] ?? 32;
+        $filesystemCacheSize = is_int($filesystemCacheSizeRaw) ? $filesystemCacheSizeRaw : 32;
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
@@ -147,7 +168,11 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.resolvers', $config['resolvers'])
             ->set('tenancy.cache_prefix_separator', $config['cache_prefix_separator'])
             ->set('tenancy.mailer.transport_cache_size', $mailerCacheSize)
-            ->set('tenancy.mailer.async', $mailerAsync);
+            ->set('tenancy.mailer.async', $mailerAsync)
+            ->set('tenancy.filesystem.enabled', $filesystemEnabled)
+            ->set('tenancy.filesystem.allow_per_tenant_adapter', $filesystemAllowPerTenant)
+            ->set('tenancy.filesystem.prefix_template', $filesystemPrefixTemplate)
+            ->set('tenancy.filesystem.cache_size', $filesystemCacheSize);
 
         /** @var list<string> $configuredResolvers */
         $configuredResolvers = $config['resolvers'];
@@ -249,6 +274,9 @@ class TenancyBundle extends AbstractBundle
         }
         if (interface_exists(\Symfony\Component\Mailer\MailerInterface::class)) {
             $container->addCompilerPass(new MailerTransportContractPass());
+        }
+        if (interface_exists(\League\Flysystem\FilesystemOperator::class)) {
+            $container->addCompilerPass(new FilesystemContractPass());
         }
     }
 
