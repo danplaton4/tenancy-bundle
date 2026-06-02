@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Phase 24 plan 05 complete — FilesystemPrefixingDecorator + test suite shipped
-last_updated: "2026-06-02T20:21:43.135Z"
+stopped_at: Completed 24-07-PLAN.md
+last_updated: "2026-06-02T20:35:56.001Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 23
   completed_phases: 22
   total_plans: 111
-  completed_plans: 108
+  completed_plans: 109
   percent: 96
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 24 (filesystem-bootstrapper) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-06-02
 
@@ -182,6 +182,9 @@ Recent decisions affecting current work:
 - [Phase 23-06]: Three v0.3 traceability checkboxes (RESV-06 / DEMO-01 / DOC-19) flipped from [ ] to [x] inline rather than deferred to /gsd:complete-milestone archival, keeping the milestone-archive commit a pure file move (cleaner git history).
 - [Phase 23-07]: Live-stack `docker compose up --wait --build` skipped because pre-existing examples/saas Dockerfile (PHP 8.2) vs composer.lock (resolves Symfony to v8.0.x, requires PHP >=8.4) drift blocks `composer install` inside the demo container. NOT introduced by Phase 23. Deferred to CI workflow `.github/workflows/demo-smoke.yml` on next push to master, which constructs its own image from current sources and inherits Plan 23-04's mailer-isolation assertion. Recommended follow-up: open v0.3.3 hotfix plan to either bump Dockerfile to PHP 8.4 OR `composer update --prefer-lowest` to pin Symfony to PHP-8.2-compatible series.
 - [Phase 24-filesystem-bootstrapper]: publicUrl/temporaryUrl/checksum are @method annotations in Flysystem 3.34.0 FilesystemOperator — not real interface methods; PHPStan accepts calls via @method stubs without erroring; tests use createMock(Filesystem::class) not FilesystemOperator for these 3 extras
+- [Phase 24-filesystem-bootstrapper]: FilesystemBootstrapper is structural twin of MailerBootstrapper — no-op boot, LruFilesystemCache::clear on teardown, priority -30
+- [Phase 24-filesystem-bootstrapper]: FilesystemContractPass returns early when tenancy.filesystem.enabled=false (default) — zero-config story for v0.3 users preserved
+- [Phase 24-filesystem-bootstrapper]: tenancy.filesystem config node: enabled (false), allow_per_tenant_adapter (true), prefix_template ('tenant_{slug}/'), cache_size (32)
 
 ### Pending Todos
 
@@ -201,6 +204,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-02T20:21:43.129Z
-Stopped at: Phase 24 plan 05 complete — FilesystemPrefixingDecorator + test suite shipped
+Last session: 2026-06-02T20:35:55.995Z
+Stopped at: Completed 24-07-PLAN.md
 Resume file: None
