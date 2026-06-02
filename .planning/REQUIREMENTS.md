@@ -10,7 +10,7 @@ For prior-milestone (v0.3) requirements, see `.planning/milestones/v0.3-REQUIREM
 
 ### Bootstrappers
 
-- [ ] **BOOT-03**: Per-tenant Filesystem (Flysystem) bootstrapper — `Symfony\Component\Filesystem\Filesystem` / `oneup/flysystem-bundle` integration that scopes the active tenant's uploads to a per-tenant sub-prefix (or per-tenant adapter for S3-style backends), with `class_exists` / `interface_exists` guards keeping `league/flysystem-bundle` as an optional dependency.
+- [x] **BOOT-03**: Per-tenant Filesystem (Flysystem) bootstrapper — `Symfony\Component\Filesystem\Filesystem` / `oneup/flysystem-bundle` integration that scopes the active tenant's uploads to a per-tenant sub-prefix (or per-tenant adapter for S3-style backends), with `class_exists` / `interface_exists` guards keeping `league/flysystem-bundle` as an optional dependency.
   - Acceptance: `FilesystemBootstrapper implements TenantBootstrapperInterface`; optional dep guarded by `interface_exists(\League\Flysystem\FilesystemOperator::class)` AND `class_exists(\Oneup\FlysystemBundle\OneupFlysystemBundle::class)` (or the equivalent for `league/flysystem-bundle`)
   - Acceptance: configuration accepts a `tenancy.filesystem.adapter_strategy: prefix | per_tenant_adapter` switch with `prefix` as default; `prefix` strategy concatenates `tenant_<slug>/` onto the configured base path; `per_tenant_adapter` strategy reads tenant-supplied DSN-like config (mirrors BOOT-04 mailer pattern)
   - Acceptance: `TenantInterface` gains an OPTIONAL `getFilesystemConfig(): ?array` method via the same trait pattern that BOOT-04 uses for `getMailerDsn()` — backward-compatible default returns `null` (use prefix strategy with `tenant_<slug>/`)
@@ -91,7 +91,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOOT-03 | Phase 24 — Filesystem Bootstrapper | Pending |
+| BOOT-03 | Phase 24 — Filesystem Bootstrapper | Complete |
 | SHARE-01 | Phase 25 — Shared Entities (Sync mode) | Pending |
 | SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Pending |
 | SHARE-03 | Phase 27 — Async Shared Entities | Pending |
@@ -99,6 +99,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | DOC-20 | Phase 29 — Docs Refresh | Pending |
 
 **Coverage:**
+
 - v0.4 requirements: 6 total
 - Active: 6, mapped to phases 24–29 (100%)
 - Unmapped: 0

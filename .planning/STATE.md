@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Phase 24 plan 04 complete — Wave 1 (config trait, exceptions, LRU cache, DSN parser) done; next 24-05 FilesystemPrefixingDecorator (Wave 2)
-last_updated: "2026-06-02T12:26:12.645Z"
-last_activity: 2026-06-02 -- STATE.md reconciled to actual Phase 24 progress (5/10 plans executed through Wave 1; Waves 2-5 remain)
+stopped_at: Phase 24 plan 05 complete — FilesystemPrefixingDecorator + test suite shipped
+last_updated: "2026-06-02T20:12:02.845Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 23
   completed_phases: 22
   total_plans: 111
-  completed_plans: 106
-  percent: 95
+  completed_plans: 107
+  percent: 96
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** v0.4 Storage & Shared Entities — Phase 24 Filesystem Bootstrapper (BOOT-03). Wave 1 complete (5/10 plans); next is 24-05 FilesystemPrefixingDecorator (Wave 2). Run `/gsd:execute-phase 24` to continue.
+**Current focus:** Phase 24 — filesystem-bootstrapper
 
 ## Current Position
 
-Phase: 24 — Filesystem Bootstrapper (EXECUTING)
-Plan: 5 of 10 (24-00 → 24-04 complete; next 24-05)
-Status: Wave 1 complete; Waves 2-5 remain (decorators, bootstrapper + compiler pass, integration suite, examples/docs)
-Last activity: 2026-06-02 -- STATE.md reconciled to actual Phase 24 progress (5/10 plans executed through Wave 1)
+Phase: 24 (filesystem-bootstrapper) — EXECUTING
+Plan: 2 of 10
+Status: Ready to execute
+Last activity: 2026-06-02
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Last activity: 2026-06-02 -- STATE.md reconciled to actual Phase 24 progress (5/
 | Phase 23-tech-debt-closure P05 | 8 | 1 task | 1 files |
 | Phase 23-tech-debt-closure P06 | 1 | 1 task | 1 files |
 | Phase 23-tech-debt-closure P07 | 6 | 1 task (live-stack deferred to CI) | 0 files (verification-only; SUMMARY only) |
+| Phase 24-filesystem-bootstrapper P05 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -180,6 +181,7 @@ Recent decisions affecting current work:
 - [Phase 23-05]: CHANGELOG promotion inserted 0.3.3 ABOVE 0.3.2 per Keep-a-Changelog newest-first convention. Compare-link footnote block rewritten end-to-end (8 entries: Unreleased + v0.3.3 + v0.3.2 + v0.3.1 + v0.3.0 + v0.2.1 + v0.2.0 + v0.1.0). Concurrent agent race condition swept Plan 23-04's belated SUMMARY into the e7eb08b commit — net effect benign, both files legitimately needed to land; documented in 23-05-SUMMARY.
 - [Phase 23-06]: Three v0.3 traceability checkboxes (RESV-06 / DEMO-01 / DOC-19) flipped from [ ] to [x] inline rather than deferred to /gsd:complete-milestone archival, keeping the milestone-archive commit a pure file move (cleaner git history).
 - [Phase 23-07]: Live-stack `docker compose up --wait --build` skipped because pre-existing examples/saas Dockerfile (PHP 8.2) vs composer.lock (resolves Symfony to v8.0.x, requires PHP >=8.4) drift blocks `composer install` inside the demo container. NOT introduced by Phase 23. Deferred to CI workflow `.github/workflows/demo-smoke.yml` on next push to master, which constructs its own image from current sources and inherits Plan 23-04's mailer-isolation assertion. Recommended follow-up: open v0.3.3 hotfix plan to either bump Dockerfile to PHP 8.4 OR `composer update --prefer-lowest` to pin Symfony to PHP-8.2-compatible series.
+- [Phase 24-filesystem-bootstrapper]: publicUrl/temporaryUrl/checksum are @method annotations in Flysystem 3.34.0 FilesystemOperator — not real interface methods; PHPStan accepts calls via @method stubs without erroring; tests use createMock(Filesystem::class) not FilesystemOperator for these 3 extras
 
 ### Pending Todos
 
@@ -199,6 +201,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-02T12:26:12.645Z
-Stopped at: Phase 24 plan 04 complete — Wave 1 done (TenantFilesystemConfigTrait, exceptions, LruFilesystemCache, AdapterDsnParser)
-Resume file: (next action — `/gsd:execute-phase 24` to run 24-05 → 24-09: decorators, FilesystemBootstrapper + FilesystemContractPass, integration suite, examples/docs)
+Last session: 2026-06-02T20:12:02.840Z
+Stopped at: Phase 24 plan 05 complete — FilesystemPrefixingDecorator + test suite shipped
+Resume file: None

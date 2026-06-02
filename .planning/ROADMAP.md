@@ -57,12 +57,12 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
   - **Goal:** When a tenant is resolved, every Flysystem service tagged `tenancy.scoped` automatically points at the active tenant's storage — either as a sub-prefix on a shared adapter (prefix mode, default) or as a per-tenant adapter instance (per-tenant-adapter mode, opt-in).
   - **Plans:** 10 plans
   - Plans:
-    - [ ] 24-00-PLAN.md — Wave 0 scaffolding: composer deps (league/flysystem-bundle + league/flysystem-memory require-dev/suggest), 11 stub test files, FilesystemTestKernel + MakeFilesystemServicesPublicPass, StubTenantFilesystemExtension trait
-    - [ ] 24-01-PLAN.md — Wave 1: TenantFilesystemConfigTrait + AbstractTenant.filesystemConfig nullable JSON column (DEC-FILE-CONFIG, zero BC break)
-    - [ ] 24-02-PLAN.md — Wave 1: MissingFilesystemConfigException + UnsupportedAdapterDsnSchemeException, both extends \\LogicException (Messenger no-retry)
-    - [ ] 24-03-PLAN.md — Wave 1: LruFilesystemCache (bounded, default 32) + TenantContextClearedListener (belt-and-suspenders flush)
-    - [ ] 24-04-PLAN.md — Wave 1: AdapterDsnParser with 3 schemes (local://, memory://, s3://) + addScheme() extension point + credential-leak guard
-    - [ ] 24-05-PLAN.md — Wave 2: FilesystemPrefixingDecorator (prefix mode, 21-method FilesystemOperator surface, live-read invariant, Q1 strip-on-listContents)
+    - [x] 24-00-PLAN.md — Wave 0 scaffolding: composer deps (league/flysystem-bundle + league/flysystem-memory require-dev/suggest), 11 stub test files, FilesystemTestKernel + MakeFilesystemServicesPublicPass, StubTenantFilesystemExtension trait
+    - [x] 24-01-PLAN.md — Wave 1: TenantFilesystemConfigTrait + AbstractTenant.filesystemConfig nullable JSON column (DEC-FILE-CONFIG, zero BC break)
+    - [x] 24-02-PLAN.md — Wave 1: MissingFilesystemConfigException + UnsupportedAdapterDsnSchemeException, both extends \\LogicException (Messenger no-retry)
+    - [x] 24-03-PLAN.md — Wave 1: LruFilesystemCache (bounded, default 32) + TenantContextClearedListener (belt-and-suspenders flush)
+    - [x] 24-04-PLAN.md — Wave 1: AdapterDsnParser with 3 schemes (local://, memory://, s3://) + addScheme() extension point + credential-leak guard
+    - [x] 24-05-PLAN.md — Wave 2: FilesystemPrefixingDecorator (prefix mode, 21-method FilesystemOperator surface, live-read invariant, Q1 strip-on-listContents)
     - [ ] 24-06-PLAN.md — Wave 2: TenantAwareFilesystemDecorator (per_tenant_adapter mode, cache+parser integration, MissingFilesystemConfigException raise)
     - [ ] 24-07-PLAN.md — Wave 3: FilesystemBootstrapper (priority -30) + FilesystemContractPass (3 compile-time guards + tag→decorator rewrite) + TenancyBundle config node + DI wiring
     - [ ] 24-08-PLAN.md — Wave 4: 5-scenario integration suite + autowiring-regression test (Pitfall 6) + 100-tenant LRU long-worker simulation
