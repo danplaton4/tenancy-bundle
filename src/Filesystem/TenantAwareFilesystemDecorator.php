@@ -9,6 +9,7 @@ use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemOperator;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Exception\MissingFilesystemConfigException;
+use Tenancy\Bundle\TenantInterface;
 
 /**
  * Per-tenant-adapter mode FilesystemOperator decorator (DEC-FILE-MODE opt-in).
@@ -240,7 +241,7 @@ final class TenantAwareFilesystemDecorator implements FilesystemOperator
      *
      * @throws MissingFilesystemConfigException when adapter_dsn is null/empty
      */
-    private function buildAndCache(\Tenancy\Bundle\TenantInterface $tenant): FilesystemOperator
+    private function buildAndCache(TenantInterface $tenant): FilesystemOperator
     {
         $config = $this->readConfig($tenant);
         $dsn = $config['adapter_dsn'] ?? null;
@@ -267,7 +268,7 @@ final class TenantAwareFilesystemDecorator implements FilesystemOperator
      *
      * @return array{prefix?: string, adapter_dsn?: string, services?: array<string>}|null
      */
-    private function readConfig(\Tenancy\Bundle\TenantInterface $tenant): ?array
+    private function readConfig(TenantInterface $tenant): ?array
     {
         if (!method_exists($tenant, 'getFilesystemConfig')) {
             return null;
