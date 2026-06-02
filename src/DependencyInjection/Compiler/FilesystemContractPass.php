@@ -79,24 +79,31 @@ final class FilesystemContractPass implements CompilerPassInterface
         $allowPerTenant = (bool) $container->getParameter(self::ALLOW_PER_TENANT_PARAM);
 
         foreach ($container->findTaggedServiceIds(self::TAG) as $id => $tags) {
-            foreach ($tags as $attrs) {
-                $strategy = $attrs['strategy'] ?? 'prefix';
-                $prefixTemplate = $attrs['prefix_template'] ?? self::DEFAULT_PREFIX_TEMPLATE;
-
-                // Guard 3: valid strategy attribute.
-                if (!in_array($strategy, ['prefix', 'per_tenant_adapter'], true)) {
-                    throw new \LogicException(sprintf('tenancy.scoped tag on "%s" has invalid strategy "%s". Valid values: prefix, per_tenant_adapter.', $id, $strategy));
-                }
-
-                // Guard 2: per_tenant_adapter strategy blocked by admin escape hatch.
-                if ('per_tenant_adapter' === $strategy && !$allowPerTenant) {
-                    throw new \LogicException(sprintf('tenancy.scoped on "%s" requested per_tenant_adapter strategy, but tenancy.filesystem.allow_per_tenant_adapter is false. Set allow_per_tenant_adapter: true in your tenancy.filesystem config to enable this mode.', $id));
-                }
-
-                $decorator = $this->buildDecorator($strategy, $prefixTemplate);
-                $decorator->setDecoratedService($id);
-                $container->setDefinition($id.'.tenant_scoped', $decorator);
+            // Guard 4: a service must not carry more than one tenancy.scoped tag.
+            // Two tags on the same service would silently overwrite the first
+            // decorator definition with the second — only the last tag would win,
+            // with no error. Fail loudly instead.
+            if (count($tags) > 1) {
+                throw new \LogicException(sprintf('tenancy.scoped on "%s" declared %d times; exactly one strategy per service is supported.', $id, count($tags)));
             }
+
+            $attrs = $tags[0];
+            $strategy = $attrs['strategy'] ?? 'prefix';
+            $prefixTemplate = $attrs['prefix_template'] ?? self::DEFAULT_PREFIX_TEMPLATE;
+
+            // Guard 3: valid strategy attribute.
+            if (!in_array($strategy, ['prefix', 'per_tenant_adapter'], true)) {
+                throw new \LogicException(sprintf('tenancy.scoped tag on "%s" has invalid strategy "%s". Valid values: prefix, per_tenant_adapter.', $id, $strategy));
+            }
+
+            // Guard 2: per_tenant_adapter strategy blocked by admin escape hatch.
+            if ('per_tenant_adapter' === $strategy && !$allowPerTenant) {
+                throw new \LogicException(sprintf('tenancy.scoped on "%s" requested per_tenant_adapter strategy, but tenancy.filesystem.allow_per_tenant_adapter is false. Set allow_per_tenant_adapter: true in your tenancy.filesystem config to enable this mode.', $id));
+            }
+
+            $decorator = $this->buildDecorator($strategy, $prefixTemplate);
+            $decorator->setDecoratedService($id);
+            $container->setDefinition($id.'.tenant_scoped', $decorator);
         }
     }
 

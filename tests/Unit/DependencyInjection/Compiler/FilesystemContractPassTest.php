@@ -161,6 +161,28 @@ final class FilesystemContractPassTest extends TestCase
     }
 
     /**
+     * WR-03: a service carrying more than one tenancy.scoped tag must be rejected
+     * at compile time with a LogicException (guard 4). Silently overwriting the
+     * first decorator definition with the second would be a misconfiguration trap.
+     */
+    public function testMultipleTagsOnSameServiceThrowsLogicException(): void
+    {
+        $container = $this->makeContainer(enabled: true, allowPerTenant: true);
+
+        // Add two tenancy.scoped tags on the same service ID.
+        $def = new Definition();
+        $def->addTag('tenancy.scoped', ['strategy' => 'prefix']);
+        $def->addTag('tenancy.scoped', ['strategy' => 'per_tenant_adapter']);
+        $container->setDefinition('users.storage', $def);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('users.storage');
+        $this->expectExceptionMessage('declared 2 times');
+
+        (new FilesystemContractPass())->process($container);
+    }
+
+    /**
      * Helper: build a ContainerBuilder with the tenancy.filesystem parameters set.
      */
     private function makeContainer(bool $enabled, bool $allowPerTenant): ContainerBuilder
