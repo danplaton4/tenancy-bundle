@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Completed 24-07-PLAN.md
-last_updated: "2026-06-02T20:35:56.001Z"
+stopped_at: Completed 24-08-PLAN.md
+last_updated: "2026-06-02T20:49:58Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 23
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 24 (filesystem-bootstrapper) — EXECUTING
-Plan: 4 of 10
+Plan: 5 of 10
 Status: Ready to execute
 Last activity: 2026-06-02
 
@@ -94,6 +94,7 @@ Last activity: 2026-06-02
 | Phase 23-tech-debt-closure P06 | 1 | 1 task | 1 files |
 | Phase 23-tech-debt-closure P07 | 6 | 1 task (live-stack deferred to CI) | 0 files (verification-only; SUMMARY only) |
 | Phase 24-filesystem-bootstrapper P05 | 12min | 2 tasks | 2 files |
+| Phase 24-filesystem-bootstrapper P08 | 11min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -185,6 +186,8 @@ Recent decisions affecting current work:
 - [Phase 24-filesystem-bootstrapper]: FilesystemBootstrapper is structural twin of MailerBootstrapper — no-op boot, LruFilesystemCache::clear on teardown, priority -30
 - [Phase 24-filesystem-bootstrapper]: FilesystemContractPass returns early when tenancy.filesystem.enabled=false (default) — zero-config story for v0.3 users preserved
 - [Phase 24-filesystem-bootstrapper]: tenancy.filesystem config node: enabled (false), allow_per_tenant_adapter (true), prefix_template ('tenant_{slug}/'), cache_size (32)
+- [Phase 24-filesystem-bootstrapper P08]: ScopedStorageTaggingPass must run at priority 10 (TYPE_BEFORE_OPTIMIZATION) so it precedes FilesystemContractPass (priority 0) — without this ordering the pass walks findTaggedServiceIds('tenancy.scoped') before tags are attached and decoration never applies
+- [Phase 24-filesystem-bootstrapper P08]: cache_size=2 in FilesystemTestKernel forces deterministic LRU eviction in 100-tenant simulation — every 3rd distinct tenant triggers eviction, making the evictions() > 0 assertion a strong regression gate
 
 ### Pending Todos
 
@@ -204,6 +207,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-02T20:35:55.995Z
-Stopped at: Completed 24-07-PLAN.md
+Last session: 2026-06-02T20:49:58Z
+Stopped at: Completed 24-08-PLAN.md
 Resume file: None
