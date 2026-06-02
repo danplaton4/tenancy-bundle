@@ -254,4 +254,42 @@ final class AdapterDsnParserTest extends TestCase
         // matches the documented `addScheme` semantics).
         self::assertSame($custom, $this->parser->parse('local:///tmp/x'));
     }
+
+    // ─── WR-06: array-style query values throw InvalidArgumentException ─────
+
+    /**
+     * WR-06: parse_str array-style query syntax (write_flags[]=2) must throw
+     * an InvalidArgumentException naming the offending key, never the value
+     * (credential-leak discipline T-24-04-01 — the value might be a secret).
+     */
+    public function testArrayStyleQueryValueThrowsInvalidArgumentException(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        // 'write_flags[]' parses to an array via parse_str — must be rejected.
+        $this->parser->parse('local:///srv/uploads?write_flags[]=2');
+    }
+
+    public function testArrayStyleQueryExceptionMessageNamesKey(): void
+    {
+        try {
+            $this->parser->parse('local:///srv/uploads?write_flags[]=2');
+            self::fail('Expected InvalidArgumentException.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('write_flags', $e->getMessage());
+        }
+    }
+
+    public function testArrayStyleQueryExceptionMessageDoesNotEchoValue(): void
+    {
+        // Credential-leak discipline: the exception must not echo the value
+        // (the value could be a secret in a real DSN).
+        try {
+            $this->parser->parse('memory://?secret_key[]=LEAK_SECRET_VAL');
+            self::fail('Expected InvalidArgumentException.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringNotContainsString('LEAK_SECRET_VAL', $e->getMessage());
+            // Key name must appear (operator needs to know what to fix).
+            self::assertStringContainsString('secret_key', $e->getMessage());
+        }
+    }
 }

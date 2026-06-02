@@ -209,11 +209,15 @@ final class AdapterDsnParser
 
         // parse_str produces array<string, mixed>; coerce scalars to string for
         // strict PHPStan-level-9 typing — DSN query values are always scalar.
+        // Array-style keys (e.g. write_flags[]=2) indicate a mis-formed DSN
+        // query: throw naming only the key (never the value) to preserve the
+        // credential-leak discipline (T-24-04-01).
         $result = [];
         foreach ($out as $k => $v) {
-            if (is_scalar($v)) {
-                $result[(string) $k] = (string) $v;
+            if (!is_scalar($v)) {
+                throw new \InvalidArgumentException(sprintf('DSN query parameter "%s" produced a non-scalar value (array-style syntax is not supported). Use a scalar value instead.', (string) $k));
             }
+            $result[(string) $k] = (string) $v;
         }
 
         return $result;
