@@ -76,6 +76,7 @@ nav:
     - Origin Header Resolver: user-guide/origin-header-resolver.md
     - Cache Isolation: user-guide/cache-isolation.md
     - Mailer Bootstrapper: user-guide/mailer-bootstrapper.md
+    - Filesystem Bootstrapper: user-guide/filesystem-bootstrapper.md
     - Messenger Integration: user-guide/messenger.md
     - CLI Commands: user-guide/cli-commands.md
     - Profiler Tab: user-guide/profiler-tab.md
