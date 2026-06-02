@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ tenant ? tenant.name ~ ' uploads' : 'Uploads' }}{% endblock %}
+
+{% block brand_color %}{{ tenant and tenant.brandColor is defined ? tenant.brandColor : '#0f172a' }}{% endblock %}
+
+{% block heading %}{{ tenant ? tenant.name ~ ' Uploads' : 'Uploads' }}{% endblock %}
+
+{% block body %}
+  <p class="meta">Tenant: <code>{{ tenant ? tenant.slug : '(none)' }}</code></p>
+  <h2>Uploaded files</h2>
+  <ul>
+    {% for file in files %}
+      <li>{{ file }}</li>
+    {% else %}
+      <li><em>No files uploaded yet.</em></li>
+    {% endfor %}
+  </ul>
+
+  <h2>Upload a file</h2>
+  <form action="{{ path('tenant_upload_create') }}" method="post" enctype="multipart/form-data">
+    <input type="file" name="upload" required />
+    <button type="submit">Upload</button>
+  </form>
+{% endblock %}

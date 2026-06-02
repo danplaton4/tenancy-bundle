@@ -14,3 +14,12 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    # Tag users.storage for per-tenant filesystem scoping (prefix mode).
+    # The bundle's FilesystemContractPass decorates this service at compile time
+    # with FilesystemPrefixingDecorator, which transparently prepends tenant_{slug}/
+    # to every Flysystem operation. TenantUploadController's $usersStorage arg
+    # receives the decorator — no manual slug handling needed.
+    users.storage:
+        tags:
+            - { name: tenancy.scoped, strategy: prefix, prefix_template: 'tenant_{slug}/' }

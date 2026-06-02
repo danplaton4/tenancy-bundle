@@ -12,3 +12,5 @@ tenancy:
         allow_list:
             - { origin: 'https://*.tenancy.localhost' }
             - { origin: 'http://*.tenancy.localhost' }
+    filesystem:
+        enabled: true
