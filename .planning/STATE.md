@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Completed 24-08-PLAN.md
-last_updated: "2026-06-02T20:49:58Z"
-last_activity: 2026-06-02
+stopped_at: Completed 24-09-PLAN.md
+last_updated: "2026-06-03T00:10:00Z"
+last_activity: 2026-06-03
 progress:
   total_phases: 23
   completed_phases: 22
   total_plans: 111
-  completed_plans: 109
-  percent: 96
+  completed_plans: 110
+  percent: 99
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 24 (filesystem-bootstrapper) — EXECUTING
-Plan: 5 of 10
+Plan: 6 of 10
 Status: Ready to execute
-Last activity: 2026-06-02
+Last activity: 2026-06-03
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ Last activity: 2026-06-02
 | Phase 23-tech-debt-closure P07 | 6 | 1 task (live-stack deferred to CI) | 0 files (verification-only; SUMMARY only) |
 | Phase 24-filesystem-bootstrapper P05 | 12min | 2 tasks | 2 files |
 | Phase 24-filesystem-bootstrapper P08 | 11min | 3 tasks | 8 files |
+| Phase 24-filesystem-bootstrapper P09 | 15min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,8 @@ Recent decisions affecting current work:
 - [Phase 24-filesystem-bootstrapper]: tenancy.filesystem config node: enabled (false), allow_per_tenant_adapter (true), prefix_template ('tenant_{slug}/'), cache_size (32)
 - [Phase 24-filesystem-bootstrapper P08]: ScopedStorageTaggingPass must run at priority 10 (TYPE_BEFORE_OPTIMIZATION) so it precedes FilesystemContractPass (priority 0) — without this ordering the pass walks findTaggedServiceIds('tenancy.scoped') before tags are attached and decoration never applies
 - [Phase 24-filesystem-bootstrapper P08]: cache_size=2 in FilesystemTestKernel forces deterministic LRU eviction in 100-tenant simulation — every 3rd distinct tenant triggers eviction, making the evictions() > 0 assertion a strong regression gate
+- [Phase 24-filesystem-bootstrapper P09]: examples/saas/ TenantUploadController injects TenantContext for template rendering even though filesystem ops are transparent — needed to display tenant.name + tenant.slug in the template
+- [Phase 24-filesystem-bootstrapper P09]: UPGRADE.md 0.3→0.4 section uses arrow notation (→) and is inserted ABOVE existing patch-level 0.3.2→0.3.3 section (newest-first convention); docs page forward-references Phase 29 / DOC-20 for Profiler Filesystem subsection polish
 
 ### Pending Todos
 
@@ -207,6 +210,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-02T20:49:58Z
-Stopped at: Completed 24-08-PLAN.md
+Last session: 2026-06-03T00:10:00Z
+Stopped at: Completed 24-09-PLAN.md
 Resume file: None

@@ -66,7 +66,7 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
     - [x] 24-06-PLAN.md — Wave 2: TenantAwareFilesystemDecorator (per_tenant_adapter mode, cache+parser integration, MissingFilesystemConfigException raise)
     - [x] 24-07-PLAN.md — Wave 3: FilesystemBootstrapper (priority -30) + FilesystemContractPass (3 compile-time guards + tag→decorator rewrite) + TenancyBundle config node + DI wiring
     - [x] 24-08-PLAN.md — Wave 4: 5-scenario integration suite + autowiring-regression test (Pitfall 6) + 100-tenant LRU long-worker simulation
-    - [ ] 24-09-PLAN.md — Wave 5: examples/saas/ upload page (live-stack verification) + docs/user-guide/filesystem-bootstrapper.md seed + UPGRADE 0.3 → 0.4 section
+    - [x] 24-09-PLAN.md — Wave 5: examples/saas/ upload page (live-stack verification) + docs/user-guide/filesystem-bootstrapper.md seed + UPGRADE 0.3 → 0.4 section
 - [ ] **Phase 25: Shared Entities (Sync mode)** — `#[Shared]` attribute + `SharedEntitySyncSubscriber` on landlord postFlush + tenant-side write protection + `SharedEntityWriteInTenantContextException` (SHARE-01)
 - [ ] **Phase 26: `tenancy:shared:resync` command** — bulk-initial-sync console command with continue-on-failure + dry-run + per-tenant pass/fail summary (SHARE-02)
 - [ ] **Phase 27: Async Shared Entities** — opt-in `tenancy.shared.async: true` mode with Messenger fan-out via `SharedEntityChangedMessage` + AsyncCanaryTest pattern (SHARE-03)
