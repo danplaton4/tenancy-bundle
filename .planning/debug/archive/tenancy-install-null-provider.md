@@ -1,14 +1,24 @@
 ---
 slug: tenancy-install-null-provider
-status: root_cause_found
+status: resolved
 trigger: "Fresh-skeleton human UAT (Phase 18, 2026-05-21) failed: `composer require danplaton4/tenancy-bundle` on a clean Symfony 8.0/PHP 8.4 skeleton triggers Symfony Flex auto-recipe → bundle registered in bundles.php → cache:clear crashes with `ConsoleResolver::__construct(): Argument #1 ($tenantProvider) must be of type TenantProviderInterface, null given`. bin/console tenancy:install cannot run because the kernel cannot boot. Phase 18 install onboarding path is broken."
 created: 2026-05-21T00:00:00Z
-updated: 2026-05-21T00:00:00Z
+updated: 2026-06-02T12:26:12.645Z
+resolved: 2026-06-02T12:26:12.645Z
 mode: diagnose_only
 related:
   - .planning/phases/18-tenancy-install/18-VERIFICATION.md
   - .planning/phases/18-tenancy-install/18-CONTEXT.md
 ---
+
+## Resolution (2026-06-02 — reconciliation)
+
+**RESOLVED.** Closed as CR-01 follow-up on 2026-05-21 (commit `31465dc` — "fix(18-followup): CR-01 — lock nullable-provider invariant with contract test"). The fix made the affected constructors accept a nullable provider with an explicit null-guard instead of a hard non-null type hint:
+
+- `src/Resolver/ConsoleResolver.php:21` — constructor now `private readonly ?TenantProviderInterface $tenantProvider`, with a null-guard at line 31 that fails loudly only when the resolver is actually used without a provider (not at container build).
+- `config/services.php` wires `service('tenancy.provider')->nullOnInvalid()`, so kernel boot / `cache:clear` no longer throws a `TypeError` on a fresh skeleton with no concrete provider yet.
+
+Phase 18 human-UAT subsequently passed; v0.2.2 patch was readied. This file is retained for the root-cause record and archived out of the active debug queue.
 
 ## Symptoms
 

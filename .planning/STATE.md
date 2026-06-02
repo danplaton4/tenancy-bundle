@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v0.4
-milestone_name: Storage & Shared Entities
-status: planning
-stopped_at: v0.4 milestone started; REQUIREMENTS.md drafted, ROADMAP.md entry added. Run /gsd:plan-phase 24 to start the first phase.
-last_updated: "2026-05-29T15:30:00.000Z"
-last_activity: 2026-05-29 -- v0.4 Storage & Shared Entities milestone initialized after v0.3.3 ship. 6 candidate requirements drafted (BOOT-03 Filesystem, SHARE-01/02/03 shared entities, DX-03 PHPStan extension, DOC-20 docs refresh). Roadmap scaffold added with phases 24-29 placeholders. Carry-forward items from v0.3 retro folded into requirements + roadmap notes.
+milestone_name: Storage & Shared Entities — Phases 24–29
+status: executing
+stopped_at: Phase 24 plan 04 complete — Wave 1 (config trait, exceptions, LRU cache, DSN parser) done; next 24-05 FilesystemPrefixingDecorator (Wave 2)
+last_updated: "2026-06-02T12:26:12.645Z"
+last_activity: 2026-06-02 -- STATE.md reconciled to actual Phase 24 progress (5/10 plans executed through Wave 1; Waves 2-5 remain)
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 23
+  completed_phases: 22
+  total_plans: 111
+  completed_plans: 106
+  percent: 95
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** v0.4 Storage & Shared Entities — make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage + data-sharing gaps. Start with `/gsd:plan-phase 24` for Phase 24 (Filesystem bootstrapper, BOOT-03).
+**Current focus:** v0.4 Storage & Shared Entities — Phase 24 Filesystem Bootstrapper (BOOT-03). Wave 1 complete (5/10 plans); next is 24-05 FilesystemPrefixingDecorator (Wave 2). Run `/gsd:execute-phase 24` to continue.
 
 ## Current Position
 
-Phase: Not started (defining requirements for v0.4)
-Plan: —
-Status: Requirements drafted, roadmap scaffolded; ready to start phase planning
-Last activity: 2026-05-29 — v0.4 milestone initialized after v0.3.3 ship. REQUIREMENTS.md drafted with 6 candidate requirements (BOOT-03, SHARE-01/02/03, DX-03, DOC-20). ROADMAP.md updated with v0.4 entry + phases 24-29 placeholders.
+Phase: 24 — Filesystem Bootstrapper (EXECUTING)
+Plan: 5 of 10 (24-00 → 24-04 complete; next 24-05)
+Status: Wave 1 complete; Waves 2-5 remain (decorators, bootstrapper + compiler pass, integration suite, examples/docs)
+Last activity: 2026-06-02 -- STATE.md reconciled to actual Phase 24 progress (5/10 plans executed through Wave 1)
 
 ## Performance Metrics
 
@@ -199,6 +199,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-29T11:30:00.000Z
-Stopped at: Phase 23 plan 07 complete — Wave 3 green-bar verification certified; v0.3.3 tag unblocked
-Resume file: (next action — `git tag v0.3.3` then `/gsd:complete-milestone v0.3` then begin v0.4 planning)
+Last session: 2026-06-02T12:26:12.645Z
+Stopped at: Phase 24 plan 04 complete — Wave 1 done (TenantFilesystemConfigTrait, exceptions, LruFilesystemCache, AdapterDsnParser)
+Resume file: (next action — `/gsd:execute-phase 24` to run 24-05 → 24-09: decorators, FilesystemBootstrapper + FilesystemContractPass, integration suite, examples/docs)
