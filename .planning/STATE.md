@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Completed 24-09-PLAN.md
-last_updated: "2026-06-02T21:46:39.797Z"
+stopped_at: Phase 25 context gathered
+last_updated: "2026-06-04T08:02:28.097Z"
 last_activity: 2026-06-02
 progress:
-  total_phases: 23
+  total_phases: 24
   completed_phases: 23
   total_plans: 111
   completed_plans: 111
-  percent: 100
+  percent: 96
 ---
 
 # Project State
@@ -211,6 +211,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-03T00:10:00Z
-Stopped at: Completed 24-09-PLAN.md
-Resume file: None
+Last session: 2026-06-04T08:02:28.090Z
+Stopped at: Phase 25 context gathered
+Resume file: .planning/phases/25-shared-entities-sync-mode/25-CONTEXT.md
