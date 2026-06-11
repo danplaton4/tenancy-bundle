@@ -26,11 +26,14 @@ use Tenancy\Bundle\DependencyInjection\Compiler\MailerTransportContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\OriginHeaderResolverConfigPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
 use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
+use Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber;
+use Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener;
 
 class TenancyBundle extends AbstractBundle
 {
@@ -251,6 +254,31 @@ class TenancyBundle extends AbstractBundle
                     ])
                     ->tag('console.command');
             }
+
+            // Shared-entity sync: wired ONLY in the database_per_tenant path because
+            // this is the only path that creates the landlord + tenant connections.
+            // Under shared_db there is no landlord/tenant connection — registering here
+            // prevents a missing-connection error (open-question A2 resolution).
+            // NO autoconfigure — Doctrine subscribers must NOT use autoconfigure (Pattern 7).
+            if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+                $services->set('tenancy.shared_entity_sync_subscriber', SharedEntitySyncSubscriber::class)
+                    ->args([
+                        service('tenancy.context'),
+                        service('tenancy.provider'),
+                        service('doctrine'),
+                        service('logger'),
+                        param('tenancy.driver'),
+                    ])
+                    ->tag('doctrine.event_listener', ['event' => 'onFlush', 'connection' => 'landlord'])
+                    ->tag('doctrine.event_listener', ['event' => 'postFlush', 'connection' => 'landlord']);
+
+                $services->set('tenancy.shared_entity_write_protection', SharedEntityWriteProtectionListener::class)
+                    ->args([
+                        service('tenancy.context'),
+                        service('tenancy.shared_entity_sync_subscriber'),
+                    ])
+                    ->tag('doctrine.event_listener', ['event' => 'onFlush', 'connection' => 'tenant']);
+            }
         }
 
         if (($config['driver'] ?? 'database_per_tenant') === 'shared_db') {
@@ -282,6 +310,9 @@ class TenancyBundle extends AbstractBundle
         }
         if (interface_exists(\League\Flysystem\FilesystemOperator::class)) {
             $container->addCompilerPass(new FilesystemContractPass());
+        }
+        if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+            $container->addCompilerPass(new SharedEntityMutualExclusionPass());
         }
     }
 

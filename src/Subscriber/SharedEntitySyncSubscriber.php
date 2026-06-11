@@ -60,7 +60,19 @@ use Tenancy\Bundle\TenantInterface;
  */
 final class SharedEntitySyncSubscriber implements EventSubscriber
 {
-    /** @var array<int, array{entity: object, type: 'insert'|'update'|'delete'}> */
+    /**
+     * Pending changeset buffer.
+     *
+     * For insert/update: the entity reference itself is sufficient — the ID is available at
+     * postFlush time because Doctrine does NOT null the identifier on insert/update.
+     *
+     * For delete: we MUST also capture the identifier in onFlush while it is still set.
+     * Doctrine ORM zeroes the entity's identifier field in executeDeletions() (before postFlush
+     * fires) — getIdentifierValues() returns [] by the time postFlush runs.
+     * The captured identifier is passed directly to $tenantEm->find() in doSync.
+     *
+     * @var array<int, array{entity: object, type: 'insert'|'update'|'delete', ids?: array<string, mixed>}>
+     */
     private array $pendingChanges = [];
 
     private bool $syncInProgress = false;
@@ -84,10 +96,15 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      *
      * Called BEFORE executeInserts/Updates/Deletions drain the scheduled-entity arrays.
      * postFlush would see empty arrays — we must buffer here.
+     *
+     * For deletions, we also capture the entity identifier right now, because Doctrine ORM
+     * zeroes the identifier field in executeDeletions() (before postFlush fires).
+     * By postFlush time, getIdentifierValues() returns [] — we need the captured ids.
      */
     public function onFlush(OnFlushEventArgs $args): void
     {
-        $uow = $args->getObjectManager()->getUnitOfWork();
+        $em = $args->getObjectManager();
+        $uow = $em->getUnitOfWork();
 
         foreach ($uow->getScheduledEntityInsertions() as $entity) {
             if ($this->isShared($entity)) {
@@ -103,7 +120,15 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
 
         foreach ($uow->getScheduledEntityDeletions() as $entity) {
             if ($this->isShared($entity)) {
-                $this->pendingChanges[spl_object_id($entity)] = ['entity' => $entity, 'type' => 'delete'];
+                // Capture the identifier NOW — Doctrine zeroes identifier fields during
+                // executeDeletions() so getIdentifierValues() returns [] in postFlush.
+                /** @var array<string, mixed> $ids */
+                $ids = $em->getClassMetadata($entity::class)->getIdentifierValues($entity);
+                $this->pendingChanges[spl_object_id($entity)] = [
+                    'entity' => $entity,
+                    'type' => 'delete',
+                    'ids' => $ids,
+                ];
             }
         }
     }
@@ -129,9 +154,14 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         $changes = $this->pendingChanges;
         $this->pendingChanges = [];
 
-        foreach ($changes as ['entity' => $entity, 'type' => $type]) {
+        foreach ($changes as $change) {
+            $entity = $change['entity'];
+            $type = $change['type'];
+            // Pre-captured identifier for deletes (entity ID zeroed by Doctrine before postFlush)
+            $capturedIds = $change['ids'] ?? null;
+
             foreach ($this->tenantProvider->findAll() as $tenant) {
-                $this->fanOutToTenant($args->getObjectManager(), $entity, $type, $tenant);
+                $this->fanOutToTenant($args->getObjectManager(), $entity, $type, $tenant, $capturedIds);
             }
         }
     }
@@ -154,26 +184,43 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      *   - Failures are caught, logged, and never rethrown (D-01 — landlord request unaffected).
      *   - TenantContext is always cleared in the finally block (Pitfall 4 — no stale context).
      */
+    /**
+     * @param array<string, mixed>|null $capturedIds pre-captured entity identifier (required for
+     *                                               deletes — Doctrine zeroes ID fields before postFlush)
+     */
     private function fanOutToTenant(
         EntityManagerInterface $landlordEm,
         object $entity,
         string $type,
         TenantInterface $tenant,
+        ?array $capturedIds = null,
     ): void {
         try {
             $this->tenantContext->setTenant($tenant);
+
+            // Force the tenant DBAL connection to reconnect via TenantAwareDriver::connect()
+            // so it picks up the new tenant's connection params. Without close(), the
+            // previously-open socket stays connected to the prior tenant's DB (DBAL only
+            // calls connect() when the internal connection handle is null).
+            $tenantConn = $this->registry->getConnection('tenant');
+            if ($tenantConn instanceof \Doctrine\DBAL\Connection) {
+                $tenantConn->close();
+            }
+
             /** @var EntityManagerInterface $tenantEm */
             $tenantEm = $this->registry->resetManager('tenant');
             $this->syncInProgress = true;
-            $this->doSync($landlordEm, $tenantEm, $entity, $type);
+            $this->doSync($landlordEm, $tenantEm, $entity, $type, $capturedIds);
             $this->syncInProgress = false;
         } catch (\Throwable $e) {
             $this->syncInProgress = false;
             $meta = $landlordEm->getClassMetadata($entity::class);
+            // For deletes, getIdentifierValues() returns [] (Doctrine zeroed it) — use captured IDs.
+            $identifier = $capturedIds ?? $meta->getIdentifierValues($entity);
             $this->logger->warning('tenancy.shared_entity_sync_failed', [
                 'tenant_slug' => $tenant->getSlug(),
                 'entity_class' => $entity::class,
-                'identifier' => $meta->getIdentifierValues($entity),
+                'identifier' => $identifier,
                 'error' => $e->getMessage(),
             ]);
         } finally {
@@ -187,16 +234,22 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      * Uses find-or-new + ClassMetadata field copy — NOT merge() (removed in ORM 3.0).
      * Copies getFieldNames() (scalar fields) ONLY — getAssociationNames() is never iterated
      * (one-level cascade boundary, DEC-SHARE-02). See class docblock for the landmine.
+     *
+     * @param array<string, mixed>|null $capturedIds pre-captured identifier for deletes —
+     *                                               Doctrine zeroes entity ID fields before postFlush
      */
     private function doSync(
         EntityManagerInterface $landlordEm,
         EntityManagerInterface $tenantEm,
         object $entity,
         string $type,
+        ?array $capturedIds = null,
     ): void {
         $class = $entity::class;
         $landlordMeta = $landlordEm->getClassMetadata($class);
-        $ids = $landlordMeta->getIdentifierValues($entity);
+        // For deletes, use the pre-captured IDs (Doctrine zeroes identifier fields in executeDeletions
+        // before postFlush fires). For insert/update, capture from the entity directly.
+        $ids = 'delete' === $type ? ($capturedIds ?? $landlordMeta->getIdentifierValues($entity)) : $landlordMeta->getIdentifierValues($entity);
 
         if ('delete' === $type) {
             $existing = $tenantEm->find($class, $ids);
