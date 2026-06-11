@@ -67,7 +67,7 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
     - [x] 24-07-PLAN.md — Wave 3: FilesystemBootstrapper (priority -30) + FilesystemContractPass (3 compile-time guards + tag→decorator rewrite) + TenancyBundle config node + DI wiring
     - [x] 24-08-PLAN.md — Wave 4: 5-scenario integration suite + autowiring-regression test (Pitfall 6) + 100-tenant LRU long-worker simulation
     - [x] 24-09-PLAN.md — Wave 5: examples/saas/ upload page (live-stack verification) + docs/user-guide/filesystem-bootstrapper.md seed + UPGRADE 0.3 → 0.4 section
-- [ ] **Phase 25: Shared Entities (Sync mode)** — `#[Shared]` attribute + `SharedEntitySyncSubscriber` on landlord postFlush + tenant-side write protection + `SharedEntityWriteInTenantContextException` (SHARE-01)
+- [x] **Phase 25: Shared Entities (Sync mode)** — `#[Shared]` attribute + `SharedEntitySyncSubscriber` on landlord postFlush + tenant-side write protection + `SharedEntityWriteInTenantContextException` (SHARE-01) (completed 2026-06-11)
   - **Goal:** When a `#[Shared]`-attributed entity is written on the landlord EM, a read-only denormalized copy is synced (best-effort, synchronous) into every tenant's EM via Doctrine `onFlush`-buffer/`postFlush`-fanout; tenant-side writes of `#[Shared]` entities are blocked, and `#[Shared]` + `#[TenantAware]` co-presence fails loud at container build.
   - **Plans:** 5 plans across 4 waves
   - Plans:
@@ -75,7 +75,7 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
     - [x] 25-01-PLAN.md — Wave 2: `#[Shared]` bare marker attribute (D-06) + `SharedEntityWriteInTenantContextException extends \LogicException` (D-02 foundation)
     - [x] 25-02-PLAN.md — Wave 3: `SharedEntityMutualExclusionPass` compile-time guard via `tenancy.shared_entity` tag (D-04 / DEC-SHARE-03)
     - [x] 25-03-PLAN.md — Wave 3: `SharedEntitySyncSubscriber` (onFlush-buffer → postFlush best-effort fan-out, no merge(), scalar-only copy, shared_db no-op, re-entrancy flag, actionable logging — D-01/D-03/D-05/D-07) + `SharedEntityWriteProtectionListener` (tenant onFlush read-only guard + re-entrancy bypass — D-02)
-    - [ ] 25-04-PLAN.md — Wave 4: connection-scoped DI wiring (landlord subscriber + tenant guard in the database_per_tenant block, A2) + compiler-pass registration in build() + shared_db no-op docs note + full SHARE-01 suite green-up
+    - [x] 25-04-PLAN.md — Wave 4: connection-scoped DI wiring (landlord subscriber + tenant guard in the database_per_tenant block, A2) + compiler-pass registration in build() + shared_db no-op docs note + full SHARE-01 suite green-up
 - [ ] **Phase 26: `tenancy:shared:resync` command** — bulk-initial-sync console command with continue-on-failure + dry-run + per-tenant pass/fail summary (SHARE-02)
 - [ ] **Phase 27: Async Shared Entities** — opt-in `tenancy.shared.async: true` mode with Messenger fan-out via `SharedEntityChangedMessage` + AsyncCanaryTest pattern (SHARE-03)
 - [ ] **Phase 28: PHPStan Extension** — rules for `#[TenantAware]` + `#[Shared]` correctness, `phpstan/extension-installer` auto-load (DX-03)
