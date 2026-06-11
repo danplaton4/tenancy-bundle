@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Phase 25 context gathered
-last_updated: "2026-06-11T08:04:06.523Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-06-11T08:11:31.810Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 24
   completed_phases: 23
   total_plans: 116
-  completed_plans: 112
+  completed_plans: 113
   percent: 96
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 25 (shared-entities-sync-mode) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-11
 
@@ -98,6 +98,7 @@ Last activity: 2026-06-11
 | Phase 24-filesystem-bootstrapper P08 | 11min | 3 tasks | 8 files |
 | Phase 24-filesystem-bootstrapper P09 | 15min | 3 tasks | 9 files |
 | Phase 25-shared-entities-sync-mode P00 | 18 | 2 tasks | 12 files |
+| Phase 25 P01 | 8min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,9 @@ Recent decisions affecting current work:
 - [Phase 24-filesystem-bootstrapper P08]: cache_size=2 in FilesystemTestKernel forces deterministic LRU eviction in 100-tenant simulation — every 3rd distinct tenant triggers eviction, making the evictions() > 0 assertion a strong regression gate
 - [Phase 24-filesystem-bootstrapper P09]: examples/saas/ TenantUploadController injects TenantContext for template rendering even though filesystem ops are transparent — needed to display tenant.name + tenant.slug in the template
 - [Phase 24-filesystem-bootstrapper P09]: UPGRADE.md 0.3→0.4 section uses arrow notation (→) and is inserted ABOVE existing patch-level 0.3.2→0.3.3 section (newest-first convention); docs page forward-references Phase 29 / DOC-20 for Profiler Filesystem subsection polish
+- [Phase ?]: D-06 confirmed: #[Shared] is a bare zero-param TARGET_CLASS marker attribute, mirroring TenantAware.php exactly
+- [Phase ?]: D-02 confirmed: SharedEntityWriteInTenantContextException extends LogicException per WR-01 no-retry invariant; forEntity(class, slug) static factory
+- [Phase ?]: [Rule 3 - Blocking] Multi-class skip-guard pattern: tests requiring both exception class AND listener must check class_exists on both to prevent false un-skipping during intermediate plans
 
 ### Pending Todos
 
@@ -212,6 +216,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-11T08:04:06.506Z
-Stopped at: Phase 25 context gathered
+Last session: 2026-06-11T08:11:31.804Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None
