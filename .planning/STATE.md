@@ -4,7 +4,7 @@ milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: verifying
 stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-06-11T18:06:30.774Z"
+last_updated: "2026-06-11T19:31:53.091Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 24
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 25 (shared-entities-sync-mode) — EXECUTING
-Plan: 5 of 5
+Phase: 25
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-06-11
 
@@ -34,7 +34,7 @@ Last activity: 2026-06-11
 
 **Velocity:**
 
-- Total plans completed: 72
+- Total plans completed: 77
 - Average duration: ~5 min
 - Total execution time: ~0.5 hours
 
@@ -55,6 +55,7 @@ Last activity: 2026-06-11
 | 19 | 7 | - | - |
 | 20 | 12 | - | - |
 | 24 | 10 | - | - |
+| 25 | 5 | - | - |
 
 **Recent Trend:**
 
