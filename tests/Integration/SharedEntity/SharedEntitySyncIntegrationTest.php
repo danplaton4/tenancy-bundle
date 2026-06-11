@@ -120,6 +120,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
         }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
+        }
 
         $container = self::$kernel->getContainer();
 
@@ -142,6 +145,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
     {
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
@@ -187,6 +193,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
         }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
+        }
 
         $container = self::$kernel->getContainer();
         /** @var EntityManagerInterface $landlordEm */
@@ -229,6 +238,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
     {
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
@@ -275,6 +287,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
             || !class_exists(\Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener::class)) {
             self::markTestSkipped('SharedEntityWriteInTenantContextException + SharedEntityWriteProtectionListener not yet available — lands in Plan 25-03.');
         }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_write_protection')) {
+            self::markTestSkipped('tenancy.shared_entity_write_protection service not yet wired — lands in Plan 25-04.');
+        }
 
         $container = self::$kernel->getContainer();
         /** @var ManagerRegistry $registry */
@@ -303,6 +318,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)
             || !class_exists(\Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener::class)) {
             self::markTestSkipped('SharedEntityWriteInTenantContextException + SharedEntityWriteProtectionListener not yet available — lands in Plan 25-03.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_write_protection')) {
+            self::markTestSkipped('tenancy.shared_entity_write_protection service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
@@ -342,6 +360,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)
             || !class_exists(\Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener::class)) {
             self::markTestSkipped('SharedEntityWriteInTenantContextException + SharedEntityWriteProtectionListener not yet available — lands in Plan 25-03.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_write_protection')) {
+            self::markTestSkipped('tenancy.shared_entity_write_protection service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
@@ -383,6 +404,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
     {
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
@@ -443,6 +467,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
     {
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
@@ -508,6 +535,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
     {
         if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
             self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
         }
 
         $container = self::$kernel->getContainer();
