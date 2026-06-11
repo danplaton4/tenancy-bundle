@@ -271,8 +271,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
      */
     public function testTenantSidePersistThrows(): void
     {
-        if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)) {
-            self::markTestSkipped('SharedEntityWriteInTenantContextException not yet available — lands in Plan 25-03.');
+        if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)
+            || !class_exists(\Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener::class)) {
+            self::markTestSkipped('SharedEntityWriteInTenantContextException + SharedEntityWriteProtectionListener not yet available — lands in Plan 25-03.');
         }
 
         $container = self::$kernel->getContainer();
@@ -299,8 +300,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
      */
     public function testTenantSideUpdateThrows(): void
     {
-        if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)) {
-            self::markTestSkipped('SharedEntityWriteInTenantContextException not yet available — lands in Plan 25-03.');
+        if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)
+            || !class_exists(\Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener::class)) {
+            self::markTestSkipped('SharedEntityWriteInTenantContextException + SharedEntityWriteProtectionListener not yet available — lands in Plan 25-03.');
         }
 
         $container = self::$kernel->getContainer();
@@ -337,8 +339,9 @@ final class SharedEntitySyncIntegrationTest extends TestCase
      */
     public function testTenantSideDeleteThrows(): void
     {
-        if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)) {
-            self::markTestSkipped('SharedEntityWriteInTenantContextException not yet available — lands in Plan 25-03.');
+        if (!class_exists(\Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException::class)
+            || !class_exists(\Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener::class)) {
+            self::markTestSkipped('SharedEntityWriteInTenantContextException + SharedEntityWriteProtectionListener not yet available — lands in Plan 25-03.');
         }
 
         $container = self::$kernel->getContainer();
