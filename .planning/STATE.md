@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-06-11T08:11:31.810Z"
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-06-11T08:19:31.566Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 24
   completed_phases: 23
   total_plans: 116
-  completed_plans: 113
+  completed_plans: 114
   percent: 96
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 25 (shared-entities-sync-mode) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-11
 
@@ -99,6 +99,7 @@ Last activity: 2026-06-11
 | Phase 24-filesystem-bootstrapper P09 | 15min | 3 tasks | 9 files |
 | Phase 25-shared-entities-sync-mode P00 | 18 | 2 tasks | 12 files |
 | Phase 25 P01 | 8min | 2 tasks | 3 files |
+| Phase 25 P02 | 3min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -197,6 +198,7 @@ Recent decisions affecting current work:
 - [Phase ?]: D-06 confirmed: #[Shared] is a bare zero-param TARGET_CLASS marker attribute, mirroring TenantAware.php exactly
 - [Phase ?]: D-02 confirmed: SharedEntityWriteInTenantContextException extends LogicException per WR-01 no-retry invariant; forEntity(class, slug) static factory
 - [Phase ?]: [Rule 3 - Blocking] Multi-class skip-guard pattern: tests requiring both exception class AND listener must check class_exists on both to prevent false un-skipping during intermediate plans
+- [Phase ?]: [Phase 25-02]: Discovery mechanism for SharedEntityMutualExclusionPass: tenancy.shared_entity container tag — mirrors tenancy.scoped in FilesystemContractPass; users must tag shared entity service definitions for compile-time inspection (Phase 28 PHPStan catches untagged classes at edit time)
 
 ### Pending Todos
 
@@ -216,6 +218,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-11T08:11:31.804Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-06-11T08:19:31.560Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
