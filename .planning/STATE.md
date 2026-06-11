@@ -4,12 +4,12 @@ milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
 stopped_at: Phase 25 context gathered
-last_updated: "2026-06-04T08:02:28.097Z"
-last_activity: 2026-06-02
+last_updated: "2026-06-11T07:28:51.849Z"
+last_activity: 2026-06-11 -- Phase 25 planning complete
 progress:
   total_phases: 24
   completed_phases: 23
-  total_plans: 111
+  total_plans: 116
   completed_plans: 111
   percent: 96
 ---
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 Phase: 24
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-06-02
+Last activity: 2026-06-11 -- Phase 25 planning complete
 
 ## Performance Metrics
 

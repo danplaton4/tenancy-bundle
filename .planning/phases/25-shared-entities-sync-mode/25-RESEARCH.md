@@ -825,7 +825,21 @@ $em = $registry->resetManager('tenant');   // returns EntityManagerInterface, cl
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three questions were resolved by the planner during Phase 25 planning (2026-06-11).
+> Resolutions are authoritative in the cited PLAN.md files; summarized inline below.
+>
+> - **RESOLVED Q1 (shared_db connection scoping)** → Plan 25-04: subscriber + write-protection
+>   listener service registration lives INSIDE the `database.enabled` block (which implies
+>   `database_per_tenant`), so under `shared_db` the services are never registered and no
+>   missing `landlord`/`tenant` connection is referenced. The in-subscriber D-03 short-circuit
+>   is belt-and-suspenders.
+> - **RESOLVED Q2 (findAll inactive tenants)** → Plan 25-03: sync ALL tenants returned by
+>   `findAll()`, including inactive; drift repair is deferred to Phase 26 `tenancy:shared:resync`.
+> - **RESOLVED Q3 (compile-time entity enumeration)** → Plan 25-02: option (a) — entities are
+>   discovered via a `tenancy.shared_entity` container service tag walked by `findTaggedServiceIds()`,
+>   mirroring the `FilesystemContractPass` convention.
 
 1. **shared_db + event listener tag connection scoping**
    - What we know: `shared_db` mode has only a `default` connection, no `landlord` or `tenant` connections
