@@ -68,6 +68,14 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
     - [x] 24-08-PLAN.md — Wave 4: 5-scenario integration suite + autowiring-regression test (Pitfall 6) + 100-tenant LRU long-worker simulation
     - [x] 24-09-PLAN.md — Wave 5: examples/saas/ upload page (live-stack verification) + docs/user-guide/filesystem-bootstrapper.md seed + UPGRADE 0.3 → 0.4 section
 - [ ] **Phase 25: Shared Entities (Sync mode)** — `#[Shared]` attribute + `SharedEntitySyncSubscriber` on landlord postFlush + tenant-side write protection + `SharedEntityWriteInTenantContextException` (SHARE-01)
+  - **Goal:** When a `#[Shared]`-attributed entity is written on the landlord EM, a read-only denormalized copy is synced (best-effort, synchronous) into every tenant's EM via Doctrine `onFlush`-buffer/`postFlush`-fanout; tenant-side writes of `#[Shared]` entities are blocked, and `#[Shared]` + `#[TenantAware]` co-presence fails loud at container build.
+  - **Plans:** 5 plans across 4 waves
+  - Plans:
+    - [ ] 25-00-PLAN.md — Wave 0: test infrastructure (landlord + 2-tenant SQLite kernel, #[Shared] test entities + association entity, 2-tenant stub provider, public-services pass, unit + integration test scaffolds for SHARE-01-a..m)
+    - [ ] 25-01-PLAN.md — Wave 2: `#[Shared]` bare marker attribute (D-06) + `SharedEntityWriteInTenantContextException extends \LogicException` (D-02 foundation)
+    - [ ] 25-02-PLAN.md — Wave 3: `SharedEntityMutualExclusionPass` compile-time guard via `tenancy.shared_entity` tag (D-04 / DEC-SHARE-03)
+    - [ ] 25-03-PLAN.md — Wave 3: `SharedEntitySyncSubscriber` (onFlush-buffer → postFlush best-effort fan-out, no merge(), scalar-only copy, shared_db no-op, re-entrancy flag, actionable logging — D-01/D-03/D-05/D-07) + `SharedEntityWriteProtectionListener` (tenant onFlush read-only guard + re-entrancy bypass — D-02)
+    - [ ] 25-04-PLAN.md — Wave 4: connection-scoped DI wiring (landlord subscriber + tenant guard in the database_per_tenant block, A2) + compiler-pass registration in build() + shared_db no-op docs note + full SHARE-01 suite green-up
 - [ ] **Phase 26: `tenancy:shared:resync` command** — bulk-initial-sync console command with continue-on-failure + dry-run + per-tenant pass/fail summary (SHARE-02)
 - [ ] **Phase 27: Async Shared Entities** — opt-in `tenancy.shared.async: true` mode with Messenger fan-out via `SharedEntityChangedMessage` + AsyncCanaryTest pattern (SHARE-03)
 - [ ] **Phase 28: PHPStan Extension** — rules for `#[TenantAware]` + `#[Shared]` correctness, `phpstan/extension-installer` auto-load (DX-03)
@@ -96,6 +104,6 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 | --------- | ------ | ------- | ----------- | ---------- | ------- |
 | v0.2      | 1–15   | 48/48   | Complete    | 2026-04-20 | v0.2.0  |
 | v0.3      | 17–23  | 53/53   | Complete    | 2026-05-29 | v0.3.3  |
-| v0.4      | 24–29  | 0/10+   | In Progress | —          | —       |
+| v0.4      | 24–29  | 0/15+   | In Progress | —          | —       |
 
-*v0.4: defined 2026-05-29 after v0.3.3 ship. Phase 24 planned 2026-05-30 (10 plans across 6 waves). Phases 25–29 plan counts derived once `/gsd:plan-phase` runs for each. Next: `/gsd:execute-phase 24` to start BOOT-03 implementation.*
+*v0.4: defined 2026-05-29 after v0.3.3 ship. Phase 24 planned 2026-05-30 (10 plans across 6 waves). Phase 25 planned 2026-06-11 (5 plans across 4 waves). Phases 26–29 plan counts derived once `/gsd:plan-phase` runs for each. Next: `/gsd:execute-phase 25` to start SHARE-01 implementation.*
