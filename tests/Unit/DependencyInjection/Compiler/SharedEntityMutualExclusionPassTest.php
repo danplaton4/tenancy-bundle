@@ -7,6 +7,8 @@ namespace Tenancy\Bundle\Tests\Unit\DependencyInjection\Compiler;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Tenancy\Bundle\Attribute\Shared;
+use Tenancy\Bundle\Attribute\TenantAware;
 
 /**
  * Covers SHARE-01-l: compiler pass throws when #[Shared] + #[TenantAware] co-present on one class.
@@ -82,12 +84,9 @@ final class SharedEntityMutualExclusionPassTest extends TestCase
 /**
  * Test fixture: carries both #[Shared] and #[TenantAware] — invalid combination.
  * The pass must throw \LogicException when this class is tagged tenancy.shared_entity.
- *
- * Note: these attributes are referenced at class-definition time — the fixture classes
- * will only be autoloaded when PHP resolves the attribute annotations. Since the
- * setUp() guard marks the test skipped before instantiation, PHP will not attempt
- * to resolve the attribute class names until Plan 25-01 lands.
  */
+#[Shared]
+#[TenantAware]
 final class BothAttributesEntity
 {
 }
@@ -95,6 +94,7 @@ final class BothAttributesEntity
 /**
  * Test fixture: carries only #[Shared] — valid combination, no exception expected.
  */
+#[Shared]
 final class OnlySharedEntity
 {
 }
@@ -103,6 +103,8 @@ final class OnlySharedEntity
  * Test fixture: carries both attributes but is NOT tagged tenancy.shared_entity.
  * Must be ignored by the pass.
  */
+#[Shared]
+#[TenantAware]
 final class UntaggedBothAttributesEntity
 {
 }
