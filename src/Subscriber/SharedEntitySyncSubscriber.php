@@ -154,15 +154,26 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         $changes = $this->pendingChanges;
         $this->pendingChanges = [];
 
-        foreach ($changes as $change) {
-            $entity = $change['entity'];
-            $type = $change['type'];
-            // Pre-captured identifier for deletes (entity ID zeroed by Doctrine before postFlush)
-            $capturedIds = $change['ids'] ?? null;
+        // CR-01: capture the tenant active before fan-out. The fan-out loop repeatedly switches
+        // TenantContext per tenant; without save/restore the request-scoped tenant that was
+        // active when the landlord flush occurred would be lost — causing TenantMissingException
+        // or (strict_mode off) unscoped cross-tenant queries for the rest of the request. The
+        // finally below re-instates it after every tenant has been fanned out.
+        $previousTenant = $this->tenantContext->hasTenant() ? $this->tenantContext->getTenant() : null;
 
-            foreach ($this->tenantProvider->findAll() as $tenant) {
-                $this->fanOutToTenant($args->getObjectManager(), $entity, $type, $tenant, $capturedIds);
+        try {
+            foreach ($changes as $change) {
+                $entity = $change['entity'];
+                $type = $change['type'];
+                // Pre-captured identifier for deletes (entity ID zeroed by Doctrine before postFlush)
+                $capturedIds = $change['ids'] ?? null;
+
+                foreach ($this->tenantProvider->findAll() as $tenant) {
+                    $this->fanOutToTenant($args->getObjectManager(), $entity, $type, $tenant, $capturedIds);
+                }
             }
+        } finally {
+            $this->restoreTenantContext($previousTenant);
         }
     }
 
@@ -181,10 +192,13 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      * Apply a single entity change to one tenant EM (best-effort, D-01 / D-07).
      *
      * try/catch/finally ensures:
-     *   - Failures are caught, logged, and never rethrown (D-01 — landlord request unaffected).
-     *   - TenantContext is always cleared in the finally block (Pitfall 4 — no stale context).
-     */
-    /**
+     *   - Failures are caught, logged at error level, and never rethrown (D-01 — landlord request unaffected).
+     *   - The $syncInProgress re-entrancy flag is always reset (WR-02), even if doSync throws.
+     *
+     * The pre-fan-out TenantContext is NOT restored here — that is owned centrally by
+     * postFlush()/restoreTenantContext() so the original request-scoped tenant survives the
+     * whole loop (CR-01), not just one iteration.
+     *
      * @param array<string, mixed>|null $capturedIds pre-captured entity identifier (required for
      *                                               deletes — Doctrine zeroes ID fields before postFlush)
      */
@@ -211,21 +225,49 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
             $tenantEm = $this->registry->resetManager('tenant');
             $this->syncInProgress = true;
             $this->doSync($landlordEm, $tenantEm, $entity, $type, $capturedIds);
-            $this->syncInProgress = false;
         } catch (\Throwable $e) {
-            $this->syncInProgress = false;
             $meta = $landlordEm->getClassMetadata($entity::class);
             // For deletes, getIdentifierValues() returns [] (Doctrine zeroed it) — use captured IDs.
             $identifier = $capturedIds ?? $meta->getIdentifierValues($entity);
-            $this->logger->warning('tenancy.shared_entity_sync_failed', [
+            // CR-03: the landlord transaction already committed in postFlush, so a failed tenant
+            // flush leaves master and this tenant permanently diverged with no automatic repair
+            // path. Log at error level — this is a data-integrity event, not a transient notice.
+            $this->logger->error('tenancy.shared_entity_sync_failed', [
                 'tenant_slug' => $tenant->getSlug(),
                 'entity_class' => $entity::class,
                 'identifier' => $identifier,
                 'error' => $e->getMessage(),
             ]);
         } finally {
+            // WR-02: always reset the re-entrancy flag, even if doSync threw mid-flush.
+            $this->syncInProgress = false;
+        }
+    }
+
+    /**
+     * Restore the tenant context that was active before the fan-out and drop the tenant
+     * connection handle so the next query reconnects under the restored context.
+     *
+     * CR-01: re-instates the request-scoped tenant (or clears if none was active) instead of
+     * leaving the context wiped after the loop.
+     * CR-02: the fan-out leaves the tenant DBAL connection open against the LAST tenant's DB
+     * (close() only runs before each switch, never after the final one). Closing it here forces
+     * TenantAwareDriver::connect() to re-resolve against the restored context on next use,
+     * preventing later queries in the same request from silently hitting the wrong tenant's DB.
+     */
+    private function restoreTenantContext(?TenantInterface $previousTenant): void
+    {
+        if (null !== $previousTenant) {
+            $this->tenantContext->setTenant($previousTenant);
+        } else {
             $this->tenantContext->clear();
         }
+
+        $tenantConn = $this->registry->getConnection('tenant');
+        if ($tenantConn instanceof \Doctrine\DBAL\Connection) {
+            $tenantConn->close();
+        }
+        $this->registry->resetManager('tenant');
     }
 
     /**

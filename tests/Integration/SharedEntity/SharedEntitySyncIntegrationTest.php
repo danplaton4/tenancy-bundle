@@ -587,4 +587,73 @@ final class SharedEntitySyncIntegrationTest extends TestCase
 
         $ctx->clear();
     }
+
+    /**
+     * CR-01 / CR-02 regression (tenant-context-active fan-out path — the gap WR-03/IN-04 left open).
+     *
+     * A landlord #[Shared] flush triggered WHILE a tenant is already active must:
+     *   - CR-01: restore that tenant's context after the fan-out (not leave it wiped). Before the
+     *     fix, fanOutToTenant's finally cleared TenantContext unconditionally, so the
+     *     originally-active tenant was lost for the rest of the request — a direct violation of the
+     *     bundle's "zero leaks" invariant (TenantMissingException, or unscoped cross-tenant queries
+     *     when strict_mode is off).
+     *   - CR-02: leave the tenant connection usable under the restored context, so the next query
+     *     reconnects against the active tenant's DB rather than the last fanned-out tenant's.
+     */
+    public function testFanOutRestoresActiveTenantContext(): void
+    {
+        if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
+            self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
+        }
+
+        $container = self::$kernel->getContainer();
+        /** @var EntityManagerInterface $landlordEm */
+        $landlordEm = $container->get('doctrine.orm.landlord_entity_manager');
+        /** @var ManagerRegistry $registry */
+        $registry = $container->get('doctrine');
+        /** @var TenantContext $ctx */
+        $ctx = $container->get('tenancy.context');
+
+        $tenantProvider = new StubMultiTenantProvider();
+        $activeTenant = $tenantProvider->findAll()[0];
+
+        // Simulate a request in which a tenant is already resolved/active at the moment a
+        // landlord #[Shared] write triggers the fan-out.
+        $ctx->setTenant($activeTenant);
+
+        $plan = new TestPlan('Context Restore Plan', 4242);
+        $landlordEm->persist($plan);
+        $landlordEm->flush();
+
+        // CR-01: the fan-out must restore the tenant that was active before it ran.
+        $this->assertTrue(
+            $ctx->hasTenant(),
+            'Tenant context must remain set after a landlord fan-out (CR-01) — it was wiped before the fix'
+        );
+        $this->assertSame(
+            $activeTenant->getSlug(),
+            $ctx->getTenant()?->getSlug(),
+            'Fan-out must restore the originally-active tenant, not a fanned-out tenant or null (CR-01)'
+        );
+
+        // CR-02: the tenant EM must be usable under the restored context — the fan-out must not
+        // leave the connection dangling against the last fanned-out tenant. Reading the synced
+        // plan WITHOUT manually switching must resolve cleanly against the restored tenant's DB.
+        $planId = $plan->getId();
+        $this->assertNotNull($planId);
+        /** @var EntityManagerInterface $tenantEm */
+        $tenantEm = $registry->getManager('tenant');
+        $restoredCopy = $tenantEm->find(TestPlan::class, $planId);
+        $this->assertNotNull(
+            $restoredCopy,
+            sprintf('Synced TestPlan#%d must be readable from the restored tenant "%s" EM after fan-out (CR-02)', $planId, $activeTenant->getSlug())
+        );
+        $this->assertSame('Context Restore Plan', $restoredCopy->getName());
+
+        $ctx->clear();
+        $registry->resetManager('tenant');
+    }
 }

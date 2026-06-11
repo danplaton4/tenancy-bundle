@@ -28,7 +28,9 @@ findings:
   warning: 6
   info: 4
   total: 13
-status: issues_found
+criticals_resolved: 3
+resolution: "CR-01/CR-02/CR-03 + WR-02 fixed in post-review hardening (full suite 706 green, PHPStan L9 clean, new regression test testFanOutRestoresActiveTenantContext). Remaining 5 warnings + 4 info are advisory follow-ups — see Resolution Addendum."
+status: criticals_resolved
 ---
 
 # Phase 25: Code Review Report
@@ -36,7 +38,31 @@ status: issues_found
 **Reviewed:** 2026-06-11
 **Depth:** standard
 **Files Reviewed:** 19
-**Status:** issues_found
+**Status:** criticals_resolved
+
+## Resolution Addendum (post-review hardening)
+
+All 3 Critical findings were verified against the source and fixed in `SharedEntitySyncSubscriber`
+before phase completion:
+
+- **CR-01 (context wipe) — FIXED.** `postFlush()` now captures the pre-fan-out tenant and restores
+  it (or clears, if none) in a `finally` via the new `restoreTenantContext()`; `fanOutToTenant()`
+  no longer clears the context per iteration.
+- **CR-02 (stale tenant connection) — FIXED.** `restoreTenantContext()` closes the tenant DBAL
+  connection and resets the tenant manager after the loop, so the next query reconnects under the
+  restored context instead of the last fanned-out tenant's DB.
+- **CR-03 (silent divergence) — FIXED.** The best-effort `catch` now logs at `error` level (the
+  best-effort fan-out itself is the locked D-01 decision; the under-signalled log level was the bug).
+- **WR-02 (re-entrancy flag) — FIXED (bonus).** `$syncInProgress` is now reset in a `finally`.
+
+Coverage gap closed: new integration test `testFanOutRestoresActiveTenantContext` exercises a
+landlord `#[Shared]` flush while a tenant is active (the path WR-03/IN-04 left unexercised).
+Full suite 706 tests / 0 failures / 1 skip; PHPStan level 9 clean; cs-fixer clean.
+
+**Remaining (advisory, not blocking phase completion):** WR-03 (shared_db no-op test passes
+trivially — subscriber not registered under shared_db), WR-05 (sync flag not EM-scoped),
+WR-06 (mutual-exclusion pass misses parent/mapped-superclass attributes), plus the other warnings
+and 4 info items below. Recommend addressing via `/gsd:code-review 25 --fix` or a follow-up.
 
 ## Summary
 
