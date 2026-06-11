@@ -188,6 +188,12 @@ secondary `flush()` is issued. Placing `#[Shared]` on an entity under `shared_db
     global-data entities and the subscriber will automatically start fanning out changes to every
     tenant database — no other code changes required.
 
+!!! info "`tenancy.shared_entity` tag"
+    Even under `shared_db`, the compile-time mutual-exclusion guard (`SharedEntityMutualExclusionPass`)
+    still runs. It inspects every entity tagged with `tenancy.shared_entity` and rejects entities
+    that carry both `#[Shared]` and `#[TenantAware]` simultaneously (which would be contradictory).
+    Tag your shared-entity service definitions with `tenancy.shared_entity` to opt in to this guard.
+
 ## See Also
 
 - [Database-per-Tenant Driver](database-per-tenant.md) — maximum isolation with separate databases
