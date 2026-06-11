@@ -71,7 +71,7 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
   - **Goal:** When a `#[Shared]`-attributed entity is written on the landlord EM, a read-only denormalized copy is synced (best-effort, synchronous) into every tenant's EM via Doctrine `onFlush`-buffer/`postFlush`-fanout; tenant-side writes of `#[Shared]` entities are blocked, and `#[Shared]` + `#[TenantAware]` co-presence fails loud at container build.
   - **Plans:** 5 plans across 4 waves
   - Plans:
-    - [ ] 25-00-PLAN.md — Wave 0: test infrastructure (landlord + 2-tenant SQLite kernel, #[Shared] test entities + association entity, 2-tenant stub provider, public-services pass, unit + integration test scaffolds for SHARE-01-a..m)
+    - [x] 25-00-PLAN.md — Wave 0: test infrastructure (landlord + 2-tenant SQLite kernel, #[Shared] test entities + association entity, 2-tenant stub provider, public-services pass, unit + integration test scaffolds for SHARE-01-a..m)
     - [ ] 25-01-PLAN.md — Wave 2: `#[Shared]` bare marker attribute (D-06) + `SharedEntityWriteInTenantContextException extends \LogicException` (D-02 foundation)
     - [ ] 25-02-PLAN.md — Wave 3: `SharedEntityMutualExclusionPass` compile-time guard via `tenancy.shared_entity` tag (D-04 / DEC-SHARE-03)
     - [ ] 25-03-PLAN.md — Wave 3: `SharedEntitySyncSubscriber` (onFlush-buffer → postFlush best-effort fan-out, no merge(), scalar-only copy, shared_db no-op, re-entrancy flag, actionable logging — D-01/D-03/D-05/D-07) + `SharedEntityWriteProtectionListener` (tenant onFlush read-only guard + re-entrancy bypass — D-02)

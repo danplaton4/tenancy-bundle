@@ -4,13 +4,13 @@ milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
 stopped_at: Phase 25 context gathered
-last_updated: "2026-06-11T07:28:51.849Z"
-last_activity: 2026-06-11 -- Phase 25 planning complete
+last_updated: "2026-06-11T08:04:06.523Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 24
   completed_phases: 23
   total_plans: 116
-  completed_plans: 111
+  completed_plans: 112
   percent: 96
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 24 — filesystem-bootstrapper
+**Current focus:** Phase 25 — shared-entities-sync-mode
 
 ## Current Position
 
-Phase: 24
-Plan: Not started
+Phase: 25 (shared-entities-sync-mode) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 25 planning complete
+Last activity: 2026-06-11
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Last activity: 2026-06-11 -- Phase 25 planning complete
 | Phase 24-filesystem-bootstrapper P05 | 12min | 2 tasks | 2 files |
 | Phase 24-filesystem-bootstrapper P08 | 11min | 3 tasks | 8 files |
 | Phase 24-filesystem-bootstrapper P09 | 15min | 3 tasks | 9 files |
+| Phase 25-shared-entities-sync-mode P00 | 18 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -211,6 +212,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-04T08:02:28.090Z
+Last session: 2026-06-11T08:04:06.506Z
 Stopped at: Phase 25 context gathered
-Resume file: .planning/phases/25-shared-entities-sync-mode/25-CONTEXT.md
+Resume file: None

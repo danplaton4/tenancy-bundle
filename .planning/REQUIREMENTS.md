@@ -20,7 +20,7 @@ For prior-milestone (v0.3) requirements, see `.planning/milestones/v0.3-REQUIREM
 
 ### Shared Entities
 
-- [ ] **SHARE-01**: Landlord-side master record + tenant-side denormalized copy via Doctrine events — when a `#[Shared]`-attributed entity is written on the landlord EM, a corresponding read-only copy is synced into each active tenant's EM via a Doctrine `postFlush` event subscriber. Default mode is **synchronous** (immediate fan-out, blocking).
+- [x] **SHARE-01**: Landlord-side master record + tenant-side denormalized copy via Doctrine events — when a `#[Shared]`-attributed entity is written on the landlord EM, a corresponding read-only copy is synced into each active tenant's EM via a Doctrine `postFlush` event subscriber. Default mode is **synchronous** (immediate fan-out, blocking).
   - Acceptance: `#[Shared]` PHP attribute marks an entity for cross-tenant sync; PHPStan rejects `#[Shared]` + `#[TenantAware]` on the same class (mutually exclusive — an entity is EITHER landlord-master OR tenant-scoped, never both)
   - Acceptance: `SharedEntitySyncSubscriber` listens on `Doctrine\ORM\Events::postFlush` on the landlord EM; for each `#[Shared]` entity change, enumerates active tenants via `TenantProviderInterface::findAll()` and applies the change to each tenant EM
   - Acceptance: tenant-side copies are write-protected — attempting to `persist()` a `#[Shared]` entity in tenant context throws `SharedEntityWriteInTenantContextException extends \LogicException`
@@ -92,7 +92,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BOOT-03 | Phase 24 — Filesystem Bootstrapper | Complete |
-| SHARE-01 | Phase 25 — Shared Entities (Sync mode) | Pending |
+| SHARE-01 | Phase 25 — Shared Entities (Sync mode) | Complete |
 | SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Pending |
 | SHARE-03 | Phase 27 — Async Shared Entities | Pending |
 | DX-03 | Phase 28 — PHPStan Extension | Pending |
