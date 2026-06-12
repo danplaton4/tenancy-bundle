@@ -32,6 +32,7 @@ use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
 use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
+use Tenancy\Bundle\Shared\SharedEntityCopier;
 use Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber;
 use Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener;
 
@@ -269,6 +270,12 @@ class TenancyBundle extends AbstractBundle
             // wiring changes only. The no-op under shared_db is structural (the service does not
             // exist), not a runtime branch. See SharedEntityNoDatabaseKernelTest::testNoOpUnderSharedDb().
             if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+                // Copier first — subscriber and write-protection both depend on it.
+                $services->set('tenancy.shared_entity_copier', SharedEntityCopier::class)
+                    ->args([
+                        service('logger'),
+                    ]);
+
                 $services->set('tenancy.shared_entity_sync_subscriber', SharedEntitySyncSubscriber::class)
                     ->args([
                         service('tenancy.context'),
@@ -276,6 +283,7 @@ class TenancyBundle extends AbstractBundle
                         service('doctrine'),
                         service('logger'),
                         param('tenancy.driver'),
+                        service('tenancy.shared_entity_copier'),
                     ])
                     ->tag('doctrine.event_listener', ['event' => 'onFlush', 'connection' => 'landlord'])
                     ->tag('doctrine.event_listener', ['event' => 'postFlush', 'connection' => 'landlord']);
@@ -283,7 +291,7 @@ class TenancyBundle extends AbstractBundle
                 $services->set('tenancy.shared_entity_write_protection', SharedEntityWriteProtectionListener::class)
                     ->args([
                         service('tenancy.context'),
-                        service('tenancy.shared_entity_sync_subscriber'),
+                        service('tenancy.shared_entity_copier'),
                     ])
                     ->tag('doctrine.event_listener', ['event' => 'onFlush', 'connection' => 'tenant']);
             }

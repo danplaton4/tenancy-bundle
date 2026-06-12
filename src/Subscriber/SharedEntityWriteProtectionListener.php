@@ -10,6 +10,7 @@ use Doctrine\ORM\Events;
 use Tenancy\Bundle\Attribute\Shared;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException;
+use Tenancy\Bundle\Shared\SharedEntityCopier;
 
 /**
  * Tenant-EM Doctrine event listener that enforces full read-only access to #[Shared]
@@ -25,9 +26,9 @@ use Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException;
  *    originates from the landlord side — the subscriber is wired to the tenant EM only, but
  *    this guard provides belt-and-suspenders safety.
  *
- * 2. Re-entrancy guard: if SharedEntitySyncSubscriber::isSyncInProgress() is true, the
- *    write originates from the subscriber's own fan-out flush — not user code. The guard
- *    must bypass in this case, otherwise the subscriber's own $tenantEm->flush() would
+ * 2. Re-entrancy guard: if SharedEntityCopier::isSyncInProgress() is true, the write
+ *    originates from the copier's own flush inside applyRow() — not user code. The guard
+ *    must bypass in this case, otherwise the copier's own $tenantEm->flush() would
  *    immediately throw (Pitfall 2 in 25-RESEARCH.md).
  *
  * ## Must NOT use #[AsEventListener] or autoconfigure
@@ -40,7 +41,7 @@ final class SharedEntityWriteProtectionListener implements EventSubscriber
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
-        private readonly SharedEntitySyncSubscriber $syncSubscriber,
+        private readonly SharedEntityCopier $copier,
     ) {
     }
 
@@ -64,8 +65,8 @@ final class SharedEntityWriteProtectionListener implements EventSubscriber
             return;
         }
 
-        // Bypass: this is a subscriber-originated sync write (re-entrancy guard, Pitfall 2)
-        if ($this->syncSubscriber->isSyncInProgress()) {
+        // Bypass: this is a copier-originated sync write (re-entrancy guard, Pitfall 2, T-26-02-BYPASS)
+        if ($this->copier->isSyncInProgress()) {
             return;
         }
 

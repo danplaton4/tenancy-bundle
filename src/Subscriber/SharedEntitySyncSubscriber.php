@@ -11,9 +11,9 @@ use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Events;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
-use Tenancy\Bundle\Attribute\Shared;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
+use Tenancy\Bundle\Shared\SharedEntityCopier;
 use Tenancy\Bundle\TenantInterface;
 
 /**
@@ -30,10 +30,10 @@ use Tenancy\Bundle\TenantInterface;
  *
  * ## One-level cascade boundary (DEC-SHARE-02) — DOCUMENTED LANDMINE
  *
- * doSync() copies getFieldNames() (scalar fields) ONLY. Association fields returned
- * by getAssociationNames() are intentionally skipped. If a #[Shared] entity carries a
- * ManyToOne or OneToOne association to a non-#[Shared] entity, the association will be
- * NULL on the tenant side. The associated entity is NOT synced unless it also carries
+ * SharedEntityCopier::applyRow() copies getFieldNames() (scalar fields) ONLY. Association
+ * fields returned by getAssociationNames() are intentionally skipped. If a #[Shared] entity
+ * carries a ManyToOne or OneToOne association to a non-#[Shared] entity, the association will
+ * be NULL on the tenant side. The associated entity is NOT synced unless it also carries
  * #[Shared]. Design your shared entities to be self-contained (scalar fields only), or
  * ensure that all associated entities referenced from a #[Shared] entity also carry
  * #[Shared] so their own sync run creates the record before this association is read.
@@ -46,11 +46,9 @@ use Tenancy\Bundle\TenantInterface;
  *
  * ## Re-entrancy guard
  *
- * The subscriber's own $tenantEm->flush() triggers onFlush on the tenant EM. Without a
- * guard, SharedEntityWriteProtectionListener would see the #[Shared] entity in the
- * scheduled insertions and throw SharedEntityWriteInTenantContextException. The
- * $syncInProgress flag allows the write-protection listener to bypass the guard for
- * subscriber-originated writes.
+ * SharedEntityCopier::applyRow() sets the syncInProgress flag immediately before
+ * $tenantEm->flush() and resets it in a finally. SharedEntityWriteProtectionListener
+ * consults SharedEntityCopier::isSyncInProgress() to bypass the guard for sync writes.
  *
  * ## Must NOT use #[AsEventListener] or autoconfigure
  *
@@ -69,13 +67,11 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      * For delete: we MUST also capture the identifier in onFlush while it is still set.
      * Doctrine ORM zeroes the entity's identifier field in executeDeletions() (before postFlush
      * fires) — getIdentifierValues() returns [] by the time postFlush runs.
-     * The captured identifier is passed directly to $tenantEm->find() in doSync.
+     * The captured identifier is passed directly to SharedEntityCopier::applyRow().
      *
      * @var array<int, array{entity: object, type: 'insert'|'update'|'delete', ids?: array<string, mixed>}>
      */
     private array $pendingChanges = [];
-
-    private bool $syncInProgress = false;
 
     public function __construct(
         private readonly TenantContext $tenantContext,
@@ -83,6 +79,7 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         private readonly ManagerRegistry $registry,
         private readonly LoggerInterface $logger,
         private readonly string $driver,
+        private readonly SharedEntityCopier $copier,
     ) {
     }
 
@@ -107,19 +104,19 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         $uow = $em->getUnitOfWork();
 
         foreach ($uow->getScheduledEntityInsertions() as $entity) {
-            if ($this->isShared($entity, $em)) {
+            if ($this->copier->isShared($entity, $em)) {
                 $this->pendingChanges[spl_object_id($entity)] = ['entity' => $entity, 'type' => 'insert'];
             }
         }
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
-            if ($this->isShared($entity, $em)) {
+            if ($this->copier->isShared($entity, $em)) {
                 $this->pendingChanges[spl_object_id($entity)] = ['entity' => $entity, 'type' => 'update'];
             }
         }
 
         foreach ($uow->getScheduledEntityDeletions() as $entity) {
-            if ($this->isShared($entity, $em)) {
+            if ($this->copier->isShared($entity, $em)) {
                 // Capture the identifier NOW — Doctrine zeroes identifier fields during
                 // executeDeletions() so getIdentifierValues() returns [] in postFlush.
                 /** @var array<string, mixed> $ids */
@@ -178,34 +175,17 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
             foreach ($tenants as $tenant) {
                 $tenantEm = $this->switchToTenant($tenant);
 
-                // WR-02 / D-01: keep the re-entrancy flag set for this tenant's whole batch and
-                // always reset it, even if an apply throws mid-flush.
-                $this->syncInProgress = true;
-                try {
-                    foreach ($changes as $change) {
-                        // applyChange returns the EM to use for the NEXT change: a failed flush
-                        // closes the Doctrine EM, so on error it hands back a freshly reset EM so
-                        // the remaining changes for this tenant are not all dragged down with it.
-                        $tenantEm = $this->applyChange($landlordEm, $tenantEm, $tenant, $change);
-                    }
-                } finally {
-                    $this->syncInProgress = false;
+                foreach ($changes as $change) {
+                    // applyChange returns the EM to use for the NEXT change: a failed flush
+                    // closes the Doctrine EM, so on error it hands back a freshly reset EM so
+                    // the remaining changes for this tenant are not all dragged down with it.
+                    // The re-entrancy flag is owned per-flush by SharedEntityCopier::applyRow().
+                    $tenantEm = $this->applyChange($landlordEm, $tenantEm, $tenant, $change);
                 }
             }
         } finally {
             $this->restoreTenantContext($previousTenant);
         }
-    }
-
-    /**
-     * Whether the subscriber is currently writing to a tenant EM (re-entrancy flag).
-     *
-     * SharedEntityWriteProtectionListener calls this to bypass the write-protection guard
-     * when the write originates from this subscriber's own sync operation (not user code).
-     */
-    public function isSyncInProgress(): bool
-    {
-        return $this->syncInProgress;
     }
 
     /**
@@ -238,8 +218,8 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      * Apply a single buffered change to one already-switched tenant EM (best-effort, D-01 / D-07).
      *
      * Failures are caught, logged at error level, and never rethrown (D-01 — landlord request
-     * unaffected; one tenant's failure does not abort fan-out to the others). The $syncInProgress
-     * re-entrancy flag is owned by postFlush() per tenant batch (WR-02/WR-04), not here.
+     * unaffected; one tenant's failure does not abort fan-out to the others). The re-entrancy flag
+     * is owned per-flush by SharedEntityCopier::applyRow(), not here.
      *
      * The pre-fan-out TenantContext is NOT restored here — that is owned centrally by
      * postFlush()/restoreTenantContext() so the original request-scoped tenant survives the
@@ -262,7 +242,7 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         $capturedIds = $change['ids'] ?? null;
 
         try {
-            $this->doSync($landlordEm, $tenantEm, $entity, $type, $capturedIds);
+            $this->copier->applyRow($landlordEm, $tenantEm, $entity, $type, $capturedIds);
 
             return $tenantEm;
         } catch (\Throwable $e) {
@@ -312,109 +292,5 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
             $tenantConn->close();
         }
         $this->registry->resetManager('tenant');
-    }
-
-    /**
-     * Upsert or delete a #[Shared] entity on one tenant EM.
-     *
-     * Uses find-or-new + ClassMetadata field copy — NOT merge() (removed in ORM 3.0).
-     * Copies getFieldNames() (scalar fields) ONLY — getAssociationNames() is never iterated
-     * (one-level cascade boundary, DEC-SHARE-02). See class docblock for the landmine.
-     *
-     * @param array<string, mixed>|null $capturedIds pre-captured identifier for deletes —
-     *                                               Doctrine zeroes entity ID fields before postFlush
-     */
-    private function doSync(
-        EntityManagerInterface $landlordEm,
-        EntityManagerInterface $tenantEm,
-        object $entity,
-        string $type,
-        ?array $capturedIds = null,
-    ): void {
-        $class = $entity::class;
-        $landlordMeta = $landlordEm->getClassMetadata($class);
-
-        if ('delete' === $type) {
-            // WR-03: deletes REQUIRE the identifier captured in onFlush — by postFlush Doctrine has
-            // zeroed the entity's identifier fields, so getIdentifierValues($entity) returns [].
-            // A `?? getIdentifierValues()` fallback would resolve to [] and call find($class, [])
-            // which matches no row, turning a missing-id bug into a silent delete no-op (stale
-            // shared data left on the tenant). Fail loudly instead.
-            if (null === $capturedIds || [] === $capturedIds) {
-                $this->logger->error('tenancy.shared_entity_sync_missing_delete_id', [
-                    'entity_class' => $class,
-                ]);
-
-                return;
-            }
-
-            $existing = $tenantEm->find($class, $capturedIds);
-            if (null !== $existing) {
-                $tenantEm->remove($existing);
-                $tenantEm->flush();
-            }
-
-            return;
-        }
-
-        // insert or update only — capture the identifier directly from the entity (still set).
-        $ids = $landlordMeta->getIdentifierValues($entity);
-
-        // insert or update: find-or-new + scalar field copy
-        $existing = $tenantEm->find($class, $ids);
-        $tenantMeta = $tenantEm->getClassMetadata($class);
-
-        $isInsert = null === $existing;
-        $copy = $isInsert ? $tenantMeta->newInstance() : $existing;
-
-        // Copy scalar fields only — associations are intentionally skipped (DEC-SHARE-02)
-        // getFieldNames() returns only scalar/column-mapped fields, NOT association fields.
-        // DO NOT iterate getAssociationNames() — that breaks the one-level cascade boundary.
-        // This INCLUDES the identifier field(s), so the landlord's id is copied onto $copy.
-        foreach ($landlordMeta->getFieldNames() as $fieldName) {
-            $value = $landlordMeta->getFieldValue($entity, $fieldName);
-            $tenantMeta->setFieldValue($copy, $fieldName, $value);
-        }
-
-        if ($isInsert) {
-            // CR-01: the tenant copy MUST carry the SAME primary key as the landlord master —
-            // that invariant is what the update/delete paths rely on (they look the copy up by
-            // the landlord id). A shared entity typically maps #[ORM\GeneratedValue] (IDENTITY),
-            // a post-insert generator: it OMITS the id column on INSERT and reads lastInsertId()
-            // afterward, discarding the id we just copied onto $copy and letting each tenant DB
-            // assign its own auto-increment value. Master and copy keys would then stay equal
-            // only while both DBs' sequences happen to be in lockstep — and diverge permanently
-            // the moment a tenant has any independent write history. Forcing the id generator to
-            // NONE for this synced insert makes the copied landlord id authoritative: the INSERT
-            // emits the id column verbatim, preserving the cross-DB key equality the sync depends
-            // on. Only flip it when the entity actually uses a post-insert generator, so natural /
-            // assigned-id entities are unaffected.
-            // isset() guards the typed-but-possibly-uninitialized $idGenerator property; the
-            // ?-> null-safe operator alone does not cover an uninitialized typed property.
-            if ($tenantMeta->isIdGeneratorIdentity()
-                || (isset($tenantMeta->idGenerator) && $tenantMeta->idGenerator->isPostInsertGenerator())) {
-                $tenantMeta->setIdGeneratorType(\Doctrine\ORM\Mapping\ClassMetadata::GENERATOR_TYPE_NONE);
-            }
-        }
-
-        $tenantEm->persist($copy);
-        $tenantEm->flush();
-    }
-
-    /**
-     * Returns true when the entity carries the #[Shared] attribute.
-     *
-     * WR-01: resolve the attribute against the REAL mapped class via Doctrine metadata
-     * (ClassMetadata::$reflClass), NOT `new \ReflectionClass($entity)`. When $entity is a
-     * classic Doctrine lazy-loading proxy (Proxies\__CG__\...), reflecting the runtime object
-     * reflects the proxy subclass; PHP class attributes are not inherited, so getAttributes()
-     * would return [] and a proxy-backed #[Shared] entity would be silently skipped. This
-     * mirrors TenantAwareFilter, which deliberately reflects $targetEntity->reflClass.
-     */
-    private function isShared(object $entity, EntityManagerInterface $em): bool
-    {
-        $refl = $em->getClassMetadata($entity::class)->reflClass;
-
-        return null !== $refl && [] !== $refl->getAttributes(Shared::class);
     }
 }

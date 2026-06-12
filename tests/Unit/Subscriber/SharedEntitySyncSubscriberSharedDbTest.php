@@ -14,6 +14,7 @@ use Psr\Log\NullLogger;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
+use Tenancy\Bundle\Shared\SharedEntityCopier;
 use Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber;
 use Tenancy\Bundle\TenantInterface;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlan;
@@ -71,12 +72,15 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
         $registry->expects($this->never())->method('resetManager');
         $registry->expects($this->never())->method('getManager');
 
+        $copier = new SharedEntityCopier(new NullLogger());
+
         $subscriber = new SharedEntitySyncSubscriber(
             $tenantContext,
             $spyProvider,
             $registry,
             new NullLogger(),
             'shared_db',
+            $copier,
         );
 
         // Build a fake onFlush event that returns one #[Shared] entity insertion
@@ -111,8 +115,9 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
         );
 
         // Secondary assertion: re-entrancy flag must still be false (no sync in progress)
+        // Flag is now on the copier, not the subscriber (RESEARCH Open Q #2 resolution)
         $this->assertFalse(
-            $subscriber->isSyncInProgress(),
+            $copier->isSyncInProgress(),
             'isSyncInProgress() must be false after postFlush short-circuit'
         );
 
@@ -139,12 +144,15 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
         $registry->expects($this->never())->method('getConnection');
         $registry->expects($this->never())->method('resetManager');
 
+        $copier = new SharedEntityCopier(new NullLogger());
+
         $subscriber = new SharedEntitySyncSubscriber(
             $tenantContext,
             $spyProvider,
             $registry,
             new NullLogger(),
             'shared_db',
+            $copier,
         );
 
         $uow = $this->createMock(UnitOfWork::class);
