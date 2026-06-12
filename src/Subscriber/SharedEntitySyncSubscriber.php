@@ -307,18 +307,37 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         $existing = $tenantEm->find($class, $ids);
         $tenantMeta = $tenantEm->getClassMetadata($class);
 
-        if (null === $existing) {
-            $copy = $tenantMeta->newInstance();
-        } else {
-            $copy = $existing;
-        }
+        $isInsert = null === $existing;
+        $copy = $isInsert ? $tenantMeta->newInstance() : $existing;
 
         // Copy scalar fields only — associations are intentionally skipped (DEC-SHARE-02)
         // getFieldNames() returns only scalar/column-mapped fields, NOT association fields.
         // DO NOT iterate getAssociationNames() — that breaks the one-level cascade boundary.
+        // This INCLUDES the identifier field(s), so the landlord's id is copied onto $copy.
         foreach ($landlordMeta->getFieldNames() as $fieldName) {
             $value = $landlordMeta->getFieldValue($entity, $fieldName);
             $tenantMeta->setFieldValue($copy, $fieldName, $value);
+        }
+
+        if ($isInsert) {
+            // CR-01: the tenant copy MUST carry the SAME primary key as the landlord master —
+            // that invariant is what the update/delete paths rely on (they look the copy up by
+            // the landlord id). A shared entity typically maps #[ORM\GeneratedValue] (IDENTITY),
+            // a post-insert generator: it OMITS the id column on INSERT and reads lastInsertId()
+            // afterward, discarding the id we just copied onto $copy and letting each tenant DB
+            // assign its own auto-increment value. Master and copy keys would then stay equal
+            // only while both DBs' sequences happen to be in lockstep — and diverge permanently
+            // the moment a tenant has any independent write history. Forcing the id generator to
+            // NONE for this synced insert makes the copied landlord id authoritative: the INSERT
+            // emits the id column verbatim, preserving the cross-DB key equality the sync depends
+            // on. Only flip it when the entity actually uses a post-insert generator, so natural /
+            // assigned-id entities are unaffected.
+            // isset() guards the typed-but-possibly-uninitialized $idGenerator property; the
+            // ?-> null-safe operator alone does not cover an uninitialized typed property.
+            if ($tenantMeta->isIdGeneratorIdentity()
+                || (isset($tenantMeta->idGenerator) && $tenantMeta->idGenerator->isPostInsertGenerator())) {
+                $tenantMeta->setIdGeneratorType(\Doctrine\ORM\Mapping\ClassMetadata::GENERATOR_TYPE_NONE);
+            }
         }
 
         $tenantEm->persist($copy);
