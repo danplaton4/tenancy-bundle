@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
-status: executing
+status: verifying
 stopped_at: "Completed 26-02: SharedEntityCopier extraction and write-protection rewiring"
-last_updated: "2026-06-12T21:06:05.385Z"
+last_updated: "2026-06-12T21:16:08.102Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 25
-  completed_phases: 24
+  completed_phases: 25
   total_plans: 120
-  completed_plans: 119
-  percent: 96
+  completed_plans: 120
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 Phase: 26 (tenancy-shared-resync-command) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-12
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
@@ -106,6 +106,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 26-tenancy-shared-resync-command P01 | 5min | 3 tasks | 5 files |
 | Phase 26 P02 | 15 | 3 tasks | 6 files |
 | Phase 26 PP03 | 11min | - tasks | - files |
+| Phase 26 P04 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 26-02]: syncInProgress flag moved to SharedEntityCopier — copier owns flush boundary; applyRow() sets/resets in finally. SharedEntityWriteProtectionListener rewired to SharedEntityCopier.isSyncInProgress(). Write-protection LANDMINE fixed.
 - [Phase ?]: SharedEntityCopierInterface extracted alongside final SharedEntityCopier for PHPUnit testability — same pattern as TenantConnectionInterface (Phase 3)
 - [Phase ?]: CommandTestKernel 'doctrine' stub: console.command services DI-validated eagerly via FrameworkBundle console Application; doctrine.event_listener services not reachable in minimal kernels
+- [Phase ?]: Direct PDO mutation for integration test drift simulation: ClassMetadata::getColumnName() + PDO UPDATE to create tenant-side scalar drift without triggering SharedEntitySyncSubscriber fan-out
 
 ### Pending Todos
 
@@ -228,6 +230,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-12T21:05:58.762Z
+Last session: 2026-06-12T21:16:08.096Z
 Stopped at: Completed 26-02: SharedEntityCopier extraction and write-protection rewiring
 Resume file: None
