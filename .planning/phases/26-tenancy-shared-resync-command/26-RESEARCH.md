@@ -591,7 +591,7 @@ if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`isShared()` ownership after extraction**
    - What we know: `isShared()` is currently private to `SharedEntitySyncSubscriber` and is also needed in `onFlush()` to buffer changes. The copier needs the same check.
