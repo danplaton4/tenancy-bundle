@@ -115,6 +115,9 @@ final class SharedEntityResyncCommand extends Command
         /** @var array<string, array{insert: int, update: int, in-sync: int}> $driftSummary keyed by slug */
         $driftSummary = [];
 
+        /** @var array<string, true> $classifyErrored slugs whose classify pass threw */
+        $classifyErrored = [];
+
         foreach ($tenants as $tenant) {
             $slug = $tenant->getSlug();
             $driftSummary[$slug] = ['insert' => 0, 'update' => 0, 'in-sync' => 0];
@@ -132,20 +135,31 @@ final class SharedEntityResyncCommand extends Command
                         ++$driftSummary[$slug][$classification];
                     }
                 }
-            } catch (\Throwable) {
-                // Classify errors are non-fatal — continue to next tenant; summary will show 0/0/0.
+            } catch (\Throwable $e) {
+                // WR-01: Mark this tenant as errored so the apply pass can skip it (WR-02) and
+                // the summary table renders a distinct ERROR marker instead of a misleading 0/0/0.
+                $classifyErrored[$slug] = true;
+                $io->warning(sprintf('Classification failed for tenant "%s": %s', $slug, $e->getMessage()));
+                // Defensive reset: a classify-phase failure may close the tenant EM; reset it so
+                // the next tenant's classify pass obtains a fresh manager (mirrors CR-01 recovery).
+                $this->registry->resetManager('tenant');
             } finally {
                 $this->tenantContext->clear();
                 $this->bootstrapperChain->clear();
             }
         }
 
-        // Print the drift summary table
+        // Print the drift summary table — WR-01: errored tenants show STATUS=ERROR and '—' counts
+        // so operators cannot mistake a crashed classify for "in-sync, nothing to do".
         $tableRows = [];
         foreach ($driftSummary as $slug => $counts) {
-            $tableRows[] = [$slug, (string) $counts['insert'], (string) $counts['update'], (string) $counts['in-sync']];
+            if (isset($classifyErrored[$slug])) {
+                $tableRows[] = [$slug, '—', '—', '—', '<error>ERROR</error>'];
+            } else {
+                $tableRows[] = [$slug, (string) $counts['insert'], (string) $counts['update'], (string) $counts['in-sync'], 'ok'];
+            }
         }
-        $io->table(['Tenant', 'Would-Insert', 'Would-Update', 'In-Sync'], $tableRows);
+        $io->table(['Tenant', 'Would-Insert', 'Would-Update', 'In-Sync', 'Status'], $tableRows);
 
         // D-03: dry-run exits SUCCESS here — never prompt, never write
         if ($isDryRun) {
@@ -161,21 +175,40 @@ final class SharedEntityResyncCommand extends Command
         // Apply pass: per-tenant try/catch/finally continue-on-failure (D-06)
         /** @var string[] $failures */
         $failures = [];
+        // WR-03: count successes explicitly — do not derive by subtraction from tenant count.
+        $succeeded = 0;
 
         foreach ($tenants as $tenant) {
+            $slug = $tenant->getSlug();
+
+            // WR-02-light: hard-skip tenants whose classify pass errored — the preview table showed
+            // ERROR for them, so the operator knows they were not inspected. Treat as failure so the
+            // command exits FAILURE and the operator is aware the resync was not complete.
+            if (isset($classifyErrored[$slug])) {
+                $failures[] = $slug;
+                $io->writeln(sprintf(' <comment>skipped</comment> %s (classification failed)', $slug));
+
+                continue;
+            }
+
             try {
                 $this->resyncForTenant($tenant, $landlordRowsByClass);
-                $io->writeln(sprintf(' <info>✓</info> %s', $tenant->getSlug()));
+                ++$succeeded;
+                $io->writeln(sprintf(' <info>✓</info> %s', $slug));
             } catch (\Throwable $e) {
-                $failures[] = $tenant->getSlug();
-                $io->writeln(sprintf(' <error>✗</error> %s (%s)', $tenant->getSlug(), $e->getMessage()));
+                $failures[] = $slug;
+                $io->writeln(sprintf(' <error>✗</error> %s (%s)', $slug, $e->getMessage()));
+                // CR-01: A failed flush closes the Doctrine EM. Reset the tenant manager so the
+                // next tenant's apply pass obtains a usable, open EM instead of the same closed
+                // instance. Without this reset, one tenant's failure cascades to all later tenants
+                // (mirror of SharedEntitySyncSubscriber::applyChange() which resets on catch).
+                $this->registry->resetManager('tenant');
             } finally {
                 $this->tenantContext->clear();
                 $this->bootstrapperChain->clear();
             }
         }
 
-        $succeeded = count($tenants) - count($failures);
         $io->writeln(sprintf('Completed: %d succeeded, %d failed', $succeeded, count($failures)));
 
         if ([] !== $failures) {

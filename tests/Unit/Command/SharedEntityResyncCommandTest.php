@@ -301,6 +301,73 @@ final class SharedEntityResyncCommandTest extends TestCase
     }
 
     /**
+     * IN-04 / CR-01 regression: applyRow throw on first tenant must NOT cascade to second tenant.
+     *
+     * The real failure mode: applyRow() calls flush() → Doctrine closes the EM on exception.
+     * Without resetManager('tenant') the second tenant's call to getManager('tenant') returns the
+     * same closed EM and throws EntityManagerClosed, defeating D-06 continue-on-failure.
+     *
+     * This test asserts:
+     *   (a) The second tenant's applyRow is still invoked (continue-on-failure holds).
+     *   (b) resetManager('tenant') is called exactly once after the first tenant's failure
+     *       so the next tenant obtains a fresh, open manager.
+     */
+    public function testApplyFailureResetsTenantManagerAndContinues(): void
+    {
+        $tenantAcme = $this->makeTenant('acme');
+        $tenantBeta = $this->makeTenant('beta');
+
+        $this->tenantProvider->method('findAll')->willReturn([$tenantAcme, $tenantBeta]);
+
+        $entity = new \stdClass();
+        $this->wireSharedClasses(['App\Entity\Config'], [$entity]);
+
+        // Both classify and apply passes call classifyRow; always return 'insert' so applyRow runs.
+        $this->copier->method('classifyRow')->willReturn('insert');
+
+        $tenantEm = $this->createMock(EntityManagerInterface::class);
+        $this->registry->method('getManager')->with('tenant')->willReturn($tenantEm);
+
+        // (b) resetManager must be called exactly once — after acme's apply failure.
+        $this->registry
+            ->expects($this->once())
+            ->method('resetManager')
+            ->with('tenant');
+
+        // applyRow throws on the first call (acme's apply pass), succeeds on the second (beta's).
+        $applyCallCount = 0;
+        $this->copier
+            ->method('applyRow')
+            ->willReturnCallback(function () use (&$applyCallCount): void {
+                ++$applyCallCount;
+                if (1 === $applyCallCount) {
+                    throw new \RuntimeException('Simulated flush failure (EM closed)');
+                }
+                // Second call (beta) succeeds — no exception.
+            });
+
+        $command = $this->makeCommand();
+        $tester = new CommandTester($command);
+        // --force skips the confirm() prompt so we reach the apply pass directly.
+        $exitCode = $tester->execute(['--force' => true]);
+        $output = $tester->getDisplay();
+
+        // Command exits FAILURE because acme failed.
+        $this->assertSame(Command::FAILURE, $exitCode);
+
+        // (a) beta's applyRow was invoked — continue-on-failure held.
+        $this->assertSame(2, $applyCallCount, 'applyRow must be called for both tenants; second must not be skipped due to a cascade');
+
+        // acme appears as failed, beta appears as succeeded.
+        $this->assertStringContainsString('acme', $output);
+        $this->assertStringContainsString('beta', $output);
+        $this->assertStringContainsString('Completed:', $output);
+        // Succeeded count must be 1 (beta), not 0 (WR-03: explicit counter, not subtraction).
+        $this->assertStringContainsString('1 succeeded', $output);
+        $this->assertStringContainsString('1 failed', $output);
+    }
+
+    /**
      * SHARE-02-k: --tenant=<slug> targets single tenant only (D-01).
      */
     public function testTenantOptionTargetsSingleTenant(): void
