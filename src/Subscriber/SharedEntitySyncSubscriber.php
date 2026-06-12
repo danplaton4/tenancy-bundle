@@ -289,12 +289,22 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
     ): void {
         $class = $entity::class;
         $landlordMeta = $landlordEm->getClassMetadata($class);
-        // For deletes, use the pre-captured IDs (Doctrine zeroes identifier fields in executeDeletions
-        // before postFlush fires). For insert/update, capture from the entity directly.
-        $ids = 'delete' === $type ? ($capturedIds ?? $landlordMeta->getIdentifierValues($entity)) : $landlordMeta->getIdentifierValues($entity);
 
         if ('delete' === $type) {
-            $existing = $tenantEm->find($class, $ids);
+            // WR-03: deletes REQUIRE the identifier captured in onFlush — by postFlush Doctrine has
+            // zeroed the entity's identifier fields, so getIdentifierValues($entity) returns [].
+            // A `?? getIdentifierValues()` fallback would resolve to [] and call find($class, [])
+            // which matches no row, turning a missing-id bug into a silent delete no-op (stale
+            // shared data left on the tenant). Fail loudly instead.
+            if (null === $capturedIds || [] === $capturedIds) {
+                $this->logger->error('tenancy.shared_entity_sync_missing_delete_id', [
+                    'entity_class' => $class,
+                ]);
+
+                return;
+            }
+
+            $existing = $tenantEm->find($class, $capturedIds);
             if (null !== $existing) {
                 $tenantEm->remove($existing);
                 $tenantEm->flush();
@@ -302,6 +312,9 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
 
             return;
         }
+
+        // insert or update only — capture the identifier directly from the entity (still set).
+        $ids = $landlordMeta->getIdentifierValues($entity);
 
         // insert or update: find-or-new + scalar field copy
         $existing = $tenantEm->find($class, $ids);
