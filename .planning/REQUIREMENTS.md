@@ -27,7 +27,7 @@ For prior-milestone (v0.3) requirements, see `.planning/milestones/v0.3-REQUIREM
   - Acceptance: cascade depth limited to ONE level (i.e. don't recursively sync entities referenced by the `#[Shared]` entity unless they're also `#[Shared]`); documented landmine
   - Acceptance: dry-run mode via `tenancy:shared:resync --dry-run <SlugOrAll>` console command for diagnostic + repair of drift
 
-- [ ] **SHARE-02**: Bulk-initial-sync command — `tenancy:shared:resync [--tenant=<slug>|--all]` walks all `#[Shared]` entities on the landlord and writes them into the target tenant(s)' EMs. Idempotent (uses `merge()` semantics, not `persist()`).
+- [x] **SHARE-02**: Bulk-initial-sync command — `tenancy:shared:resync [--tenant=<slug>|--all]` walks all `#[Shared]` entities on the landlord and writes them into the target tenant(s)' EMs. Idempotent (uses `merge()` semantics, not `persist()`).
   - Acceptance: command lists all `#[Shared]` entity classes discovered via Doctrine metadata; reports "N entities to sync per tenant × M tenants = X writes" before executing; respects `--dry-run`
   - Acceptance: works under both `database_per_tenant` and `shared_db` driver modes (the latter is a no-op for prefix-only; document explicitly)
   - Acceptance: continue-on-failure pattern matching `tenancy:migrate` — one tenant's failure doesn't abort the whole loop; summary table at exit with per-tenant pass/fail counts
@@ -93,7 +93,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 |-------------|-------|--------|
 | BOOT-03 | Phase 24 — Filesystem Bootstrapper | Complete |
 | SHARE-01 | Phase 25 — Shared Entities (Sync mode) | Complete |
-| SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Pending |
+| SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Complete |
 | SHARE-03 | Phase 27 — Async Shared Entities | Pending |
 | DX-03 | Phase 28 — PHPStan Extension | Pending |
 | DOC-20 | Phase 29 — Docs Refresh | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Phase 26 context gathered
-last_updated: "2026-06-12T15:22:03.191Z"
-last_activity: 2026-06-12 -- Phase 26 planning complete
+stopped_at: "Completed 26-01: Wave 0 Nyquist scaffolding for SHARE-02"
+last_updated: "2026-06-12T20:33:43.253Z"
+last_activity: 2026-06-12
 progress:
   total_phases: 25
   completed_phases: 24
   total_plans: 120
-  completed_plans: 116
+  completed_plans: 117
   percent: 96
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 26 — tenancy:shared:resync command
+**Current focus:** Phase 26 — tenancy-shared-resync-command
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
+Phase: 26 (tenancy-shared-resync-command) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 26 planning complete
+Last activity: 2026-06-12
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
@@ -103,6 +103,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 25-shared-entities-sync-mode P00 | 18 | 2 tasks | 12 files |
 | Phase 25 P01 | 8min | 2 tasks | 3 files |
 | Phase 25 P02 | 3min | 1 tasks | 2 files |
+| Phase 26-tenancy-shared-resync-command P01 | 5min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,7 @@ Recent decisions affecting current work:
 - [Phase ?]: D-02 confirmed: SharedEntityWriteInTenantContextException extends LogicException per WR-01 no-retry invariant; forEntity(class, slug) static factory
 - [Phase ?]: [Rule 3 - Blocking] Multi-class skip-guard pattern: tests requiring both exception class AND listener must check class_exists on both to prevent false un-skipping during intermediate plans
 - [Phase ?]: [Phase 25-02]: Discovery mechanism for SharedEntityMutualExclusionPass: tenancy.shared_entity container tag — mirrors tenancy.scoped in FilesystemContractPass; users must tag shared entity service definitions for compile-time inspection (Phase 28 PHPStan catches untagged classes at edit time)
+- [Phase ?]: SharedEntityFailureLoggingTestKernel is final — subclass approach blocked; additive extension of MakeSharedEntityServicesPublicPass used instead for Phase 26 service IDs
 
 ### Pending Todos
 
@@ -221,6 +223,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-12T14:51:09.245Z
-Stopped at: Phase 26 context gathered
-Resume file: .planning/phases/26-tenancy-shared-resync-command/26-CONTEXT.md
+Last session: 2026-06-12T20:33:43.247Z
+Stopped at: Completed 26-01: Wave 0 Nyquist scaffolding for SHARE-02
+Resume file: None
