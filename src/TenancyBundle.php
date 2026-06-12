@@ -17,6 +17,7 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
+use Tenancy\Bundle\Command\SharedEntityResyncCommand;
 use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
@@ -294,6 +295,20 @@ class TenancyBundle extends AbstractBundle
                         service('tenancy.shared_entity_copier'),
                     ])
                     ->tag('doctrine.event_listener', ['event' => 'onFlush', 'connection' => 'tenant']);
+
+                // Resync command — NOT gated on doctrine/migrations (unlike tenancy:migrate).
+                // Requires only EntityManagerInterface (already guarded by this block).
+                $services->set('tenancy.command.shared_resync', SharedEntityResyncCommand::class)
+                    ->args([
+                        service('tenancy.provider'),
+                        service('tenancy.bootstrapper_chain'),
+                        service('tenancy.context'),
+                        param('tenancy.driver'),
+                        service('doctrine.orm.landlord_entity_manager'),
+                        service('doctrine'),
+                        service('tenancy.shared_entity_copier'),
+                    ])
+                    ->tag('console.command');
             }
         }
 

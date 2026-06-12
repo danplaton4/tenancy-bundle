@@ -91,6 +91,27 @@ class CommandTestKernel extends Kernel
                 }
             }
         });
+
+        // Stub the Doctrine ManagerRegistry ('doctrine') required by SharedEntityResyncCommand.
+        // The resync command is tagged console.command — reachable from the console Application —
+        // so the DI compiler validates its dependencies. No such stub was needed for
+        // SharedEntitySyncSubscriber (tagged doctrine.event_listener, only reachable via Doctrine's
+        // own event manager which is not registered in this minimal kernel).
+        $container->addCompilerPass(new class implements CompilerPassInterface {
+            public function process(ContainerBuilder $container): void
+            {
+                if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+                    return;
+                }
+
+                if (!$container->hasDefinition('doctrine')
+                    && !$container->hasAlias('doctrine')) {
+                    $registryStub = new Definition(\stdClass::class);
+                    $registryStub->setPublic(false);
+                    $container->setDefinition('doctrine', $registryStub);
+                }
+            }
+        });
     }
 
     public function registerContainerConfiguration(LoaderInterface $loader): void
