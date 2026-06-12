@@ -260,6 +260,14 @@ class TenancyBundle extends AbstractBundle
             // Under shared_db there is no landlord/tenant connection — registering here
             // prevents a missing-connection error (open-question A2 resolution).
             // NO autoconfigure — Doctrine subscribers must NOT use autoconfigure (Pattern 7).
+            //
+            // WR-05: because this block is gated on database.enabled, and the config validator
+            // (above, ~line 121) forbids `shared_db` + `database.enabled: true`, the subscriber is
+            // NEVER registered under the shared_db driver. The `'shared_db' === $driver`
+            // short-circuit inside SharedEntitySyncSubscriber::postFlush() is therefore unreachable
+            // under any wiring this bundle produces; it is kept as defence-in-depth for future
+            // wiring changes only. The no-op under shared_db is structural (the service does not
+            // exist), not a runtime branch. See SharedEntityNoDatabaseKernelTest::testNoOpUnderSharedDb().
             if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
                 $services->set('tenancy.shared_entity_sync_subscriber', SharedEntitySyncSubscriber::class)
                     ->args([
