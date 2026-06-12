@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: "Completed 26-01: Wave 0 Nyquist scaffolding for SHARE-02"
-last_updated: "2026-06-12T20:33:43.253Z"
+stopped_at: "Completed 26-02: SharedEntityCopier extraction and write-protection rewiring"
+last_updated: "2026-06-12T20:49:31.004Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 25
   completed_phases: 24
   total_plans: 120
-  completed_plans: 117
+  completed_plans: 118
   percent: 96
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 26 (tenancy-shared-resync-command) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-12
 
@@ -104,6 +104,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 25 P01 | 8min | 2 tasks | 3 files |
 | Phase 25 P02 | 3min | 1 tasks | 2 files |
 | Phase 26-tenancy-shared-resync-command P01 | 5min | 3 tasks | 5 files |
+| Phase 26 P02 | 15 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -204,6 +205,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Rule 3 - Blocking] Multi-class skip-guard pattern: tests requiring both exception class AND listener must check class_exists on both to prevent false un-skipping during intermediate plans
 - [Phase ?]: [Phase 25-02]: Discovery mechanism for SharedEntityMutualExclusionPass: tenancy.shared_entity container tag — mirrors tenancy.scoped in FilesystemContractPass; users must tag shared entity service definitions for compile-time inspection (Phase 28 PHPStan catches untagged classes at edit time)
 - [Phase ?]: SharedEntityFailureLoggingTestKernel is final — subclass approach blocked; additive extension of MakeSharedEntityServicesPublicPass used instead for Phase 26 service IDs
+- [Phase ?]: [Phase 26-02]: syncInProgress flag moved to SharedEntityCopier — copier owns flush boundary; applyRow() sets/resets in finally. SharedEntityWriteProtectionListener rewired to SharedEntityCopier.isSyncInProgress(). Write-protection LANDMINE fixed.
 
 ### Pending Todos
 
@@ -223,6 +225,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-12T20:33:43.247Z
-Stopped at: Completed 26-01: Wave 0 Nyquist scaffolding for SHARE-02
+Last session: 2026-06-12T20:49:30.998Z
+Stopped at: Completed 26-02: SharedEntityCopier extraction and write-protection rewiring
 Resume file: None
