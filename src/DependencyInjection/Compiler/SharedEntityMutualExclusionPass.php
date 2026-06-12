@@ -75,7 +75,8 @@ final class SharedEntityMutualExclusionPass implements CompilerPassInterface
      * attributes declared directly on the reflected class, so a #[Shared]/#[TenantAware] declared
      * on a parent or mapped-superclass must be discovered by walking getParentClass() explicitly.
      *
-     * @param class-string $attribute
+     * @param \ReflectionClass<object> $rc
+     * @param class-string             $attribute
      */
     private function hasAttributeInHierarchy(\ReflectionClass $rc, string $attribute): bool
     {
