@@ -17,7 +17,8 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlan;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlanCategory;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlanWithAssociation;
-use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\SharedEntitySyncTestKernel;
+use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\RecordingLogger;
+use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\SharedEntityFailureLoggingTestKernel;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\StubMultiTenantProvider;
 
 /**
@@ -36,7 +37,7 @@ use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\StubMultiTenantProvide
  */
 final class SharedEntitySyncIntegrationTest extends TestCase
 {
-    private static ?SharedEntitySyncTestKernel $kernel = null;
+    private static ?SharedEntityFailureLoggingTestKernel $kernel = null;
     private static string $landlordPath;
     private static string $tenantAPath;
     private static string $tenantBPath;
@@ -54,7 +55,7 @@ final class SharedEntitySyncIntegrationTest extends TestCase
             @unlink($path);
         }
 
-        self::$kernel = new SharedEntitySyncTestKernel();
+        self::$kernel = new SharedEntityFailureLoggingTestKernel();
         self::$kernel->boot();
 
         $container = self::$kernel->getContainer();
@@ -458,10 +459,17 @@ final class SharedEntitySyncIntegrationTest extends TestCase
     /**
      * SHARE-01-k: Per-tenant failure is caught + logged; does NOT abort fan-out to other tenants.
      *
-     * Strategy: Make one tenant's DB unwritable (point its connection at a non-existent/invalid
-     * path), flush a landlord #[Shared] insert, then assert:
-     *   1. The other tenant still received the row.
-     *   2. A warning was logged with tenant slug + entity class + identifier.
+     * Behavior under test (D-01 best-effort + D-07 structured logging):
+     *   (a) When tenant_a's fan-out flush fails, tenant_b STILL receives the synced row —
+     *       the failure does NOT abort the loop.
+     *   (b) The subscriber logs the failure at error level with structured context containing:
+     *       tenant_slug, entity_class, identifier, error.
+     *   (c) The landlord request is unaffected (no exception thrown to the caller).
+     *
+     * Strategy: after schema setup, DROP the test_plans table in tenant_a's SQLite DB via
+     * direct PDO, then persist+flush a TestPlan on the landlord EM. The fan-out to tenant_a
+     * fails (missing table), while tenant_b succeeds. The RecordingLogger injected by
+     * InjectRecordingLoggerPass + SharedEntityFailureLoggingTestKernel captures the error.
      */
     public function testPerTenantFailureIsLogged(): void
     {
@@ -479,53 +487,140 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         $registry = $container->get('doctrine');
         /** @var TenantContext $ctx */
         $ctx = $container->get('tenancy.context');
+        /** @var RecordingLogger $recordingLogger */
+        $recordingLogger = $container->get('tenancy.test.recording_logger');
+        $recordingLogger->reset();
 
-        // This test verifies the best-effort fan-out (D-01) + PSR-3 logging (D-07).
-        // Full implementation depends on production subscriber (Plan 25-04).
-        //
-        // Wave 0 scaffold: assert that inserting a plan on the landlord does not throw even
-        // when tenant_a's DB path is temporarily made invalid. The logging assertion will
-        // be filled in once the subscriber exists.
-        //
-        // For now: insert a plan, assert it completes (fan-out does not abort the landlord).
-        // RED note: without the production subscriber, only the landlord insert happens.
-        $plan = new TestPlan('Logging Test Plan', 700);
+        // Sabotage tenant_a: install a BEFORE INSERT trigger on test_plans that raises an error.
+        // This causes the fan-out INSERT to fail without altering existing rows or schema,
+        // so the DB file (and its auto-increment state) stays intact for subsequent tests.
+        // tenant_b's DB is left intact — it must still receive the row.
+        $tenantAPath = StubMultiTenantProvider::getTenantAPath();
+
+        // Close the DBAL tenant connection so the PDO handle to tenant_a is released.
+        // This ensures our direct PDO writes are not blocked by an open Doctrine connection.
+        /** @var \Doctrine\DBAL\Connection $tenantDbalConn */
+        $tenantDbalConn = $registry->getConnection('tenant');
+        if ($tenantDbalConn instanceof \Doctrine\DBAL\Connection) {
+            $tenantDbalConn->close();
+        }
+
+        // Reset context and EM so Doctrine is in a clean landlord state before the flush.
+        $ctx->clear();
+        $registry->resetManager('tenant');
+
+        // Install the trigger via direct PDO (Doctrine is not connected to tenant_a right now)
+        $pdoA = new \PDO('sqlite:'.$tenantAPath);
+        $pdoA->exec(
+            'CREATE TRIGGER IF NOT EXISTS tenancy_test_prevent_insert '
+            .'BEFORE INSERT ON test_plans BEGIN '
+            ."SELECT RAISE(ABORT, 'Simulated write failure for fan-out failure test'); "
+            .'END'
+        );
+
+        // Persist and flush a #[Shared] TestPlan on the landlord EM.
+        // This must NOT throw regardless of the tenant_a failure (D-01 best-effort).
+        $plan = new TestPlan('Failure Logging Test Plan', 777);
         $landlordEm->persist($plan);
+        $landlordEm->flush();
 
-        $noException = true;
-        try {
-            $landlordEm->flush();
-        } catch (\Throwable $e) {
-            $noException = false;
-        }
-
-        $this->assertTrue(
-            $noException,
-            'Fan-out failure must not propagate to the landlord — best-effort semantics (D-01)'
-        );
-
-        // Verify at least one tenant has the row (surviving tenant after simulated failure)
         $planId = $plan->getId();
-        $tenantProvider = new StubMultiTenantProvider();
-        $successCount = 0;
-        foreach ($tenantProvider->findAll() as $tenant) {
-            $ctx->setTenant($tenant);
-            /** @var EntityManagerInterface $tenantEm */
-            $tenantEm = $registry->resetManager('tenant');
-            if (null !== $tenantEm->find(TestPlan::class, $planId)) {
-                ++$successCount;
-            }
-        }
+        $this->assertNotNull($planId, 'TestPlan must have an ID after landlord flush');
 
-        // With production subscriber: assert $successCount >= 1 (at least 1 tenant succeeded).
-        // Pre-subscriber: both tenants may have 0 rows — acceptable RED state for Wave 0.
-        $this->assertGreaterThanOrEqual(
-            0,
-            $successCount,
-            'At least the tenants that did not fail must have received the plan row'
+        // (a) tenant_b MUST have received the row despite tenant_a's failure
+        $tenantProvider = new StubMultiTenantProvider();
+        $tenants = $tenantProvider->findAll();
+        $tenantB = $tenants[1]; // StubMultiTenantProvider always returns [tenant_a, tenant_b]
+
+        $ctx->setTenant($tenantB);
+        /** @var EntityManagerInterface $tenantBEm */
+        $tenantBEm = $registry->resetManager('tenant');
+        $tenantBPlan = $tenantBEm->find(TestPlan::class, $planId);
+        $this->assertNotNull(
+            $tenantBPlan,
+            sprintf(
+                'TestPlan#%d must exist in tenant_b after fan-out — '
+                .'best-effort (D-01) must not abort the whole loop on tenant_a failure',
+                $planId
+            )
         );
+
+        // (a) tenant_a must NOT have the row (INSERT was blocked by the trigger)
+        // The trigger only blocks INSERTs; SELECTs still work, so find() returns null (no row).
+        $tenantA = $tenants[0];
+        $ctx->setTenant($tenantA);
+        /** @var \Doctrine\DBAL\Connection $dbalConnForA */
+        $dbalConnForA = $registry->getConnection('tenant');
+        if ($dbalConnForA instanceof \Doctrine\DBAL\Connection) {
+            $dbalConnForA->close();
+        }
+        $tenantAEm = $registry->resetManager('tenant');
+
+        $tenantAPlan = $tenantAEm->find(TestPlan::class, $planId);
+        $this->assertNull(
+            $tenantAPlan,
+            'TestPlan must NOT be in tenant_a — the trigger aborted the fan-out INSERT there'
+        );
+
+        // (b) The subscriber must have logged exactly one error for tenant_a's failure (D-07)
+        $errorRecords = $recordingLogger->getErrorRecords();
+        $this->assertCount(
+            1,
+            $errorRecords,
+            'Exactly one error log record must be emitted for the tenant_a fan-out failure (D-07)'
+        );
+
+        $record = $errorRecords[0];
+        $this->assertSame(
+            'tenancy.shared_entity_sync_failed',
+            $record['message'],
+            'Error log message must be "tenancy.shared_entity_sync_failed" (D-07 structured log key)'
+        );
+
+        // (b) Structured log context must include all four required keys (D-07)
+        $ctx2 = $record['context'];
+        $this->assertSame(
+            'tenant_a',
+            $ctx2['tenant_slug'],
+            'Logged context must include the failing tenant slug (tenant_a)'
+        );
+        $this->assertSame(
+            TestPlan::class,
+            $ctx2['entity_class'],
+            'Logged context must include the entity class (TestPlan::class)'
+        );
+        $this->assertNotEmpty(
+            $ctx2['identifier'],
+            'Logged context must include the entity identifier (non-empty)'
+        );
+        $this->assertArrayHasKey(
+            'error',
+            $ctx2,
+            'Logged context must include the error message key'
+        );
+        $this->assertNotEmpty(
+            $ctx2['error'],
+            'Logged context error message must be non-empty'
+        );
+
+        // Remove the BEFORE INSERT trigger and backfill the blocked row via direct PDO so that
+        // subsequent tests see tenant_a's auto-increment sequence in sync with the landlord.
+        // We bypass Doctrine/ORM entirely because TestPlan is #[Shared] and the write-protection
+        // listener would throw SharedEntityWriteInTenantContextException for any tenant-context write.
+        if (isset($pdoA)) {
+            $pdoA->exec('DROP TRIGGER IF EXISTS tenancy_test_prevent_insert');
+            // Backfill with the exact same id that the landlord used so sequential tests' ids align
+            $pdoA->exec(sprintf(
+                'INSERT INTO test_plans (id, name, priceCents) VALUES (%d, %s, %d)',
+                $planId,
+                $pdoA->quote($plan->getName()),
+                $plan->getPriceCents()
+            ));
+            unset($pdoA);
+        }
 
         $ctx->clear();
+        $registry->resetManager('tenant');
     }
 
     /**
