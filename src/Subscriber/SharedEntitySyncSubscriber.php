@@ -161,15 +161,35 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         // finally below re-instates it after every tenant has been fanned out.
         $previousTenant = $this->tenantContext->hasTenant() ? $this->tenantContext->getTenant() : null;
 
-        try {
-            foreach ($changes as $change) {
-                $entity = $change['entity'];
-                $type = $change['type'];
-                // Pre-captured identifier for deletes (entity ID zeroed by Doctrine before postFlush)
-                $capturedIds = $change['ids'] ?? null;
+        // WR-04: materialize the tenant list ONCE. The loop is tenant→change, not change→tenant,
+        // so findAll() is iterated a single time — a provider that returns a Generator (or lazily
+        // queries) would otherwise be exhausted after the first change and silently skip fan-out
+        // for every later change. Iterating outer-by-tenant also lets us reset each tenant EM only
+        // once per tenant (not once per entity), so a later shared entity in the same flush can
+        // see an earlier-synced one in the warm identity map.
+        $tenants = [];
+        foreach ($this->tenantProvider->findAll() as $tenant) {
+            $tenants[] = $tenant;
+        }
 
-                foreach ($this->tenantProvider->findAll() as $tenant) {
-                    $this->fanOutToTenant($args->getObjectManager(), $entity, $type, $tenant, $capturedIds);
+        $landlordEm = $args->getObjectManager();
+
+        try {
+            foreach ($tenants as $tenant) {
+                $tenantEm = $this->switchToTenant($tenant);
+
+                // WR-02 / D-01: keep the re-entrancy flag set for this tenant's whole batch and
+                // always reset it, even if an apply throws mid-flush.
+                $this->syncInProgress = true;
+                try {
+                    foreach ($changes as $change) {
+                        // applyChange returns the EM to use for the NEXT change: a failed flush
+                        // closes the Doctrine EM, so on error it hands back a freshly reset EM so
+                        // the remaining changes for this tenant are not all dragged down with it.
+                        $tenantEm = $this->applyChange($landlordEm, $tenantEm, $tenant, $change);
+                    }
+                } finally {
+                    $this->syncInProgress = false;
                 }
             }
         } finally {
@@ -189,42 +209,62 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
     }
 
     /**
-     * Apply a single entity change to one tenant EM (best-effort, D-01 / D-07).
+     * Switch TenantContext to $tenant and return a fresh tenant EM bound to that tenant's DB.
      *
-     * try/catch/finally ensures:
-     *   - Failures are caught, logged at error level, and never rethrown (D-01 — landlord request unaffected).
-     *   - The $syncInProgress re-entrancy flag is always reset (WR-02), even if doSync throws.
+     * WR-04: called ONCE per tenant (not once per changed entity). Resetting the tenant EM once
+     * per tenant keeps the identity map warm across all of that tenant's changes, so a later
+     * shared entity in the same flush can resolve an earlier-synced one.
+     */
+    private function switchToTenant(TenantInterface $tenant): EntityManagerInterface
+    {
+        $this->tenantContext->setTenant($tenant);
+
+        // Force the tenant DBAL connection to reconnect via TenantAwareDriver::connect()
+        // so it picks up the new tenant's connection params. Without close(), the
+        // previously-open socket stays connected to the prior tenant's DB (DBAL only
+        // calls connect() when the internal connection handle is null).
+        $tenantConn = $this->registry->getConnection('tenant');
+        if ($tenantConn instanceof \Doctrine\DBAL\Connection) {
+            $tenantConn->close();
+        }
+
+        /** @var EntityManagerInterface $tenantEm */
+        $tenantEm = $this->registry->resetManager('tenant');
+
+        return $tenantEm;
+    }
+
+    /**
+     * Apply a single buffered change to one already-switched tenant EM (best-effort, D-01 / D-07).
+     *
+     * Failures are caught, logged at error level, and never rethrown (D-01 — landlord request
+     * unaffected; one tenant's failure does not abort fan-out to the others). The $syncInProgress
+     * re-entrancy flag is owned by postFlush() per tenant batch (WR-02/WR-04), not here.
      *
      * The pre-fan-out TenantContext is NOT restored here — that is owned centrally by
      * postFlush()/restoreTenantContext() so the original request-scoped tenant survives the
-     * whole loop (CR-01), not just one iteration.
+     * whole loop (CR-01).
      *
-     * @param array<string, mixed>|null $capturedIds pre-captured entity identifier (required for
-     *                                               deletes — Doctrine zeroes ID fields before postFlush)
+     * @param array{entity: object, type: 'insert'|'update'|'delete', ids?: array<string, mixed>} $change
+     *
+     * @return EntityManagerInterface the EM to use for the next change of this tenant — the same
+     *                                instance on success, a freshly reset one if the flush closed it
      */
-    private function fanOutToTenant(
+    private function applyChange(
         EntityManagerInterface $landlordEm,
-        object $entity,
-        string $type,
+        EntityManagerInterface $tenantEm,
         TenantInterface $tenant,
-        ?array $capturedIds = null,
-    ): void {
+        array $change,
+    ): EntityManagerInterface {
+        $entity = $change['entity'];
+        $type = $change['type'];
+        // Pre-captured identifier for deletes (entity ID zeroed by Doctrine before postFlush).
+        $capturedIds = $change['ids'] ?? null;
+
         try {
-            $this->tenantContext->setTenant($tenant);
-
-            // Force the tenant DBAL connection to reconnect via TenantAwareDriver::connect()
-            // so it picks up the new tenant's connection params. Without close(), the
-            // previously-open socket stays connected to the prior tenant's DB (DBAL only
-            // calls connect() when the internal connection handle is null).
-            $tenantConn = $this->registry->getConnection('tenant');
-            if ($tenantConn instanceof \Doctrine\DBAL\Connection) {
-                $tenantConn->close();
-            }
-
-            /** @var EntityManagerInterface $tenantEm */
-            $tenantEm = $this->registry->resetManager('tenant');
-            $this->syncInProgress = true;
             $this->doSync($landlordEm, $tenantEm, $entity, $type, $capturedIds);
+
+            return $tenantEm;
         } catch (\Throwable $e) {
             $meta = $landlordEm->getClassMetadata($entity::class);
             // For deletes, getIdentifierValues() returns [] (Doctrine zeroed it) — use captured IDs.
@@ -238,9 +278,13 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
                 'identifier' => $identifier,
                 'error' => $e->getMessage(),
             ]);
-        } finally {
-            // WR-02: always reset the re-entrancy flag, even if doSync threw mid-flush.
-            $this->syncInProgress = false;
+
+            // A failed flush closes the Doctrine EM; reset it so the tenant's remaining changes
+            // run against a usable manager instead of all throwing "EntityManager is closed".
+            /** @var EntityManagerInterface $freshEm */
+            $freshEm = $this->registry->resetManager('tenant');
+
+            return $freshEm;
         }
     }
 
