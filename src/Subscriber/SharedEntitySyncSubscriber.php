@@ -107,19 +107,19 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         $uow = $em->getUnitOfWork();
 
         foreach ($uow->getScheduledEntityInsertions() as $entity) {
-            if ($this->isShared($entity)) {
+            if ($this->isShared($entity, $em)) {
                 $this->pendingChanges[spl_object_id($entity)] = ['entity' => $entity, 'type' => 'insert'];
             }
         }
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
-            if ($this->isShared($entity)) {
+            if ($this->isShared($entity, $em)) {
                 $this->pendingChanges[spl_object_id($entity)] = ['entity' => $entity, 'type' => 'update'];
             }
         }
 
         foreach ($uow->getScheduledEntityDeletions() as $entity) {
-            if ($this->isShared($entity)) {
+            if ($this->isShared($entity, $em)) {
                 // Capture the identifier NOW — Doctrine zeroes identifier fields during
                 // executeDeletions() so getIdentifierValues() returns [] in postFlush.
                 /** @var array<string, mixed> $ids */
@@ -346,9 +346,18 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
 
     /**
      * Returns true when the entity carries the #[Shared] attribute.
+     *
+     * WR-01: resolve the attribute against the REAL mapped class via Doctrine metadata
+     * (ClassMetadata::$reflClass), NOT `new \ReflectionClass($entity)`. When $entity is a
+     * classic Doctrine lazy-loading proxy (Proxies\__CG__\...), reflecting the runtime object
+     * reflects the proxy subclass; PHP class attributes are not inherited, so getAttributes()
+     * would return [] and a proxy-backed #[Shared] entity would be silently skipped. This
+     * mirrors TenantAwareFilter, which deliberately reflects $targetEntity->reflClass.
      */
-    private function isShared(object $entity): bool
+    private function isShared(object $entity, EntityManagerInterface $em): bool
     {
-        return [] !== (new \ReflectionClass($entity))->getAttributes(Shared::class);
+        $refl = $em->getClassMetadata($entity::class)->reflClass;
+
+        return null !== $refl && [] !== $refl->getAttributes(Shared::class);
     }
 }

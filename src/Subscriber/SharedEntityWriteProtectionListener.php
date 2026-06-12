@@ -83,7 +83,14 @@ final class SharedEntityWriteProtectionListener implements EventSubscriber
             $uow->getScheduledEntityDeletions(),
         ] as $entities) {
             foreach ($entities as $entity) {
-                if ([] !== (new \ReflectionClass($entity))->getAttributes(Shared::class)) {
+                // WR-01: reflect the REAL mapped class via Doctrine metadata
+                // (ClassMetadata::$reflClass), NOT `new \ReflectionClass($entity)`. A classic
+                // Doctrine lazy-loading proxy reflects the proxy subclass, and PHP class
+                // attributes are not inherited — so reflecting the runtime object would return
+                // [] for getAttributes(Shared::class) and silently let a proxy-backed #[Shared]
+                // write through the guard (a write-protection bypass). Mirrors TenantAwareFilter.
+                $refl = $em->getClassMetadata($entity::class)->reflClass;
+                if (null !== $refl && [] !== $refl->getAttributes(Shared::class)) {
                     throw SharedEntityWriteInTenantContextException::forEntity($entity::class, $tenant->getSlug());
                 }
             }
