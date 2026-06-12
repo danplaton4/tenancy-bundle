@@ -77,6 +77,13 @@ Goal: make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 clo
     - [x] 25-03-PLAN.md — Wave 3: `SharedEntitySyncSubscriber` (onFlush-buffer → postFlush best-effort fan-out, no merge(), scalar-only copy, shared_db no-op, re-entrancy flag, actionable logging — D-01/D-03/D-05/D-07) + `SharedEntityWriteProtectionListener` (tenant onFlush read-only guard + re-entrancy bypass — D-02)
     - [x] 25-04-PLAN.md — Wave 4: connection-scoped DI wiring (landlord subscriber + tenant guard in the database_per_tenant block, A2) + compiler-pass registration in build() + shared_db no-op docs note + full SHARE-01 suite green-up
 - [ ] **Phase 26: `tenancy:shared:resync` command** — bulk-initial-sync console command with continue-on-failure + dry-run + per-tenant pass/fail summary (SHARE-02)
+  - **Goal:** A `tenancy:shared:resync [--tenant=<slug>] [--dry-run] [--force]` console command (mirroring `tenancy:migrate`) that enumerates all `#[Shared]` entity classes via landlord Doctrine metadata, classifies per-tenant drift (would-insert/would-update/in-sync), prints a summary, confirms before a live run, and idempotently upserts each row into the target tenant(s) via a shared `SharedEntityCopier` extracted from Phase 25 — the official drift-repair tool for the best-effort runtime fan-out; `shared_db` is an informational no-op.
+  - **Plans:** 4 plans across 4 waves
+  - Plans:
+    - [ ] 26-01-PLAN.md — Wave 1: Nyquist Wave 0 scaffolding — 4 skip-guarded test stubs (SharedEntityCopierTest, SharedEntityResyncCommandTest, SharedEntityResyncCommandIntegrationTest) + MakeSharedEntityResyncServicesPublicPass, reusing SharedEntityFailureLoggingTestKernel
+    - [ ] 26-02-PLAN.md — Wave 2: central refactor (D-02) — extract `SharedEntityCopier` (applyRow find-or-new + GENERATOR_TYPE_NONE, classifyRow drift D-03, findSharedClasses D-07, isShared proxy-safe, syncInProgress flag); thin the subscriber + rewire `SharedEntityWriteProtectionListener` to the copier (write-protection bypass LANDMINE) + DI wiring; SHARE-01 suite stays green
+    - [ ] 26-03-PLAN.md — Wave 3: `SharedEntityResyncCommand` two-pass classify→confirm→apply (D-01 CLI shape, D-04 confirm/--force, D-05 shared_db SUCCESS no-op, D-06 continue-on-failure) + console.command DI registration + command unit test (SHARE-02-b..g, -k)
+    - [ ] 26-04-PLAN.md — Wave 4: integration proof — write-protection bypass E2E (SHARE-02-i LANDMINE), idempotency + CR-01 key equality (SHARE-02-h), classify correctness (SHARE-02-l) + full-suite/PHPStan/cs-fixer green gate (incl. SHARE-02-j regression)
 - [ ] **Phase 27: Async Shared Entities** — opt-in `tenancy.shared.async: true` mode with Messenger fan-out via `SharedEntityChangedMessage` + AsyncCanaryTest pattern (SHARE-03)
 - [ ] **Phase 28: PHPStan Extension** — rules for `#[TenantAware]` + `#[Shared]` correctness, `phpstan/extension-installer` auto-load (DX-03)
 - [ ] **Phase 29: Docs Refresh** — new pages for filesystem-bootstrapper, shared-entities, phpstan-extension; UPGRADE 0.3 → 0.4 (if BC breaks land); docs-lint shared-entity ambiguity check (DOC-20)
@@ -104,6 +111,6 @@ User-requestable but unscheduled. See `.planning/PROJECT.md#future--by-demand` f
 | --------- | ------ | ------- | ----------- | ---------- | ------- |
 | v0.2      | 1–15   | 48/48   | Complete    | 2026-04-20 | v0.2.0  |
 | v0.3      | 17–23  | 53/53   | Complete    | 2026-05-29 | v0.3.3  |
-| v0.4      | 24–29  | 0/15+   | In Progress | —          | —       |
+| v0.4      | 24–29  | 0/19+   | In Progress | —          | —       |
 
-*v0.4: defined 2026-05-29 after v0.3.3 ship. Phase 24 planned 2026-05-30 (10 plans across 6 waves). Phase 25 planned 2026-06-11 (5 plans across 4 waves). Phases 26–29 plan counts derived once `/gsd:plan-phase` runs for each. Next: `/gsd:execute-phase 25` to start SHARE-01 implementation.*
+*v0.4: defined 2026-05-29 after v0.3.3 ship. Phase 24 planned 2026-05-30 (10 plans across 6 waves). Phase 25 planned 2026-06-11 (5 plans across 4 waves). Phase 26 planned 2026-06-12 (4 plans across 4 waves). Phases 27–29 plan counts derived once `/gsd:plan-phase` runs for each. Next: `/gsd:execute-phase 26` to start SHARE-02 implementation.*
