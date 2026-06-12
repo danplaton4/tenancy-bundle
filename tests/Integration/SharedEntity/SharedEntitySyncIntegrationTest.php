@@ -751,4 +751,170 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         $ctx->clear();
         $registry->resetManager('tenant');
     }
+
+    /**
+     * CR-01 regression: the tenant copy's primary key is preserved even when the tenant DB's
+     * auto-increment sequence is deliberately OUT OF LOCKSTEP with the landlord's.
+     *
+     * The defect: doSync() copies the landlord id onto the tenant copy, but a #[Shared] entity
+     * maps #[ORM\GeneratedValue] (IDENTITY) — a post-insert generator that DISCARDS the copied id
+     * and lets each tenant DB assign its own auto-increment value. Master and copy keys then stay
+     * equal only while both DBs' sequences happen to be in lockstep. Every other fan-out test in
+     * this class runs against fresh, lockstep databases, so they pass by that coincidence and never
+     * prove the invariant — this test is the one that does.
+     *
+     * It forces divergence by seeding tenant_a with a high-id row via raw PDO BEFORE the landlord
+     * insert, bumping tenant_a's auto-increment high-water mark to 9000. The landlord then assigns a
+     * small id of its own:
+     *   - Before the fix: tenant_a's IDENTITY generator ignores the copied id and assigns 9001, so
+     *     find($landlordId) returns null and the subsequent update/delete (which look the copy up by
+     *     the landlord id) miss it — every assertion below fails.
+     *   - After the fix (GENERATOR_TYPE_NONE for the synced insert): the copy lands at the landlord
+     *     id, and the update/delete still resolve it — no duplicate, no silent no-op.
+     */
+    public function testSyncPreservesLandlordIdWhenTenantSequenceDiverges(): void
+    {
+        if (!class_exists(\Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber::class)) {
+            self::markTestSkipped('SharedEntitySyncSubscriber not yet available — lands in Plan 25-04.');
+        }
+        if (!self::$kernel->getContainer()->has('tenancy.shared_entity_sync_subscriber')) {
+            self::markTestSkipped('tenancy.shared_entity_sync_subscriber service not yet wired — lands in Plan 25-04.');
+        }
+
+        $container = self::$kernel->getContainer();
+        /** @var EntityManagerInterface $landlordEm */
+        $landlordEm = $container->get('doctrine.orm.landlord_entity_manager');
+        /** @var ManagerRegistry $registry */
+        $registry = $container->get('doctrine');
+        /** @var TenantContext $ctx */
+        $ctx = $container->get('tenancy.context');
+
+        $tenantProvider = new StubMultiTenantProvider();
+        $tenantA = $tenantProvider->findAll()[0];
+        $tenantAPath = StubMultiTenantProvider::getTenantAPath();
+        $seedId = 9000;
+
+        // --- Force tenant_a out of lockstep BEFORE the landlord insert: seed a high-id row via raw
+        //     PDO so tenant_a's auto-increment high-water mark jumps to $seedId. We bypass Doctrine
+        //     entirely because TestPlan is #[Shared] and a tenant-context write would otherwise hit
+        //     the write-protection listener. Release the DBAL tenant connection first so our PDO
+        //     handle is unobstructed (same pattern as testPerTenantFailureIsLogged).
+        $tenantDbalConn = $registry->getConnection('tenant');
+        if ($tenantDbalConn instanceof \Doctrine\DBAL\Connection) {
+            $tenantDbalConn->close();
+        }
+        $ctx->clear();
+        $registry->resetManager('tenant');
+
+        $pdoA = new \PDO('sqlite:'.$tenantAPath);
+        $pdoA->exec(sprintf(
+            'INSERT INTO test_plans (id, name, priceCents) VALUES (%d, %s, %d)',
+            $seedId,
+            $pdoA->quote('Out-of-lockstep seed'),
+            1
+        ));
+        unset($pdoA); // release the handle so Doctrine can reconnect cleanly
+
+        // --- Landlord #[Shared] insert (context cleared → plain landlord flush). The fan-out copies
+        //     it to every tenant EM.
+        $plan = new TestPlan('Lockstep Divergence Plan', 4242);
+        $landlordEm->persist($plan);
+        $landlordEm->flush();
+
+        $landlordId = $plan->getId();
+        $this->assertNotNull($landlordId, 'TestPlan must have a landlord id after flush');
+        $this->assertNotSame(
+            $seedId,
+            $landlordId,
+            'Landlord id must differ from the seeded tenant_a id for the divergence to be meaningful'
+        );
+
+        // --- CR-01 core assertion: the tenant_a copy must land under the LANDLORD id, not under
+        //     tenant_a's own next auto-increment value ($seedId + 1).
+        $tenantAEm = $this->switchTenantManager($registry, $ctx, $tenantA);
+        $copy = $tenantAEm->find(TestPlan::class, $landlordId);
+        $this->assertNotNull(
+            $copy,
+            sprintf(
+                'Tenant_a copy MUST exist at the landlord id #%d even though tenant_a\'s sequence was bumped to %d — '
+                .'before the CR-01 fix the IDENTITY generator assigned #%d instead, diverging the keys',
+                $landlordId,
+                $seedId,
+                $seedId + 1
+            )
+        );
+        $this->assertSame('Lockstep Divergence Plan', $copy->getName());
+        $this->assertSame($landlordId, $copy->getId(), 'Tenant copy id must equal the landlord id');
+
+        // No stray copy may have landed at tenant_a's own next sequence value.
+        $this->assertNull(
+            $tenantAEm->find(TestPlan::class, $seedId + 1),
+            sprintf('No tenant_a copy may land at the auto-increment value #%d — the landlord id is authoritative', $seedId + 1)
+        );
+
+        // --- Subsequent landlord UPDATE must hit the same copy (look-up is by landlord id) rather
+        //     than create a second row.
+        $ctx->clear();
+        $registry->resetManager('tenant');
+        $plan->setName('Lockstep Divergence Plan (updated)');
+        $plan->setPriceCents(5151);
+        $landlordEm->flush();
+
+        $tenantAEm = $this->switchTenantManager($registry, $ctx, $tenantA);
+        $updated = $tenantAEm->find(TestPlan::class, $landlordId);
+        $this->assertNotNull($updated, 'Updated tenant_a copy must still resolve by the landlord id');
+        $this->assertSame('Lockstep Divergence Plan (updated)', $updated->getName());
+        $this->assertSame(5151, $updated->getPriceCents());
+        $this->assertSame(
+            1,
+            $tenantAEm->getRepository(TestPlan::class)->count(['name' => 'Lockstep Divergence Plan (updated)']),
+            'Update must mutate the existing copy in place, not create a duplicate row on tenant_a'
+        );
+
+        // --- Subsequent landlord DELETE must remove that copy (delete path looks up by the captured
+        //     landlord id) rather than silently no-op.
+        $ctx->clear();
+        $registry->resetManager('tenant');
+        $landlordEm->remove($plan);
+        $landlordEm->flush();
+
+        $tenantAEm = $this->switchTenantManager($registry, $ctx, $tenantA);
+        $this->assertNull(
+            $tenantAEm->find(TestPlan::class, $landlordId),
+            'Landlord delete must remove the tenant_a copy resolved by the landlord id'
+        );
+
+        // --- Cleanup: drop the out-of-lockstep seed row so tenant_a is left clean for any later run.
+        $tenantDbalConn = $registry->getConnection('tenant');
+        if ($tenantDbalConn instanceof \Doctrine\DBAL\Connection) {
+            $tenantDbalConn->close();
+        }
+        $ctx->clear();
+        $registry->resetManager('tenant');
+
+        $pdoCleanup = new \PDO('sqlite:'.$tenantAPath);
+        $pdoCleanup->exec(sprintf('DELETE FROM test_plans WHERE id = %d', $seedId));
+        unset($pdoCleanup);
+
+        $ctx->clear();
+        $registry->resetManager('tenant');
+    }
+
+    /**
+     * Reset the tenant manager onto $tenant with a forced reconnect — mirrors the subscriber's own
+     * switchToTenant() so a read resolves against the correct tenant DB file (the previous DBAL
+     * socket must be closed for TenantAwareDriver::connect() to pick up the new tenant's params).
+     */
+    private function switchTenantManager(ManagerRegistry $registry, TenantContext $ctx, \Tenancy\Bundle\TenantInterface $tenant): EntityManagerInterface
+    {
+        $ctx->setTenant($tenant);
+        $conn = $registry->getConnection('tenant');
+        if ($conn instanceof \Doctrine\DBAL\Connection) {
+            $conn->close();
+        }
+        /** @var EntityManagerInterface $em */
+        $em = $registry->resetManager('tenant');
+
+        return $em;
+    }
 }
