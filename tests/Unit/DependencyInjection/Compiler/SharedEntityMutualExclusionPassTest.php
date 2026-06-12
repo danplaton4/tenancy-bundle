@@ -79,6 +79,59 @@ final class SharedEntityMutualExclusionPassTest extends TestCase
         (new \Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass())->process($container);
         $this->addToAssertionCount(1);
     }
+
+    /**
+     * WR-02: Guard throws when a child INHERITS #[Shared] from a base and declares #[TenantAware]
+     * directly. PHP class attributes are not inherited, so ReflectionClass::getAttributes() on the
+     * child alone reports only #[TenantAware] and misses the inherited #[Shared] — before the fix
+     * this invalid combination slipped through the guard. The hierarchy walk must catch it.
+     */
+    public function testGuardThrowsWhenSharedInheritedAndTenantAwareDeclared(): void
+    {
+        $container = new ContainerBuilder();
+        $definition = (new Definition(InheritedSharedTenantAwareEntity::class))
+            ->addTag('tenancy.shared_entity');
+        $container->setDefinition(InheritedSharedTenantAwareEntity::class, $definition);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage(InheritedSharedTenantAwareEntity::class);
+
+        (new \Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass())->process($container);
+    }
+
+    /**
+     * WR-02: Guard throws when a child inherits BOTH #[Shared] and #[TenantAware] from a base and
+     * declares neither itself — the walk must inspect every ancestor, not just the leaf class.
+     */
+    public function testGuardThrowsWhenBothAttributesInheritedFromBase(): void
+    {
+        $container = new ContainerBuilder();
+        $definition = (new Definition(InheritedBothAttributesEntity::class))
+            ->addTag('tenancy.shared_entity');
+        $container->setDefinition(InheritedBothAttributesEntity::class, $definition);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage(InheritedBothAttributesEntity::class);
+
+        (new \Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass())->process($container);
+    }
+
+    /**
+     * WR-02: No exception when a child inherits ONLY #[Shared] from its base. The hierarchy walk
+     * must not manufacture a false #[TenantAware] match from an ancestor that does not carry it —
+     * guards against the walk over-triggering.
+     */
+    public function testNoExceptionWhenOnlySharedInherited(): void
+    {
+        $container = new ContainerBuilder();
+        $definition = (new Definition(InheritedOnlySharedEntity::class))
+            ->addTag('tenancy.shared_entity');
+        $container->setDefinition(InheritedOnlySharedEntity::class, $definition);
+
+        // No exception expected — only #[Shared] is present anywhere in the hierarchy
+        (new \Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass())->process($container);
+        $this->addToAssertionCount(1);
+    }
 }
 
 /**
@@ -106,5 +159,58 @@ final class OnlySharedEntity
 #[Shared]
 #[TenantAware]
 final class UntaggedBothAttributesEntity
+{
+}
+
+/*
+ * WR-02 inheritance fixtures.
+ *
+ * PHP class attributes are NOT inherited: ReflectionClass::getAttributes() on a child returns only
+ * the attributes declared directly on that class, never those on a parent / mapped-superclass. A
+ * shared base entity declaring #[Shared] that is extended by a tenant-scoped child is a realistic
+ * Doctrine MappedSuperclass shape, so the guard must walk getParentClass() to see inherited
+ * attributes — the behavior these fixtures exercise.
+ */
+
+/**
+ * Abstract base carrying only #[Shared] — mimics a shared MappedSuperclass. Non-final so children
+ * can extend it.
+ */
+#[Shared]
+abstract class SharedBaseEntity
+{
+}
+
+/**
+ * Test fixture: INHERITS #[Shared] from SharedBaseEntity and declares #[TenantAware] directly —
+ * invalid combination. The pass must throw even though the child's own getAttributes() sees only
+ * #[TenantAware].
+ */
+#[TenantAware]
+final class InheritedSharedTenantAwareEntity extends SharedBaseEntity
+{
+}
+
+/**
+ * Abstract base carrying BOTH #[Shared] and #[TenantAware].
+ */
+#[Shared]
+#[TenantAware]
+abstract class BothAttributesBaseEntity
+{
+}
+
+/**
+ * Test fixture: inherits BOTH attributes from BothAttributesBaseEntity and declares neither —
+ * invalid combination. The pass must throw by inspecting the ancestor.
+ */
+final class InheritedBothAttributesEntity extends BothAttributesBaseEntity
+{
+}
+
+/**
+ * Test fixture: inherits ONLY #[Shared] from SharedBaseEntity — valid combination, no exception.
+ */
+final class InheritedOnlySharedEntity extends SharedBaseEntity
 {
 }
