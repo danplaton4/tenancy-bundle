@@ -15,7 +15,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Tenancy\Bundle\Bootstrapper\BootstrapperChain;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
-use Tenancy\Bundle\Shared\SharedEntityCopier;
+use Tenancy\Bundle\Shared\SharedEntityCopierInterface;
 use Tenancy\Bundle\TenantInterface;
 
 #[AsCommand(name: 'tenancy:shared:resync', description: 'Re-sync all #[Shared] entities to target tenant(s)')]
@@ -28,7 +28,7 @@ final class SharedEntityResyncCommand extends Command
         private readonly string $driver,
         private readonly EntityManagerInterface $landlordEm,
         private readonly ManagerRegistry $registry,
-        private readonly SharedEntityCopier $copier,
+        private readonly SharedEntityCopierInterface $copier,
     ) {
         parent::__construct();
     }

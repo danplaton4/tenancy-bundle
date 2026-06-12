@@ -37,7 +37,7 @@ use Tenancy\Bundle\Attribute\Shared;
  * is temporarily overridden to NONE so the copied landlord id is written verbatim into the
  * INSERT statement, preserving cross-DB key equality that the update/delete paths rely on.
  */
-final class SharedEntityCopier
+final class SharedEntityCopier implements SharedEntityCopierInterface
 {
     private bool $syncInProgress = false;
 
