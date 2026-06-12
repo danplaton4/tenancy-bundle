@@ -54,12 +54,37 @@ final class SharedEntityMutualExclusionPass implements CompilerPassInterface
             }
 
             $rc = new \ReflectionClass($class);
-            $hasShared = [] !== $rc->getAttributes(\Tenancy\Bundle\Attribute\Shared::class);
-            $hasTenantAware = [] !== $rc->getAttributes(\Tenancy\Bundle\Attribute\TenantAware::class);
+            // WR-02: walk the class hierarchy. getAttributes() does NOT return attributes declared
+            // on a parent / mapped-superclass, so a child entity that inherits #[Shared] (or
+            // #[TenantAware]) from a base — a common Doctrine MappedSuperclass pattern — would
+            // otherwise slip past this guard. hasAttributeInHierarchy() inspects the class and
+            // every ancestor.
+            $hasShared = $this->hasAttributeInHierarchy($rc, \Tenancy\Bundle\Attribute\Shared::class);
+            $hasTenantAware = $this->hasAttributeInHierarchy($rc, \Tenancy\Bundle\Attribute\TenantAware::class);
 
             if ($hasShared && $hasTenantAware) {
                 throw new \LogicException(sprintf('tenancy: entity "%s" cannot carry both #[Shared] and #[TenantAware]. A shared entity is a landlord-side master; a TenantAware entity is tenant-scoped. Pick one.', $class));
             }
         }
+    }
+
+    /**
+     * Whether $rc or any of its ancestor classes carries the given attribute.
+     *
+     * PHP class attributes are not inherited and ReflectionClass::getAttributes() reports only
+     * attributes declared directly on the reflected class, so a #[Shared]/#[TenantAware] declared
+     * on a parent or mapped-superclass must be discovered by walking getParentClass() explicitly.
+     *
+     * @param class-string $attribute
+     */
+    private function hasAttributeInHierarchy(\ReflectionClass $rc, string $attribute): bool
+    {
+        for ($current = $rc; false !== $current; $current = $current->getParentClass()) {
+            if ([] !== $current->getAttributes($attribute)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

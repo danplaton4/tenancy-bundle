@@ -188,11 +188,22 @@ secondary `flush()` is issued. Placing `#[Shared]` on an entity under `shared_db
     global-data entities and the subscriber will automatically start fanning out changes to every
     tenant database — no other code changes required.
 
-!!! info "`tenancy.shared_entity` tag"
-    Even under `shared_db`, the compile-time mutual-exclusion guard (`SharedEntityMutualExclusionPass`)
-    still runs. It inspects every entity tagged with `tenancy.shared_entity` and rejects entities
-    that carry both `#[Shared]` and `#[TenantAware]` simultaneously (which would be contradictory).
-    Tag your shared-entity service definitions with `tenancy.shared_entity` to opt in to this guard.
+!!! warning "The mutual-exclusion guard only inspects **manually tagged** classes"
+    The compile-time guard (`SharedEntityMutualExclusionPass`) rejects entities that carry both
+    `#[Shared]` and `#[TenantAware]` simultaneously (a contradictory, data-leak-prone combination).
+    **It is not automatic.** Doctrine entities are plain mapped classes, never registered as
+    container services, so the guard has nothing to inspect unless you explicitly register each
+    shared-entity class as a service tagged `tenancy.shared_entity`:
+
+    ```php
+    // config/services.php
+    $services->set(App\Entity\Plan::class)->tag('tenancy.shared_entity');
+    ```
+
+    Without that tag the guard is a **no-op** — it will not catch a class that accidentally carries
+    both attributes. The guard does walk the class hierarchy, so a `#[Shared]`/`#[TenantAware]`
+    inherited from a parent or mapped-superclass on a *tagged* class is detected. Editor-time
+    detection that does not require manual tagging is planned as a PHPStan rule (Phase 28 / DX-03).
 
 ## See Also
 
