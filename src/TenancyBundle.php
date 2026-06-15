@@ -27,6 +27,7 @@ use Tenancy\Bundle\DependencyInjection\Compiler\MailerTransportContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\OriginHeaderResolverConfigPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\SharedAsyncContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
@@ -119,6 +120,12 @@ class TenancyBundle extends AbstractBundle
             ->integerNode('cache_size')->defaultValue(32)->min(1)->end()
             ->end()
             ->end()
+            ->arrayNode('shared')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->booleanNode('async')->defaultFalse()->end()
+            ->end()
+            ->end()
             ->end()
             ->validate()
                 ->ifTrue(function (array $v): bool {
@@ -169,6 +176,10 @@ class TenancyBundle extends AbstractBundle
         $filesystemCacheSizeRaw = $filesystemConfig['cache_size'] ?? 32;
         $filesystemCacheSize = is_int($filesystemCacheSizeRaw) ? $filesystemCacheSizeRaw : 32;
 
+        /** @var array<string, mixed> $sharedConfig */
+        $sharedConfig = $config['shared'] ?? [];
+        $sharedAsync = is_scalar($sharedConfig['async'] ?? false) ? (bool) ($sharedConfig['async'] ?? false) : false;
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
@@ -182,7 +193,8 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.filesystem.enabled', $filesystemEnabled)
             ->set('tenancy.filesystem.allow_per_tenant_adapter', $filesystemAllowPerTenant)
             ->set('tenancy.filesystem.prefix_template', $filesystemPrefixTemplate)
-            ->set('tenancy.filesystem.cache_size', $filesystemCacheSize);
+            ->set('tenancy.filesystem.cache_size', $filesystemCacheSize)
+            ->set('tenancy.shared.async', $sharedAsync);
 
         /** @var list<string> $configuredResolvers */
         $configuredResolvers = $config['resolvers'];
@@ -344,6 +356,7 @@ class TenancyBundle extends AbstractBundle
         }
         if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
             $container->addCompilerPass(new SharedEntityMutualExclusionPass());
+            $container->addCompilerPass(new SharedAsyncContractPass());
         }
     }
 
