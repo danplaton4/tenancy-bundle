@@ -32,7 +32,7 @@ For prior-milestone (v0.3) requirements, see `.planning/milestones/v0.3-REQUIREM
   - Acceptance: works under both `database_per_tenant` and `shared_db` driver modes (the latter is a no-op for prefix-only; document explicitly)
   - Acceptance: continue-on-failure pattern matching `tenancy:migrate` — one tenant's failure doesn't abort the whole loop; summary table at exit with per-tenant pass/fail counts
 
-- [ ] **SHARE-03**: Async shared entity fan-out via Symfony Messenger — when `tenancy.shared.async: true`, `SharedEntitySyncSubscriber` dispatches a `SharedEntityChangedMessage` instead of writing synchronously. The Messenger worker handles per-tenant fan-out, allowing the landlord HTTP response to return immediately.
+- [x] **SHARE-03**: Async shared entity fan-out via Symfony Messenger — when `tenancy.shared.async: true`, `SharedEntitySyncSubscriber` dispatches a `SharedEntityChangedMessage` instead of writing synchronously. The Messenger worker handles per-tenant fan-out, allowing the landlord HTTP response to return immediately.
   - Acceptance: async mode is opt-in via `tenancy.shared.async: true`; default remains sync (SHARE-01)
   - Acceptance: `SharedEntityChangedMessage` carries the entity class + identifier + change type (insert/update/delete) — NOT the full entity payload (Messenger envelope size discipline)
   - Acceptance: worker retrieves the current entity state from the landlord EM at handle time; this means downstream tenants see the LATEST state, not the state at dispatch time (documented landmine)
@@ -94,7 +94,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | BOOT-03 | Phase 24 — Filesystem Bootstrapper | Complete |
 | SHARE-01 | Phase 25 — Shared Entities (Sync mode) | Complete |
 | SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Complete |
-| SHARE-03 | Phase 27 — Async Shared Entities | Pending |
+| SHARE-03 | Phase 27 — Async Shared Entities | Complete |
 | DX-03 | Phase 28 — PHPStan Extension | Pending |
 | DOC-20 | Phase 29 — Docs Refresh | Pending |
 

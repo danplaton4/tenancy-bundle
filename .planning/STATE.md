@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Phase 27 context gathered
-last_updated: "2026-06-15T10:46:35.311Z"
-last_activity: 2026-06-15 -- Phase 27 planning complete
+stopped_at: Completed 27-01-PLAN.md
+last_updated: "2026-06-15T11:05:17.581Z"
+last_activity: 2026-06-15
 progress:
   total_phases: 26
   completed_phases: 25
   total_plans: 123
-  completed_plans: 120
+  completed_plans: 121
   percent: 96
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 26 — tenancy-shared-resync-command
+**Current focus:** Phase 27 — async-shared-entities
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
+Phase: 27 (async-shared-entities) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 27 planning complete
+Last activity: 2026-06-15
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
@@ -108,6 +108,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 26 P02 | 15 | 3 tasks | 6 files |
 | Phase 26 PP03 | 11min | - tasks | - files |
 | Phase 26 P04 | 5min | 2 tasks | 1 files |
+| Phase 27-async-shared-entities P01 | 9min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,10 @@ Recent decisions affecting current work:
 - [Phase ?]: SharedEntityCopierInterface extracted alongside final SharedEntityCopier for PHPUnit testability — same pattern as TenantConnectionInterface (Phase 3)
 - [Phase ?]: CommandTestKernel 'doctrine' stub: console.command services DI-validated eagerly via FrameworkBundle console Application; doctrine.event_listener services not reachable in minimal kernels
 - [Phase ?]: Direct PDO mutation for integration test drift simulation: ClassMetadata::getColumnName() + PDO UPDATE to create tenant-side scalar drift without triggering SharedEntitySyncSubscriber fan-out
+- [Phase ?]: SharedEntityChangedMessage carries only class-string + scalar identifier array + changeType string for dead-letter safety (T-27-01-DLQ)
+- [Phase ?]: SharedEntityAsyncFanOutException extends RuntimeException directly (NOT UnrecoverableExceptionInterface) for Messenger retry_strategy engagement (D-02, RESEARCH Pattern 2)
+- [Phase ?]: tenancy.shared.async parameter set unconditionally in loadExtension() outside database.enabled block so guard always finds it (RESEARCH finding #5)
+- [Phase ?]: SharedAsyncContractPass 3-stage guard registered inside EntityManagerInterface block in build() alongside SharedEntityMutualExclusionPass
 
 ### Pending Todos
 
@@ -231,6 +236,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T08:22:46.710Z
-Stopped at: Phase 27 context gathered
-Resume file: .planning/phases/27-async-shared-entities/27-CONTEXT.md
+Last session: 2026-06-15T11:05:17.574Z
+Stopped at: Completed 27-01-PLAN.md
+Resume file: None
