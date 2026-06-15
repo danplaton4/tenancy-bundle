@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
-status: executing
-stopped_at: Completed 27-02-PLAN.md
-last_updated: "2026-06-15T11:22:28.262Z"
+status: verifying
+stopped_at: Completed 27-03-PLAN.md
+last_updated: "2026-06-15T11:35:33.407Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 26
-  completed_phases: 25
+  completed_phases: 26
   total_plans: 123
-  completed_plans: 122
-  percent: 96
+  completed_plans: 123
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 Phase: 27 (async-shared-entities) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-15
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
@@ -110,6 +110,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 26 P04 | 5min | 2 tasks | 1 files |
 | Phase 27-async-shared-entities P01 | 9min | 3 tasks | 6 files |
 | Phase 27 P02 | 12 | - tasks | - files |
+| Phase 27 P03 | 20 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,9 @@ Recent decisions affecting current work:
 - [Phase ?]: OQ-1 resolved: deleteRow() added to copier so handler never passes null/stdClass to applyRow()
 - [Phase ?]: Doctrine ORM 3 clear() is full identity-map only; per-class clear($class) removed — used in handler with full-map clear()
 - [Phase ?]: Bus wired via setArgument('$bus') named arg in TenancyBundle — future-proof for subscriber constructor changes (D-07)
+- [Phase ?]: resetManager landlord in setUp — handler clear() leaves stale identity-map state
+- [Phase ?]: SyncTransport canary pattern: handler-reach + DB state, not PhpSerializer survival (RESEARCH Pattern 4)
+- [Phase ?]: D-01 stamp-clearing integration proof: active-dispatch-tenant canary for shared-entity async path
 
 ### Pending Todos
 
@@ -240,6 +244,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T11:22:28.257Z
-Stopped at: Completed 27-02-PLAN.md
+Last session: 2026-06-15T11:35:33.401Z
+Stopped at: Completed 27-03-PLAN.md
 Resume file: None
