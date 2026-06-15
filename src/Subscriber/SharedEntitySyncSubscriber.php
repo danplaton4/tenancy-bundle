@@ -11,7 +11,9 @@ use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Events;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Context\TenantContext;
+use Tenancy\Bundle\Message\SharedEntityChangedMessage;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Shared\SharedEntityCopier;
 use Tenancy\Bundle\TenantInterface;
@@ -19,6 +21,19 @@ use Tenancy\Bundle\TenantInterface;
 /**
  * Landlord-EM Doctrine event subscriber that fans #[Shared] entity changes to every
  * tenant EntityManager on postFlush (D-01 best-effort / D-05 insert+update+delete).
+ *
+ * ## Async dispatch branch (SHARE-03)
+ *
+ * When a MessageBusInterface is injected (tenancy.shared.async: true), postFlush()
+ * dispatches one SharedEntityChangedMessage per changed entity and returns early —
+ * no synchronous fan-out. The worker thread picks up each message and fans out to all
+ * tenants via SharedEntityChangedMessageHandler.
+ *
+ * When bus=null (default, tenancy.shared.async: false), the existing synchronous fan-out
+ * runs unchanged (findAll() is called, each tenant EM is written to inline).
+ *
+ * D-03 note: the message defers only when the user routes it async in
+ * framework.messenger.routing. An unrouted message handles inline (still correct).
  *
  * ## CRITICAL: buffer in onFlush, apply in postFlush
  *
@@ -80,6 +95,7 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         private readonly LoggerInterface $logger,
         private readonly string $driver,
         private readonly SharedEntityCopier $copier,
+        private readonly ?MessageBusInterface $bus = null,
     ) {
     }
 
@@ -150,6 +166,38 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
 
         $changes = $this->pendingChanges;
         $this->pendingChanges = [];
+
+        if (null !== $this->bus) {
+            // SHARE-03: async dispatch branch — one message per changed entity, no sync fan-out.
+            //
+            // CRITICAL (Pitfall 1, D-01): clear TenantContext before dispatch so
+            // TenantSendingMiddleware does NOT stamp this fan-to-all-tenants message with the
+            // current tenant slug. Without this, the worker would boot only the active tenant's
+            // context and fan out to that single tenant instead of all tenants.
+            $previousTenant = $this->tenantContext->hasTenant() ? $this->tenantContext->getTenant() : null;
+            if (null !== $previousTenant) {
+                $this->tenantContext->clear();
+            }
+            try {
+                foreach ($changes as $change) {
+                    $entity = $change['entity'];
+                    $type = $change['type'];
+                    // For insert/update: identifier from entity (still set at postFlush time).
+                    // For delete: use pre-captured ids (Doctrine zeroed the entity's identifier
+                    // fields in executeDeletions() before postFlush fired — RESEARCH Pattern 7).
+                    $ids = 'delete' === $type
+                        ? ($change['ids'] ?? [])
+                        : $args->getObjectManager()->getClassMetadata($entity::class)->getIdentifierValues($entity);
+                    $this->bus->dispatch(new SharedEntityChangedMessage($entity::class, $ids, $type));
+                }
+            } finally {
+                if (null !== $previousTenant) {
+                    $this->tenantContext->setTenant($previousTenant);
+                }
+            }
+
+            return;
+        }
 
         // CR-01: capture the tenant active before fan-out. The fan-out loop repeatedly switches
         // TenantContext per tenant; without save/restore the request-scoped tenant that was
