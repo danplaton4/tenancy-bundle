@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Storage & Shared Entities — Phases 24–29
 status: executing
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-06-15T11:05:17.581Z"
+stopped_at: Completed 27-02-PLAN.md
+last_updated: "2026-06-15T11:22:28.262Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 26
   completed_phases: 25
   total_plans: 123
-  completed_plans: 121
+  completed_plans: 122
   percent: 96
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 27 (async-shared-entities) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-15
 
@@ -109,6 +109,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 26 PP03 | 11min | - tasks | - files |
 | Phase 26 P04 | 5min | 2 tasks | 1 files |
 | Phase 27-async-shared-entities P01 | 9min | 3 tasks | 6 files |
+| Phase 27 P02 | 12 | - tasks | - files |
 
 ## Accumulated Context
 
@@ -217,6 +218,9 @@ Recent decisions affecting current work:
 - [Phase ?]: SharedEntityAsyncFanOutException extends RuntimeException directly (NOT UnrecoverableExceptionInterface) for Messenger retry_strategy engagement (D-02, RESEARCH Pattern 2)
 - [Phase ?]: tenancy.shared.async parameter set unconditionally in loadExtension() outside database.enabled block so guard always finds it (RESEARCH finding #5)
 - [Phase ?]: SharedAsyncContractPass 3-stage guard registered inside EntityManagerInterface block in build() alongside SharedEntityMutualExclusionPass
+- [Phase ?]: OQ-1 resolved: deleteRow() added to copier so handler never passes null/stdClass to applyRow()
+- [Phase ?]: Doctrine ORM 3 clear() is full identity-map only; per-class clear($class) removed — used in handler with full-map clear()
+- [Phase ?]: Bus wired via setArgument('$bus') named arg in TenancyBundle — future-proof for subscriber constructor changes (D-07)
 
 ### Pending Todos
 
@@ -236,6 +240,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-15T11:05:17.574Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-06-15T11:22:28.257Z
+Stopped at: Completed 27-02-PLAN.md
 Resume file: None
