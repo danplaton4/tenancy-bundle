@@ -682,19 +682,21 @@ if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Handler's applyRow() call signature for delete path**
+> All three resolved during planning; resolutions are recorded in the plan actions cited below.
+
+1. **Handler's applyRow() call signature for delete path** — **RESOLVED (27-02 Task 1):** added a `deleteRow(tenantEm, class, capturedIds)` helper to `SharedEntityCopierInterface` + `SharedEntityCopier` (the copier stays the single source of truth). The handler calls `deleteRow()` for the delete path (incl. vanished-row→delete) and `applyRow()` ONLY with a live re-fetched non-null entity — the `\stdClass` placeholder below is explicitly overridden and a `grep -c 'new \stdClass()' == 0` acceptance criterion enforces it.
    - What we know: `SharedEntityCopier::applyRow()` checks `type === 'delete'` first and uses `$capturedIds`, NOT the `$entity` parameter, for the delete path. The `$entity` param is typed as `object`, not nullable.
    - What's unclear: Can the handler pass `$landlordEm->find($class, $identifier)` (which returns null for a delete+vanished row) safely? The delete branch in `applyRow()` only calls `$tenantEm->find($class, $capturedIds)` — it never reads `$entity` on the delete path.
    - Recommendation: Planner should verify `applyRow()`'s delete branch (lines 69-94 of SharedEntityCopier.php) does not dereference `$entity` before the `type === 'delete'` check. If it does, the handler needs a minimal stub entity or the copier needs a `deleteRow(tenantEm, class, ids)` helper. Based on current code review, the delete branch does NOT dereference `$entity` before the early return — passing `null` would fail PHPStan L9 since the param is typed `object`.
 
-2. **`switchToTenant()` / `restoreTenantContext()` sharing between subscriber and handler**
+2. **`switchToTenant()` / `restoreTenantContext()` sharing between subscriber and handler** — **RESOLVED (27-02 Task 3):** duplicate the ~30 lines in the handler with a comment naming the subscriber as the source-of-truth twin (keeps the change file-scoped to 27-02 and avoids touching the subscriber's proven CR-01/CR-02 internals). Extraction to a shared service was considered and deferred.
    - What we know: These private methods in `SharedEntitySyncSubscriber` contain non-trivial DBAL connection management logic (Phase 25 CR-01/CR-02).
    - What's unclear: Whether to extract them to a shared `TenantContextSwitcher` service or duplicate the ~30 lines in the handler.
    - Recommendation: Extract to a shared service (`TenantContextSwitcher`) that both the subscriber and handler inject. Avoids drift between two copies of the DBAL-close + resetManager logic.
 
-3. **Landlord EM identity-map staleness in long-running workers**
+3. **Landlord EM identity-map staleness in long-running workers** — **RESOLVED (27-02 Task 3):** the handler calls `$landlordEm->clear($class)` before `find()`, structurally enforced by a `grep -Pzoq '(?s)->clear\(.*?->find\('` acceptance criterion (proves the ordering independent of any test passing).
    - What we know: `$landlordEm->find($class, $identifier)` may return a stale cached entity in a worker that processed many messages.
    - What's unclear: Whether to call `$landlordEm->clear($class)` before the re-fetch in the handler.
    - Recommendation: The handler should call `$landlordEm->clear($class)` (or `$landlordEm->refresh($entity)` if the entity is found) before trusting the re-fetch result. Document as a known production concern.
