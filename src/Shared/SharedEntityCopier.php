@@ -67,28 +67,10 @@ final class SharedEntityCopier implements SharedEntityCopierInterface
         $landlordMeta = $landlordEm->getClassMetadata($class);
 
         if ('delete' === $type) {
-            // WR-03: deletes REQUIRE the identifier captured in onFlush — by postFlush Doctrine has
-            // zeroed the entity's identifier fields, so getIdentifierValues($entity) returns [].
-            // A ?? fallback would silently turn a missing-id bug into a delete no-op (stale shared
-            // data left on the tenant). Fail loudly instead.
-            if (null === $capturedIds || [] === $capturedIds) {
-                $this->logger->error('tenancy.shared_entity_sync_missing_delete_id', [
-                    'entity_class' => $class,
-                ]);
-
-                return;
-            }
-
-            $existing = $tenantEm->find($class, $capturedIds);
-            if (null !== $existing) {
-                $tenantEm->remove($existing);
-                $this->syncInProgress = true;
-                try {
-                    $tenantEm->flush();
-                } finally {
-                    $this->syncInProgress = false;
-                }
-            }
+            // Delegate to the dedicated deleteRow() helper — single delete implementation (DRY).
+            // deleteRow() handles the WR-03 missing-id guard, the find/remove/flush, and the
+            // syncInProgress flag ownership.
+            $this->deleteRow($tenantEm, $class, $capturedIds ?? []);
 
             return;
         }
@@ -133,6 +115,49 @@ final class SharedEntityCopier implements SharedEntityCopierInterface
             $tenantEm->flush();
         } finally {
             $this->syncInProgress = false;
+        }
+    }
+
+    /**
+     * Delete the tenant-side copy of a shared entity by its captured identifier (OQ-1 resolution).
+     *
+     * Idempotent: returns without error when no tenant-side copy exists for $capturedIds.
+     * Sets the syncInProgress re-entrancy flag around flush so SharedEntityWriteProtectionListener
+     * bypasses the guard for this copier-originated write (identical to applyRow()'s delete sub-path).
+     *
+     * Use this instead of applyRow() when no live entity object is available — e.g. the async
+     * handler's delete path and the vanished-row→delete convergence case (D-04).
+     *
+     * WR-03: an empty $capturedIds is logged at error level and treated as a no-op rather than
+     * a full-table delete or a silent miss. This matches the behaviour previously embedded in
+     * applyRow()'s delete branch (single implementation, DRY).
+     *
+     * @param class-string         $class       FQCN of the #[Shared] entity
+     * @param array<string, mixed> $capturedIds Pre-captured primary-key values
+     */
+    public function deleteRow(EntityManagerInterface $tenantEm, string $class, array $capturedIds): void
+    {
+        // WR-03: deletes REQUIRE the identifier captured in onFlush — by postFlush Doctrine has
+        // zeroed the entity's identifier fields, so getIdentifierValues($entity) returns [].
+        // A ?? fallback would silently turn a missing-id bug into a delete no-op (stale shared
+        // data left on the tenant). Fail loudly instead.
+        if ([] === $capturedIds) {
+            $this->logger->error('tenancy.shared_entity_sync_missing_delete_id', [
+                'entity_class' => $class,
+            ]);
+
+            return;
+        }
+
+        $existing = $tenantEm->find($class, $capturedIds);
+        if (null !== $existing) {
+            $tenantEm->remove($existing);
+            $this->syncInProgress = true;
+            try {
+                $tenantEm->flush();
+            } finally {
+                $this->syncInProgress = false;
+            }
         }
     }
 

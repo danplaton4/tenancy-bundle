@@ -56,6 +56,22 @@ interface SharedEntityCopierInterface
     public function isShared(object $entity, EntityManagerInterface $em): bool;
 
     /**
+     * Delete the tenant-side copy of a shared entity by its captured identifier.
+     *
+     * Idempotent: if no tenant-side copy exists for the given $capturedIds, the method
+     * returns without error (no-op). Sets the syncInProgress flag around the flush so
+     * SharedEntityWriteProtectionListener bypasses the guard for this copier-originated write,
+     * identical to the delete sub-path in applyRow().
+     *
+     * Use this instead of applyRow() when no live entity object is available (e.g. the
+     * handler re-fetch returns null or the delete path in the async handler — OQ-1 resolution).
+     *
+     * @param class-string         $class       FQCN of the #[Shared] entity
+     * @param array<string, mixed> $capturedIds Pre-captured primary-key values
+     */
+    public function deleteRow(EntityManagerInterface $tenantEm, string $class, array $capturedIds): void;
+
+    /**
      * Whether the copier is currently writing to a tenant EM (re-entrancy flag).
      */
     public function isSyncInProgress(): bool;
