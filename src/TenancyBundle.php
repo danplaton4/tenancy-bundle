@@ -32,6 +32,8 @@ use Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
+use Tenancy\Bundle\Message\SharedEntityChangedMessage;
+use Tenancy\Bundle\MessageHandler\SharedEntityChangedMessageHandler;
 use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
 use Tenancy\Bundle\Shared\SharedEntityCopier;
@@ -321,6 +323,30 @@ class TenancyBundle extends AbstractBundle
                         service('tenancy.shared_entity_copier'),
                     ])
                     ->tag('console.command');
+
+                // Async fan-out handler + subscriber bus injection — gated on Messenger presence.
+                // Handler registration stays inside database.enabled (RESEARCH Pitfall 5 — landlord
+                // EM only exists when database.enabled is true).
+                if (interface_exists(MessageBusInterface::class)) {
+                    // Wire the subscriber's 7th arg via the NAMED argument key (D-07, future-proof
+                    // against arg-order changes). Using positional setArgument(6, ...) would silently
+                    // break if the subscriber gains another arg before position 6.
+                    $builder->getDefinition('tenancy.shared_entity_sync_subscriber')
+                        ->setArgument('$bus', new Reference('messenger.bus.default'));
+
+                    // Register the handler with an explicit messenger.message_handler tag.
+                    // NO #[AsMessageHandler] — autoconfigure is not active for bundle services.
+                    $services->set('tenancy.shared_entity_changed_handler', SharedEntityChangedMessageHandler::class)
+                        ->args([
+                            service('doctrine.orm.landlord_entity_manager'),
+                            service('tenancy.provider'),
+                            service('tenancy.shared_entity_copier'),
+                            service('tenancy.context'),
+                            service('doctrine'),
+                            service('logger'),
+                        ])
+                        ->tag('messenger.message_handler', ['handles' => SharedEntityChangedMessage::class]);
+                }
             }
         }
 
