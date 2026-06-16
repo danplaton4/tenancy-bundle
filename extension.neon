@@ -21,8 +21,6 @@ services:
 
     -
         class: Tenancy\Bundle\PHPStan\Rule\TenantIdDriftRule
-        arguments:
-            helper: @Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
         tags:
             - phpstan.rules.rule
 
