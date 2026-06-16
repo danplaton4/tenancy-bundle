@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 28-phpstan-extension/28-04-PLAN.md
+stopped_at: Phase 28 verification — gaps_found (D-02 metadata path); awaiting gap closure
 last_updated: "2026-06-16T16:24:48.625Z"
-last_activity: 2026-06-16
+last_activity: 2026-06-16 -- Phase 28 verified gaps_found (3 gaps; Rules 1-2 ship, Rule 3 D-02 path broken)
 progress:
   total_phases: 27
-  completed_phases: 27
+  completed_phases: 26
   total_plans: 127
   completed_plans: 127
-  percent: 100
+  percent: 96
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 28 (phpstan-extension) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 28 (phpstan-extension) — VERIFICATION GAPS_FOUND
+Plan: 4 of 4 executed; gap-closure plans pending
+Status: Verification gaps_found (9/12 must-haves) — Rules 1 & 2 ship; Rule 3 D-02 ObjectMetadataResolver path broken (CR-01/WR-01) + MappedSuperclass false positive (WR-02). Run /gsd:plan-phase 28 --gaps
 Last activity: 2026-06-16
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
