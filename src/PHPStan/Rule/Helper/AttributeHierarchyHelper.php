@@ -17,8 +17,15 @@ final class AttributeHierarchyHelper
      * Mirrors SharedEntityMutualExclusionPass::hasAttributeInHierarchy() — that pass
      * is the boot-time twin of the Rules that use this helper at edit-time.
      *
-     * @param \ReflectionClass<object> $rc
-     * @param class-string             $attribute
+     * The parameter accepts any ReflectionClass regardless of its template type T,
+     * because we only call getAttributes() and getParentClass() — both are invariant
+     * with respect to T. PHPStan's BetterReflection adapters are subtypes of
+     * ReflectionClass<never> at the generic level, so the wider union is used.
+     *
+     * @param \ReflectionClass<covariant object> $rc
+     * @param class-string                       $attribute
+     *
+     * @phpstan-param \ReflectionClass<object> $rc
      */
     public function hasAttributeInHierarchy(\ReflectionClass $rc, string $attribute): bool
     {
