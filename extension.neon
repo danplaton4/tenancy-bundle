@@ -12,9 +12,6 @@ parameters:
 
 services:
     -
-        class: Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
-
-    -
         class: Tenancy\Bundle\PHPStan\Rule\MutualExclusionRule
         tags:
             - phpstan.rules.rule
@@ -27,7 +24,7 @@ services:
     -
         class: Tenancy\Bundle\PHPStan\Rule\SharedEntityLeakRule
         arguments:
-            helper: @Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
             checkSharedEntityLeaks: %tenancy.checkSharedEntityLeaks%
+            reflectionProvider: @reflectionProvider
         tags:
             - phpstan.rules.rule

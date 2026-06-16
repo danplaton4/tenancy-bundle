@@ -7,11 +7,5 @@ parameters:
         -
             identifier: trait.unused
             reportUnmatched: false
-        # Skeleton rule: constructor-injected properties will be read once
-        # processNode() logic is implemented in Plan 03.
-        -
-            identifier: property.onlyWritten
-            message: '#^Property Tenancy\\Bundle\\PHPStan\\Rule\\SharedEntityLeakRule#'
-            reportUnmatched: false
     parallel:
         maximumNumberOfProcesses: 1
