@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: executing
-stopped_at: Phase 28 context gathered
-last_updated: "2026-06-16T10:32:24.729Z"
-last_activity: 2026-06-16 -- Phase 28 planning complete
+stopped_at: Completed 28-phpstan-extension/28-01-PLAN.md
+last_updated: "2026-06-16T15:42:36.964Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 27
   completed_phases: 26
   total_plans: 127
-  completed_plans: 123
+  completed_plans: 124
   percent: 96
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 27 — async-shared-entities
+**Current focus:** Phase 28 — phpstan-extension
 
 ## Current Position
 
-Phase: 27
-Plan: Not started
+Phase: 28 (phpstan-extension) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-16 -- Phase 28 planning complete
+Last activity: 2026-06-16
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
@@ -112,6 +112,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 27-async-shared-entities P01 | 9min | 3 tasks | 6 files |
 | Phase 27 P02 | 12 | - tasks | - files |
 | Phase 27 P03 | 20 | 3 tasks | 3 files |
+| Phase 28-phpstan-extension P01 | 105 | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,10 @@ Recent decisions affecting current work:
 - [Phase ?]: resetManager landlord in setUp — handler clear() leaves stale identity-map state
 - [Phase ?]: SyncTransport canary pattern: handler-reach + DB state, not PhpSerializer survival (RESEARCH Pattern 4)
 - [Phase ?]: D-01 stamp-clearing integration proof: active-dispatch-tenant canary for shared-entity async path
+- [Phase ?]: 28-01: Use PHPStan ClassReflection loop in MutualExclusionRule to avoid BetterReflection adapter type incompatibility
+- [Phase ?]: 28-01: Fixture classes PSR-4 split one-per-file in Fixtures/ subdir; Fixtures\PHPStan namespace was not autoloaded
+- [Phase ?]: 28-01: phpunit.xml.dist memory_limit=512M added to prevent git pre-commit hook OOM at PHP default 128M
+- [Phase ?]: 28-01: composer.json type stays symfony-bundle; extension-installer detects via extra.phpstan.includes not type field
 
 ### Pending Todos
 
@@ -245,6 +250,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T07:30:24.044Z
-Stopped at: Phase 28 context gathered
-Resume file: .planning/phases/28-phpstan-extension/28-CONTEXT.md
+Last session: 2026-06-16T15:42:36.959Z
+Stopped at: Completed 28-phpstan-extension/28-01-PLAN.md
+Resume file: None

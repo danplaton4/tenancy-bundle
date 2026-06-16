@@ -41,7 +41,7 @@ For prior-milestone (v0.3) requirements, see `.planning/milestones/v0.3-REQUIREM
 
 ### Developer Experience
 
-- [ ] **DX-03**: PHPStan extension for `#[TenantAware]` + `#[Shared]` correctness — catches misuse patterns at static-analysis time that would otherwise become runtime data-leak bugs.
+- [x] **DX-03**: PHPStan extension for `#[TenantAware]` + `#[Shared]` correctness — catches misuse patterns at static-analysis time that would otherwise become runtime data-leak bugs.
   - Acceptance: rule fires when an entity has `#[TenantAware]` AND `#[Shared]` (mutually exclusive)
   - Acceptance: rule fires when a Doctrine query in `tenant_em` context queries a `#[Shared]` entity without an explicit `setEntityManager('landlord')` override (potential cross-tenant leak via tenant EM)
   - Acceptance: rule fires when a `#[TenantAware]` entity's `tenant_id` column is missing OR not nullable=false (config drift detection)
@@ -95,7 +95,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | SHARE-01 | Phase 25 — Shared Entities (Sync mode) | Complete |
 | SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Complete |
 | SHARE-03 | Phase 27 — Async Shared Entities | Complete |
-| DX-03 | Phase 28 — PHPStan Extension | Pending |
+| DX-03 | Phase 28 — PHPStan Extension | Complete |
 | DOC-20 | Phase 29 — Docs Refresh | Pending |
 
 **Coverage:**
