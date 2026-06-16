@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-phpstan-extension/28-02-PLAN.md
-last_updated: "2026-06-16T15:58:37.672Z"
+stopped_at: Completed 28-phpstan-extension/28-03-PLAN.md
+last_updated: "2026-06-16T19:35:00.000Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 27
   completed_phases: 26
   total_plans: 127
-  completed_plans: 125
-  percent: 96
+  completed_plans: 126
+  percent: 99
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 28 (phpstan-extension) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -114,6 +114,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 27 P03 | 20 | 3 tasks | 3 files |
 | Phase 28-phpstan-extension P01 | 105 | 3 tasks | 13 files |
 | Phase 28-phpstan-extension P02 | 35 | 2 tasks | 10 files |
+| Phase 28-phpstan-extension P03 | 35min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -234,6 +235,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 28-01: composer.json type stays symfony-bundle; extension-installer detects via extra.phpstan.includes not type field
 - [Phase ?]: 28-02: TenantIdDriftRule inlines ClassReflection.getParentClass() hierarchy walk — AttributeHierarchyHelper unused due to BetterReflection adapter type incompatibility at level 9
 - [Phase ?]: 28-02: Accepted string Doctrine types for tenant_id: string, ascii_string, guid, uuid — case-insensitive comparison; no VARCHAR length assertion (D-04)
+- [Phase ?]: 28-03: SharedEntityLeakRule uses ReflectionProvider (injected) for entity class lookup — avoids phpstanApi.runtimeReflection error from 'new ReflectionClass()'; uses getObjectClassNames() on caller type for concrete EntityManager detection; getConstantStrings() on first arg for literal ::class resolution
+- [Phase ?]: 28-03: AttributeHierarchyHelper removed — all three rules inline the ClassReflection.getParentClass() hierarchy walk; dead code must not ship in extension.neon (28-04 dogfood runs over this)
+- [Phase ?]: 28-03: RuleTestCase fixture pattern: entity class file passed alongside violating function file to analyse() so ReflectionProvider can resolve the entity FQCN
 
 ### Pending Todos
 
@@ -253,6 +257,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T15:58:37.667Z
-Stopped at: Completed 28-phpstan-extension/28-02-PLAN.md
+Last session: 2026-06-16T19:35:00.000Z
+Stopped at: Completed 28-phpstan-extension/28-03-PLAN.md
 Resume file: None
