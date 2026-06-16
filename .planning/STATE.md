@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-phpstan-extension/28-01-PLAN.md
-last_updated: "2026-06-16T15:42:36.964Z"
+stopped_at: Completed 28-phpstan-extension/28-02-PLAN.md
+last_updated: "2026-06-16T15:58:37.672Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 27
   completed_phases: 26
   total_plans: 127
-  completed_plans: 124
+  completed_plans: 125
   percent: 96
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 28 (phpstan-extension) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -113,6 +113,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 27 P02 | 12 | - tasks | - files |
 | Phase 27 P03 | 20 | 3 tasks | 3 files |
 | Phase 28-phpstan-extension P01 | 105 | 3 tasks | 13 files |
+| Phase 28-phpstan-extension P02 | 35 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -231,6 +232,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 28-01: Fixture classes PSR-4 split one-per-file in Fixtures/ subdir; Fixtures\PHPStan namespace was not autoloaded
 - [Phase ?]: 28-01: phpunit.xml.dist memory_limit=512M added to prevent git pre-commit hook OOM at PHP default 128M
 - [Phase ?]: 28-01: composer.json type stays symfony-bundle; extension-installer detects via extra.phpstan.includes not type field
+- [Phase ?]: 28-02: TenantIdDriftRule inlines ClassReflection.getParentClass() hierarchy walk — AttributeHierarchyHelper unused due to BetterReflection adapter type incompatibility at level 9
+- [Phase ?]: 28-02: Accepted string Doctrine types for tenant_id: string, ascii_string, guid, uuid — case-insensitive comparison; no VARCHAR length assertion (D-04)
 
 ### Pending Todos
 
@@ -250,6 +253,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T15:42:36.959Z
-Stopped at: Completed 28-phpstan-extension/28-01-PLAN.md
+Last session: 2026-06-16T15:58:37.667Z
+Stopped at: Completed 28-phpstan-extension/28-02-PLAN.md
 Resume file: None
