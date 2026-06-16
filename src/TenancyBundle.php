@@ -324,10 +324,13 @@ class TenancyBundle extends AbstractBundle
                     ])
                     ->tag('console.command');
 
-                // Async fan-out handler + subscriber bus injection — gated on Messenger presence.
+                // Async fan-out handler + subscriber bus injection — gated on Messenger presence
+                // AND tenancy.shared.async: true. Without the async flag, the subscriber takes the
+                // sync fan-out path (postFlush iterates tenants directly) even when Messenger is
+                // installed — preserving the default synchronous behaviour.
                 // Handler registration stays inside database.enabled (RESEARCH Pitfall 5 — landlord
                 // EM only exists when database.enabled is true).
-                if (interface_exists(MessageBusInterface::class)) {
+                if ($sharedAsync && interface_exists(MessageBusInterface::class)) {
                     // Wire the subscriber's 7th arg via the NAMED argument key (D-07, future-proof
                     // against arg-order changes). Using positional setArgument(6, ...) would silently
                     // break if the subscriber gains another arg before position 6.

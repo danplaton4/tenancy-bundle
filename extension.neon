@@ -1,0 +1,37 @@
+# extension.neon — shipped consumer extension; auto-loaded by phpstan/extension-installer
+# DO NOT include this file in phpstan.neon (bundle self-analysis)
+
+parametersSchema:
+    tenancy: structure([
+        checkSharedEntityLeaks: bool()
+    ])
+
+parameters:
+    tenancy:
+        checkSharedEntityLeaks: true
+
+services:
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
+
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\MutualExclusionRule
+        arguments:
+            helper: @Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\TenantIdDriftRule
+        arguments:
+            helper: @Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\SharedEntityLeakRule
+        arguments:
+            helper: @Tenancy\Bundle\PHPStan\Rule\Helper\AttributeHierarchyHelper
+            checkSharedEntityLeaks: %tenancy.checkSharedEntityLeaks%
+        tags:
+            - phpstan.rules.rule

@@ -38,7 +38,9 @@
         "league/flysystem-bundle": "^3.7",
         "league/flysystem-memory": "^3.31",
         "nikic/php-parser": "^5.0",
+        "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-doctrine": "^2.0",
         "phpunit/phpunit": "^11.0",
         "symfony/framework-bundle": "^7.4||^8.0",
         "symfony/mailer": "^7.4||^8.0",
@@ -55,6 +57,8 @@
         "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
         "league/flysystem-bundle": "Required for per-tenant Filesystem bootstrapper (Phase 24 / BOOT-03) (^3.7)",
         "league/flysystem-memory": "In-memory Flysystem adapter — used by the bundle integration tests AND the memory:// DSN scheme of AdapterDsnParser (^3.31)",
+        "phpstan/extension-installer": "For zero-config auto-loading of the tenancy PHPStan rules",
+        "phpstan/phpstan-doctrine": "For full Doctrine metadata support — enables XML/YAML-mapped entity analysis in Rule 3",
         "symfony/mailer": "Required for per-tenant mailer bootstrapper (Phase 20) (^7.4||^8.0)",
         "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)",
         "symfony/web-profiler-bundle": "Adds a 'Tenancy' panel to the Symfony Profiler / WDT in dev — shows tenant slug, label, driver, resolver, bootstrappers, error state. Auto-registered only when kernel.debug=true; never loaded in prod. Most Symfony skeleton apps already have this in require-dev."
@@ -72,9 +76,17 @@
     "extra": {
         "branch-alias": {
             "dev-master": "0.1.x-dev"
+        },
+        "phpstan": {
+            "includes": [
+                "extension.neon"
+            ]
         }
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
     }
 }

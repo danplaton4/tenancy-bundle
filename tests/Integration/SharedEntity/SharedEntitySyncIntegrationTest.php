@@ -111,6 +111,21 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         /** @var ManagerRegistry $registry */
         $registry = $container->get('doctrine');
         $registry->resetManager('tenant');
+
+        // Drop any lingering test trigger from a prior test that may have errored before cleanup.
+        // testPerTenantFailureIsLogged installs a BEFORE INSERT trigger on tenant_a; if it errors
+        // before its own cleanup (line ~611), subsequent tests hit the trigger unexpectedly.
+        // Closing the DBAL connection first ensures PDO can open the SQLite file unobstructed.
+        $tenantDbalConn = $registry->getConnection('tenant');
+        if ($tenantDbalConn instanceof \Doctrine\DBAL\Connection) {
+            $tenantDbalConn->close();
+        }
+        $tenantAPath = StubMultiTenantProvider::getTenantAPath();
+        if (file_exists($tenantAPath)) {
+            $pdo = new \PDO('sqlite:'.$tenantAPath);
+            $pdo->exec('DROP TRIGGER IF EXISTS tenancy_test_prevent_insert');
+            unset($pdo);
+        }
     }
 
     /**
