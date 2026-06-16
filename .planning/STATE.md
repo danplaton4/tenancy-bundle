@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
-status: executing
-stopped_at: Completed 28-phpstan-extension/28-03-PLAN.md
-last_updated: "2026-06-16T19:35:00.000Z"
+status: verifying
+stopped_at: Completed 28-phpstan-extension/28-04-PLAN.md
+last_updated: "2026-06-16T16:24:48.625Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 27
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 127
-  completed_plans: 126
-  percent: 99
+  completed_plans: 127
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 Phase: 28 (phpstan-extension) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-16
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
@@ -115,6 +115,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 28-phpstan-extension P01 | 105 | 3 tasks | 13 files |
 | Phase 28-phpstan-extension P02 | 35 | 2 tasks | 10 files |
 | Phase 28-phpstan-extension P03 | 35min | 2 tasks | 8 files |
+| Phase 28-phpstan-extension P04 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -238,6 +239,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 28-03: SharedEntityLeakRule uses ReflectionProvider (injected) for entity class lookup — avoids phpstanApi.runtimeReflection error from 'new ReflectionClass()'; uses getObjectClassNames() on caller type for concrete EntityManager detection; getConstantStrings() on first arg for literal ::class resolution
 - [Phase ?]: 28-03: AttributeHierarchyHelper removed — all three rules inline the ClassReflection.getParentClass() hierarchy walk; dead code must not ship in extension.neon (28-04 dogfood runs over this)
 - [Phase ?]: 28-03: RuleTestCase fixture pattern: entity class file passed alongside violating function file to analyse() so ReflectionProvider can resolve the entity FQCN
+- [Phase ?]: 28-04: Dogfood config targets src/ only (not tests/) — fixture files carry intentional violations; trait.unused suppression mirrors phpstan.neon for consumer-facing traits
 
 ### Pending Todos
 
@@ -257,6 +259,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T19:35:00.000Z
-Stopped at: Completed 28-phpstan-extension/28-03-PLAN.md
+Last session: 2026-06-16T16:24:48.619Z
+Stopped at: Completed 28-phpstan-extension/28-04-PLAN.md
 Resume file: None
