@@ -685,22 +685,19 @@ class OnlyTenantAwareClean {}    // No violation
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED at planning, 2026-06-16)
 
-1. **phpstan-doctrine version conflict (`^2.2.2` vs `^2.1` installed)**
-   - What we know: phpstan-doctrine 2.0.x-dev requires `phpstan/phpstan: ^2.2.2`; bundle has `^2.1` installed (2.1.50)
-   - What's unclear: Can D-02's "present" path be tested in CI without bumping phpstan require-dev to ^2.2?
-   - Recommendation: Bump `phpstan/phpstan` require-dev to `^2.1` (current) OR `^2.2`, whichever resolves. If phpstan-doctrine 2.0.x-dev won't install, test only the reflection fallback path in CI and document phpstan-doctrine path as "tested with phpstan-doctrine ^2.0.x-dev when available."
+1. **phpstan-doctrine version conflict (`^2.2.2` vs `^2.1` installed)** — **RESOLVED.**
+   - What we knew: phpstan-doctrine 2.0.x-dev was believed to require `phpstan/phpstan: ^2.2.2`; bundle has `^2.1` installed (2.1.50).
+   - Resolution: a planning-time `composer require --dev --dry-run` proved BOTH `phpstan/extension-installer:^1.4` (→1.4.3) and `phpstan/phpstan-doctrine:^2.0` (→**2.0.25, a tagged stable release**) install cleanly against the installed phpstan 2.1.50. The feared `^2.2.2` conflict did not materialize. No PHPStan bump is needed. The reflection fallback remains the primary CI-tested path (D-02); the phpstan-doctrine "present" path is documented as a manual-only verification in VALIDATION.md. The dry-run did not mutate `composer.json` (tree confirmed clean).
 
-2. **composer.json `type` field**
-   - What we know: phpstan-doctrine sets `"type": "phpstan-extension"`; the bundle is `"type": "symfony-bundle"`
-   - What's unclear: Whether extension-installer 1.4.x requires the type OR just detects by `extra.phpstan.includes`
-   - Recommendation: Research extension-installer source briefly during Wave 0; changing type to `phpstan-extension` breaks the Symfony bundle discovery mechanism (Symfony uses `type: symfony-bundle` for bundle detection). Most likely keep `symfony-bundle` type and rely on `extra.phpstan.includes` only.
+2. **composer.json `type` field** — **RESOLVED.**
+   - What we knew: phpstan-doctrine sets `"type": "phpstan-extension"`; the bundle is `"type": "symfony-bundle"`.
+   - Resolution: keep `"type": "symfony-bundle"`. extension-installer 1.4.x detects extensions by the presence of the `extra.phpstan.includes` key, NOT by composer type; changing the type would break Symfony's bundle discovery. Plan 28-01 Task 2 locks this decision and asserts the type is unchanged.
 
-3. **Rule 2 practical detectability**
-   - What we know: PHPStan cannot distinguish landlord EM from tenant EM by type alone
-   - What's unclear: Is there a realistic case where Rule 2 fires on unambiguous code in a typical Symfony app?
-   - Recommendation: Conservative implementation is correct per D-03. The rule fires when: a method named `find`/`getRepository` is called on an object of concrete type `Doctrine\ORM\EntityManager` (not interface) AND the argument is `SomeSharedEntity::class`. Document limitation.
+3. **Rule 2 practical detectability** — **RESOLVED.**
+   - What we knew: PHPStan cannot distinguish the landlord EM from the tenant EM by type alone.
+   - Resolution: the conservative D-03 implementation is correct. Rule 2 fires only when a `find`/`getRepository` call targets an object of the CONCRETE type `Doctrine\ORM\EntityManager` (not the `EntityManagerInterface`) AND the argument is a literal `SomeSharedEntity::class`; it stays silent otherwise. The limitation is documented; the runtime write-protection (Phase 25) + resync (Phase 26) are the backstop.
 
 ---
 
