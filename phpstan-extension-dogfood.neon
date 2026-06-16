@@ -1,0 +1,26 @@
+# phpstan-extension-dogfood.neon
+#
+# Dogfood: runs the shipped tenancy PHPStan rules (extension.neon) against
+# the bundle's own src/ to prove the rules load and run clean on legitimate
+# (non-misusing) code.
+#
+# Purpose: standing CI protection — extension.neon stays loadable and the
+# bundle's own attribute usages never trip the rules.
+#
+# Keep this config ENTIRELY SEPARATE from phpstan.neon (level-9 self-analysis).
+# phpstan.neon MUST NOT include extension.neon (Pitfall 4 from RESEARCH.md).
+
+includes:
+    - extension.neon
+
+parameters:
+    level: 9
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        -
+            identifier: trait.unused
+            reportUnmatched: false
+    parallel:
+        maximumNumberOfProcesses: 1

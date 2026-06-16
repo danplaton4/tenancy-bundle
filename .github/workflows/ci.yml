@@ -71,6 +71,9 @@ jobs:
 
       - run: vendor/bin/phpstan analyse
 
+      - name: PHPStan extension dogfood — run shipped rules on bundle sources
+        run: vendor/bin/phpstan analyse -c phpstan-extension-dogfood.neon --memory-limit=512M
+
   cs-fixer:
     runs-on: ubuntu-latest
     name: PHP CS Fixer
