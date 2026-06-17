@@ -107,31 +107,57 @@ final class TenantIdDriftRule implements Rule
     /**
      * Check tenant_id column mapping via Doctrine ClassMetadata (phpstan-doctrine path).
      *
+     * ORM 3.x: ClassMetadata::$fieldMappings is array<string, FieldMapping> where FieldMapping
+     * is a final class implementing ArrayAccess (NOT a plain array). The prior (array) cast +
+     * is_array() guard skipped every entry, producing a false "no tenant_id" on every valid
+     * entity (CR-01). Fixed via property_exists guard + object-shape @var narrowing +
+     * ArrayAccess offset accessor, which also works for ORM 2.x plain-array entries (IN-02).
+     *
      * @param object $metadata Doctrine ClassMetadata instance (typed as object to avoid hard import)
      *
      * @return list<\PHPStan\Rules\IdentifierRuleError>
      */
     private function checkViaMetadata(object $metadata, string $className): array
     {
-        // Access fieldMappings via array cast to avoid hard ClassMetadata dependency.
-        // ClassMetadata::$fieldMappings is a public array<string, mixed> in Doctrine ORM 2.x/3.x.
-        $raw = (array) $metadata;
-        /** @var array<string, mixed> $fieldMappings */
-        $fieldMappings = $raw['fieldMappings'] ?? [];
+        // Guard: if fieldMappings is not accessible, degrade to silence (not a false positive).
+        // An unreadable metadata shape must NOT emit "no tenant_id" — the annotation may exist
+        // via a path we cannot inspect (e.g. future Doctrine versions changing the property name).
+        if (!property_exists($metadata, 'fieldMappings')) {
+            return [];
+        }
 
-        // fieldMappings is keyed by property name in Doctrine; column name is in 'columnName' key
+        // Narrow via object-shape @var so PHPStan 2.1.x accepts ->fieldMappings read at level 9.
+        // Each entry is a FieldMapping object on ORM 3.x (implements ArrayAccess) or a plain array
+        // on ORM 2.x — both are covered by the ArrayAccess instanceof branch below.
+        /** @var object{fieldMappings: iterable<object>} $meta */
+        $meta = $metadata;
+
+        // fieldMappings is keyed by property name; column name is in 'columnName' offset.
         $found = null;
-        foreach ($fieldMappings as $mapping) {
-            if (!is_array($mapping)) {
-                continue;
-            }
-            $colName = $mapping['columnName'] ?? $mapping['column'] ?? null;
-            if ('tenant_id' === $colName) {
-                $found = [
-                    'nullable' => (bool) ($mapping['nullable'] ?? false),
-                    'type' => isset($mapping['type']) && is_string($mapping['type']) ? $mapping['type'] : null,
-                ];
-                break;
+        foreach ($meta->fieldMappings as $fm) {
+            // ORM 3.x: FieldMapping implements \ArrayAccess — use offset accessor (mixed return, level-9 clean).
+            // ORM 2.x: plain array entries also satisfy \ArrayAccess check via the is_array() branch below.
+            if ($fm instanceof \ArrayAccess) {
+                $colName = $fm['columnName'] ?? null;
+                if ('tenant_id' === $colName) {
+                    $nullableRaw = $fm['nullable'] ?? false;
+                    $typeRaw = $fm['type'] ?? null;
+                    $found = [
+                        'nullable' => (bool) $nullableRaw,
+                        'type' => is_string($typeRaw) ? $typeRaw : null,
+                    ];
+                    break;
+                }
+            } elseif (is_array($fm)) {
+                // ORM 2.x fallback: plain array entry
+                $colName = $fm['columnName'] ?? $fm['column'] ?? null;
+                if ('tenant_id' === $colName) {
+                    $found = [
+                        'nullable' => (bool) ($fm['nullable'] ?? false),
+                        'type' => isset($fm['type']) && is_string($fm['type']) ? $fm['type'] : null,
+                    ];
+                    break;
+                }
             }
         }
 
@@ -179,9 +205,14 @@ final class TenantIdDriftRule implements Rule
                     }
 
                     if ('tenant_id' === $colName) {
+                        // WR-04: also fall back to positional indices when named keys are absent.
+                        // ORM\Column constructor: type at positional index 1, nullable at index 6.
+                        // Mirrors the existing name resolution: $args['name'] ?? $args[0] ?? null.
+                        $nullableRaw = $args['nullable'] ?? $args[6] ?? false;
+                        $typeRaw = $args['type'] ?? $args[1] ?? null;
                         $found = [
-                            'nullable' => (bool) ($args['nullable'] ?? false),
-                            'type' => isset($args['type']) && is_string($args['type']) ? $args['type'] : null,
+                            'nullable' => (bool) $nullableRaw,
+                            'type' => is_string($typeRaw) ? $typeRaw : null,
                         ];
                         break 2;
                     }
