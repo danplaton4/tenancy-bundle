@@ -13,6 +13,7 @@ use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdMissingChild;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdMissingViolating;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdNonStringViolating;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdNullableViolating;
+use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdValidClean;
 
 /**
  * @extends RuleTestCase<TenantIdDriftRule>
@@ -165,6 +166,87 @@ final class TenantIdDriftRuleTest extends RuleTestCase
                     'Class '.TenantAwareConcreteChild::class.' is #[TenantAware] but has no column mapped to tenant_id. '
                     .'Add a non-nullable string column named tenant_id (e.g. VARCHAR(63)).',
                     16,
+                ],
+            ]
+        );
+    }
+
+    /**
+     * CR-01 regression guard (metadata path — SILENT on valid entity).
+     *
+     * Constructs the rule WITH a real ObjectMetadataResolver (objectManagerLoader=null uses
+     * the standalone ClassMetadataFactory, which resolves #[ORM\Entity] attribute-mapped classes
+     * in CI without an EntityManager). Asserts the resolver produces non-null metadata FIRST
+     * (proving checkViaMetadata() was actually entered — not a silent fallthrough to reflection).
+     * Then asserts ZERO errors on TenantIdValidClean (non-nullable string tenant_id).
+     *
+     * This is the EXACT scenario that shipped broken in the original implementation: the
+     * is_array() guard on ORM 3.x FieldMapping objects caused every valid entity to produce
+     * a false "no tenant_id" error when the metadata path was reachable.
+     *
+     * Self-skips when phpstan-doctrine is not installed (no-doctrine CI lane).
+     */
+    public function testMetadataPathSilentOnValidEntity(): void
+    {
+        if (!class_exists(\PHPStan\Type\Doctrine\ObjectMetadataResolver::class)) {
+            self::markTestSkipped('phpstan-doctrine not installed — metadata path skipped');
+        }
+
+        $resolver = new \PHPStan\Type\Doctrine\ObjectMetadataResolver(null, sys_get_temp_dir());
+
+        // PROVE the metadata path is actually entered (not a silent reflection fallthrough).
+        // If getClassMetadata() returns null, processNode() would fall through to checkViaReflection()
+        // and the test would silently pass for the wrong reason (Warning 3 trap).
+        self::assertNotNull(
+            $resolver->getClassMetadata(TenantIdValidClean::class),
+            'ObjectMetadataResolver must resolve TenantIdValidClean to non-null — proves checkViaMetadata() ran',
+        );
+
+        $this->resolver = $resolver;
+
+        // CR-01 regression guard: valid entity must produce ZERO errors via the metadata path.
+        $this->analyse(
+            [__DIR__.'/Fixtures/TenantIdValidClean.php'],
+            []
+        );
+    }
+
+    /**
+     * CR-01 regression guard (metadata path — FIRES on missing tenant_id).
+     *
+     * Same resolver-injected setup as testMetadataPathSilentOnValidEntity(). Asserts non-null
+     * metadata FIRST (proves checkViaMetadata() was entered), then asserts one tenancy.tenantIdDrift
+     * "no column mapped to tenant_id" error on TenantIdMissingViolating.
+     *
+     * Together with the silent test, the pair proves the metadata path produces CORRECT results
+     * (silent on valid, fires on missing) — not merely silence via the reflection fallthrough.
+     *
+     * Self-skips when phpstan-doctrine is not installed (no-doctrine CI lane).
+     */
+    public function testMetadataPathFiresOnMissingTenantId(): void
+    {
+        if (!class_exists(\PHPStan\Type\Doctrine\ObjectMetadataResolver::class)) {
+            self::markTestSkipped('phpstan-doctrine not installed — metadata path skipped');
+        }
+
+        $resolver = new \PHPStan\Type\Doctrine\ObjectMetadataResolver(null, sys_get_temp_dir());
+
+        // PROVE the metadata path is actually entered (not a silent reflection fallthrough).
+        self::assertNotNull(
+            $resolver->getClassMetadata(TenantIdMissingViolating::class),
+            'ObjectMetadataResolver must resolve TenantIdMissingViolating to non-null — proves checkViaMetadata() ran',
+        );
+
+        $this->resolver = $resolver;
+
+        // Metadata path must produce the correct POSITIVE result (fires, not just silence).
+        $this->analyse(
+            [__DIR__.'/Fixtures/TenantIdMissingViolating.php'],
+            [
+                [
+                    'Class '.TenantIdMissingViolating::class.' is #[TenantAware] but has no column mapped to tenant_id. '
+                    .'Add a non-nullable string column named tenant_id (e.g. VARCHAR(63)).',
+                    10,
                 ],
             ]
         );
