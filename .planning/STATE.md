@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-phpstan-extension/28-05-PLAN.md
-last_updated: "2026-06-17T06:15:07.850Z"
+stopped_at: Completed 28-phpstan-extension/28-06-PLAN.md
+last_updated: "2026-06-17T06:25:04.611Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 27
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 129
-  completed_plans: 128
-  percent: 96
+  completed_plans: 129
+  percent: 100
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 28 (phpstan-extension) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-06-17
 
@@ -117,6 +117,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 28-phpstan-extension P03 | 35min | 2 tasks | 8 files |
 | Phase 28-phpstan-extension P04 | 15 | 2 tasks | 3 files |
 | Phase 28-phpstan-extension P05 | 25 | 3 tasks | 3 files |
+| Phase 28-phpstan-extension P06 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -242,6 +243,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 28-03: RuleTestCase fixture pattern: entity class file passed alongside violating function file to analyse() so ReflectionProvider can resolve the entity FQCN
 - [Phase ?]: 28-04: Dogfood config targets src/ only (not tests/) — fixture files carry intentional violations; trait.unused suppression mirrors phpstan.neon for consumer-facing traits
 - [Phase ?]: 28-05: ORM-3.x FieldMapping: property_exists+@var narrowing+ArrayAccess accessor; MappedSuperclass skip in processNode; positional arg fallbacks for nullable/type; resolver-injected CI tests with non-null entry proof
+- [Phase 28]: Standalone doctrine fragment (extension-doctrine.neon) as sole mechanism for conditional ObjectMetadataResolver injection — avoids double-registration (PHPStan does not dedupe phpstan.rules.rule by class); dogfood includes ONLY the fragment so exactly one TenantIdDriftRule fires
+- [Phase 28]: Warning-4 phpstan-survival guard in no-doctrine CI lane: phpstan --version step before dogfood step distinguishes cascade-removed analyser from guard regression
 
 ### Pending Todos
 
@@ -261,6 +264,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T06:15:07.833Z
-Stopped at: Completed 28-phpstan-extension/28-05-PLAN.md
+Last session: 2026-06-17T06:25:04.605Z
+Stopped at: Completed 28-phpstan-extension/28-06-PLAN.md
 Resume file: None
