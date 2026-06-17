@@ -4,12 +4,12 @@ milestone: v0.4
 milestone_name: milestone
 status: executing
 stopped_at: Completed 28-phpstan-extension/28-06-PLAN.md
-last_updated: "2026-06-17T06:45:46.368Z"
-last_activity: 2026-06-17
+last_updated: "2026-06-17T12:31:40.829Z"
+last_activity: 2026-06-17 -- Phase 28 planning complete
 progress:
   total_phases: 27
   completed_phases: 26
-  total_plans: 129
+  total_plans: 130
   completed_plans: 129
   percent: 96
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 Phase: 28 (phpstan-extension) — VERIFICATION GAPS_FOUND
 Plan: 6 of 6 executed; 1 gap-closure plan pending (WR-04 positional #[ORM\Column] test coverage)
-Status: Gaps found — run /gsd:plan-phase 28 --gaps
-Last activity: 2026-06-17
+Status: Ready to execute
+Last activity: 2026-06-17 -- Phase 28 planning complete
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
