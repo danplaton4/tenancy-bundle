@@ -64,6 +64,19 @@ final class TenantIdDriftRule implements Rule
             return [];
         }
 
+        // WR-02: skip non-instantiable bases that legitimately defer tenant_id to concrete subclasses.
+        // A #[TenantAware] #[ORM\MappedSuperclass] base (e.g. this bundle's own AbstractTenant split)
+        // or an abstract class is NOT required to declare tenant_id itself — only concrete, instantiable
+        // entities must. Firing on the base would train consumers to suppress the rule (false positive).
+        // Placed after hasTenantAwareInHierarchy() and before the path branch so it applies to both
+        // the metadata and reflection paths.
+        $nativeReflection = $classReflection->getNativeReflection();
+        if ($nativeReflection->isAbstract()
+            || [] !== $nativeReflection->getAttributes(\Doctrine\ORM\Mapping\MappedSuperclass::class)
+        ) {
+            return [];
+        }
+
         $className = $classReflection->getName();
 
         // D-02: optional ObjectMetadataResolver path (phpstan-doctrine installed)

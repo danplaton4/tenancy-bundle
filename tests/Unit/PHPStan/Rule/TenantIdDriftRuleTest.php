@@ -7,6 +7,7 @@ namespace Tenancy\Bundle\Tests\Unit\PHPStan\Rule;
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
 use Tenancy\Bundle\PHPStan\Rule\TenantIdDriftRule;
+use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantAwareConcreteChild;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantAwareParent;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdMissingChild;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdMissingViolating;
@@ -18,11 +19,16 @@ use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdNullableViolating;
  */
 final class TenantIdDriftRuleTest extends RuleTestCase
 {
+    /**
+     * Per-test injectable resolver (null = reflection path; set in metadata-path tests).
+     * D-02: degrade gracefully when phpstan-doctrine is absent — null is the default CI lane.
+     */
+    private ?object $resolver = null;
+
     protected function getRule(): Rule
     {
-        // No ObjectMetadataResolver — exercises the reflection fallback PRIMARY path,
-        // which is what CI runs (D-02: degrade gracefully when phpstan-doctrine absent).
-        return new TenantIdDriftRule();
+        // Pass $this->resolver (null → reflection fallback PRIMARY path; non-null → checkViaMetadata).
+        return new TenantIdDriftRule($this->resolver);
     }
 
     /**
@@ -98,10 +104,16 @@ final class TenantIdDriftRuleTest extends RuleTestCase
     }
 
     /**
-     * DX-03-AC3 hierarchy: fires when #[TenantAware] is on a parent and tenant_id is missing.
-     * Proves the ancestor walk (PHP class attributes are NOT inherited — getParentClass() loop needed).
+     * WR-02 fix: a #[TenantAware] #[ORM\MappedSuperclass] parent is SILENT (skipped as non-instantiable
+     * base); a concrete #[ORM\Entity] child inheriting #[TenantAware] but lacking tenant_id still FIRES.
+     *
+     * Proves: (1) MappedSuperclass exemption silences the parent, (2) ancestor walk still catches
+     * the concrete child — the exemption does NOT propagate to concrete subclasses.
+     *
+     * @see TenantAwareParent — #[TenantAware] #[ORM\MappedSuperclass], no tenant_id → SILENT
+     * @see TenantIdMissingChild — #[ORM\Entity] extends TenantAwareParent, no tenant_id → FIRES
      */
-    public function testFiresOnInheritedTenantAware(): void
+    public function testMappedSuperclassParentSilentConcreteChildFires(): void
     {
         $this->analyse(
             [
@@ -109,17 +121,50 @@ final class TenantIdDriftRuleTest extends RuleTestCase
                 __DIR__.'/Fixtures/TenantIdMissingChild.php',
             ],
             [
-                // TenantAwareParent itself has no tenant_id column — fires for the parent too
-                [
-                    'Class '.TenantAwareParent::class.' is #[TenantAware] but has no column mapped to tenant_id. '
-                    .'Add a non-nullable string column named tenant_id (e.g. VARCHAR(63)).',
-                    10,
-                ],
-                // TenantIdMissingChild inherits #[TenantAware] via parent, also has no tenant_id
+                // TenantAwareParent (#[ORM\MappedSuperclass]) is now SILENT — no false positive.
+                // TenantIdMissingChild (#[ORM\Entity]) inherits #[TenantAware] and has no tenant_id → fires.
                 [
                     'Class '.TenantIdMissingChild::class.' is #[TenantAware] but has no column mapped to tenant_id. '
                     .'Add a non-nullable string column named tenant_id (e.g. VARCHAR(63)).',
                     9,
+                ],
+            ]
+        );
+    }
+
+    /**
+     * WR-02 fix: analysing the MappedSuperclass base alone produces ZERO errors.
+     *
+     * A consumer who puts #[TenantAware] on a MappedSuperclass (common pattern — AbstractTenant
+     * split is exactly this) must not receive a spurious false error on the base class.
+     */
+    public function testSilentOnMappedSuperclassBase(): void
+    {
+        $this->analyse(
+            [__DIR__.'/Fixtures/TenantAwareParent.php'],
+            []
+        );
+    }
+
+    /**
+     * WR-02 corollary: a concrete #[ORM\Entity] child of a #[TenantAware] MappedSuperclass,
+     * with no own tenant_id, still fires — the exemption applies to the base only.
+     *
+     * Uses the dedicated TenantAwareConcreteChild fixture (separate from TenantIdMissingChild
+     * to make the WR-02 intent explicit: parent silent, child fires).
+     */
+    public function testConcreteChildOfMappedSuperclassFires(): void
+    {
+        $this->analyse(
+            [
+                __DIR__.'/Fixtures/TenantAwareParent.php',
+                __DIR__.'/Fixtures/TenantAwareConcreteChild.php',
+            ],
+            [
+                [
+                    'Class '.TenantAwareConcreteChild::class.' is #[TenantAware] but has no column mapped to tenant_id. '
+                    .'Add a non-nullable string column named tenant_id (e.g. VARCHAR(63)).',
+                    16,
                 ],
             ]
         );
