@@ -13,6 +13,8 @@ use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdMissingChild;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdMissingViolating;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdNonStringViolating;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdNullableViolating;
+use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdPositionalNonStringViolating;
+use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdPositionalNullableViolating;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdValidClean;
 
 /**
@@ -166,6 +168,50 @@ final class TenantIdDriftRuleTest extends RuleTestCase
                     'Class '.TenantAwareConcreteChild::class.' is #[TenantAware] but has no column mapped to tenant_id. '
                     .'Add a non-nullable string column named tenant_id (e.g. VARCHAR(63)).',
                     16,
+                ],
+            ]
+        );
+    }
+
+    /**
+     * WR-04: positional #[ORM\Column('tenant_id', 'integer')] — type read via the $args[1] positional fallback.
+     * Anti-revert guard for TenantIdDriftRule lines 224-225.
+     *
+     * A #[ORM\Column] with positional type 'integer' at index 1 (no named args) must fire exactly one
+     * tenancy.tenantIdDrift non-string-type error. If lines 224-225 were reverted to the named-only form
+     * ($args['type'] ?? null), $args[1]='integer' would be missed → type resolves to null → rule silent.
+     */
+    public function testFiresWhenTenantIdPositionalNonString(): void
+    {
+        $this->analyse(
+            [__DIR__.'/Fixtures/TenantIdPositionalNonStringViolating.php'],
+            [
+                [
+                    'Class '.TenantIdPositionalNonStringViolating::class.' is #[TenantAware] but its tenant_id column maps to non-string type "integer". '
+                    .'The TenantAwareFilter compares tenant_id as a quoted string slug; accepted types: string, ascii_string, guid, uuid.',
+                    10,
+                ],
+            ]
+        );
+    }
+
+    /**
+     * WR-04: positional nullable=true at index 6 — read via the $args[6] positional fallback.
+     * Anti-revert guard for lines 224-225.
+     *
+     * A #[ORM\Column] with positional nullable=true at index 6 (no named args) must fire exactly one
+     * tenancy.tenantIdDrift nullable error. If lines 224-225 were reverted to the named-only form
+     * ($args['nullable'] ?? false), $args[6]=true would be missed → nullable resolves to false → rule silent.
+     */
+    public function testFiresWhenTenantIdPositionalNullable(): void
+    {
+        $this->analyse(
+            [__DIR__.'/Fixtures/TenantIdPositionalNullableViolating.php'],
+            [
+                [
+                    'Class '.TenantIdPositionalNullableViolating::class.' is #[TenantAware] but its tenant_id column is nullable. '
+                    .'The tenant_id column must be non-nullable to prevent cross-tenant data leaks.',
+                    10,
                 ],
             ]
         );
