@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-phpstan-extension/28-06-PLAN.md
-last_updated: "2026-06-17T13:03:30.566Z"
+stopped_at: Completed phase 28 (phpstan-extension) — verified human_needed 9/9; 1 manual UAT pending
+last_updated: "2026-06-17T14:57:42.304Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 27
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 130
   completed_plans: 130
-  percent: 96
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 28 — phpstan-extension
+**Current focus:** Phase 29 — Docs Refresh (next)
 
 ## Current Position
 
-Phase: 28 (phpstan-extension) — VERIFICATION 9/9 AUTOMATED PASS; HUMAN VERIFICATION PENDING
-Plan: 7 of 7 executed and verified (gap-closure 28-07 closed WR-04 BLOCKER + W1/W2)
-Status: Awaiting 1 manual check — extension-installer zero-config auto-load (see 28-HUMAN-UAT.md)
-Last activity: 2026-06-17 -- Phase 28 re-verification human_needed (9/9); 28-07 complete
+Phase: 28 (phpstan-extension) — COMPLETE (verified 9/9 automated; 1 manual extension-installer UAT tracked in 28-HUMAN-UAT.md)
+Plan: 7 of 7 complete
+Status: Phase 28 done — next: Phase 29 (Docs Refresh)
+Last activity: 2026-06-17 -- Phase 28 complete; gap-closure 28-07 closed WR-04 BLOCKER + W1/W2
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
@@ -36,7 +36,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 
 **Velocity:**
 
-- Total plans completed: 89
+- Total plans completed: 96
 - Average duration: ~5 min
 - Total execution time: ~0.5 hours
 
@@ -60,6 +60,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | 25 | 5 | - | - |
 | 26 | 4 | - | - |
 | 27 | 3 | - | - |
+| 28 | 7 | - | - |
 
 **Recent Trend:**
 
