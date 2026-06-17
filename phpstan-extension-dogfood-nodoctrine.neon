@@ -1,0 +1,38 @@
+# phpstan-extension-dogfood-nodoctrine.neon
+#
+# No-Doctrine dogfood (WR-05): proves the shipped tenancy PHPStan rules LOAD and run clean
+# when Doctrine + phpstan-doctrine are absent.
+#
+# Includes ONLY the base extension.neon (resolver-less). The wiring fragment for
+# @PHPStan\Type\Doctrine\ObjectMetadataResolver is intentionally excluded here:
+# that @service reference does not exist without phpstan-doctrine and would crash
+# config-merge. Base extension.neon is safe to load in all environments.
+#
+# This dogfood runs in the CI no-doctrine job AFTER composer remove removes Doctrine +
+# phpstan-doctrine from the vendor dir. The shipped rules degrade gracefully:
+#   - TenantIdDriftRule: interface_exists(EntityManagerInterface) guard returns false → returns []
+#   - SharedEntityLeakRule: same interface_exists guard → returns []
+#   - MutualExclusionRule: walks PHPStan ClassReflection attrs with no Doctrine dep
+# The rules load without fatal errors and src/ exits clean.
+#
+# Purpose: standing CI protection for the optional-dependency contract (WR-05).
+# Any load-time hard reference to a Doctrine class would fail this dogfood loudly,
+# proving the class_exists/interface_exists guards are in place.
+#
+# For the with-Doctrine (wired) path, see phpstan-extension-dogfood.neon.
+# Keep this config ENTIRELY SEPARATE from phpstan.neon (level-9 self-analysis).
+
+includes:
+    - extension.neon
+
+parameters:
+    level: 9
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        -
+            identifier: trait.unused
+            reportUnmatched: false
+    parallel:
+        maximumNumberOfProcesses: 1

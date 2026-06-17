@@ -106,13 +106,36 @@ jobs:
 
       - uses: ramsey/composer-install@v4
 
-      - name: Remove Doctrine packages
-        run: composer remove --dev doctrine/orm doctrine/dbal doctrine/doctrine-bundle doctrine/migrations --no-interaction
+      - name: Remove Doctrine packages and phpstan-doctrine
+        # Also removes phpstan/phpstan-doctrine so its ObjectMetadataResolver service disappears.
+        # phpstan/phpstan itself is a SEPARATE top-level require-dev entry and is NOT cascade-removed.
+        # (Warning 4 guard: the next step asserts phpstan --version exits 0 to prove this.)
+        # phpstan/extension-installer is preserved.
+        run: composer remove --dev doctrine/orm doctrine/dbal doctrine/doctrine-bundle doctrine/migrations phpstan/phpstan-doctrine --no-interaction
+
+      - name: Assert phpstan survives the Doctrine removal
+        # Warning-4 guard: if removing phpstan/phpstan-doctrine ever cascade-removes phpstan/phpstan,
+        # this step fails LOUDLY here — the dogfood would then fail because the analyser is gone,
+        # not because a guard regressed. This distinction matters for CI triage.
+        run: vendor/bin/phpstan --version
 
       - name: Run unit tests without Doctrine
         # DatabaseSwitchBootstrapperTest is included; it self-skips via class_exists()
         # guard on Doctrine\DBAL\Connection so the test coexists with this job.
-        run: vendor/bin/phpunit tests/Unit/Context tests/Unit/Event tests/Unit/Resolver tests/Unit/Messenger tests/Unit/Cache tests/Unit/Exception tests/Unit/Attribute tests/Unit/DependencyInjection tests/Unit/Command/TenantRunCommandTest.php tests/Unit/Bootstrapper/BootstrapperChainTest.php tests/Unit/Bootstrapper/DatabaseSwitchBootstrapperTest.php tests/Unit/EventListener/TenantContextOrchestratorTest.php
+        # tests/Unit/PHPStan is added (WR-05): the metadata-path tests (28-05) self-skip via their
+        # class_exists(ObjectMetadataResolver) guard when phpstan-doctrine is absent; the reflection-
+        # path and MappedSuperclass tests still assert behavior — proving rule classes load without fatal.
+        run: vendor/bin/phpunit tests/Unit/Context tests/Unit/Event tests/Unit/Resolver tests/Unit/Messenger tests/Unit/Cache tests/Unit/Exception tests/Unit/Attribute tests/Unit/DependencyInjection tests/Unit/Command/TenantRunCommandTest.php tests/Unit/Bootstrapper/BootstrapperChainTest.php tests/Unit/Bootstrapper/DatabaseSwitchBootstrapperTest.php tests/Unit/EventListener/TenantContextOrchestratorTest.php tests/Unit/PHPStan
+
+      - name: PHPStan dogfood without Doctrine — prove optional-dep guards (WR-05)
+        # Runs the base-only dogfood (extension.neon, resolver-less) over src/ with Doctrine +
+        # phpstan-doctrine absent. Proves the shipped rules degrade gracefully:
+        #   - TenantIdDriftRule: interface_exists(EntityManagerInterface) → returns []
+        #   - SharedEntityLeakRule: same guard → returns []
+        #   - MutualExclusionRule: no Doctrine dep, runs normally
+        # Any load-time hard reference to a Doctrine class would fail this step, locking the
+        # optional-dependency contract that is the bundle's defining identity.
+        run: vendor/bin/phpstan analyse -c phpstan-extension-dogfood-nodoctrine.neon --memory-limit=512M
 
   prefer-lowest:
     runs-on: ubuntu-latest
