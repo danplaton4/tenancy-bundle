@@ -145,18 +145,21 @@ final class TenantIdDriftRule implements Rule
         /** @var object{fieldMappings: iterable<object>} $meta */
         $meta = $metadata;
 
-        // fieldMappings is keyed by property name; column name is in 'columnName' offset.
+        // fieldMappings is keyed by property name; column name is in 'columnName' property.
         $found = null;
         foreach ($meta->fieldMappings as $fm) {
-            // ORM 3.x: FieldMapping implements \ArrayAccess — use offset accessor (mixed return, level-9 clean).
-            // ORM 2.x: plain array entries also satisfy \ArrayAccess check via the is_array() branch below.
+            // ORM 3.x: FieldMapping objects implement \ArrayAccess but public property access is the
+            // ORM-4.0-safe read path (ArrayAccess::offsetGet() fires E_USER_DEPRECATED on ORM 3.x).
+            // ORM 2.x: plain array entries do NOT implement \ArrayAccess — they fall to the is_array()
+            // branch below and are NOT matched by this instanceof check.
             if ($fm instanceof \ArrayAccess) {
-                $colName = $fm['columnName'] ?? null;
+                /** @var \ArrayAccess<array-key, mixed>&object{columnName: string, nullable: bool|null, type: string} $fm */
+                $colName = $fm->columnName;
                 if ('tenant_id' === $colName) {
-                    $nullableRaw = $fm['nullable'] ?? false;
-                    $typeRaw = $fm['type'] ?? null;
+                    $nullableRaw = $fm->nullable;
+                    $typeRaw = $fm->type;
                     $found = [
-                        'nullable' => (bool) $nullableRaw,
+                        'nullable' => (bool) ($nullableRaw ?? false),
                         'type' => is_string($typeRaw) ? $typeRaw : null,
                     ];
                     break;
