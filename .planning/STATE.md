@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: milestone
 status: executing
-stopped_at: Completed 28-phpstan-extension/28-04-PLAN.md
-last_updated: "2026-06-16T20:07:17.976Z"
-last_activity: 2026-06-16 -- Phase 28 planning complete
+stopped_at: Completed 28-phpstan-extension/28-05-PLAN.md
+last_updated: "2026-06-17T06:15:07.850Z"
+last_activity: 2026-06-17
 progress:
   total_phases: 27
   completed_phases: 26
   total_plans: 129
-  completed_plans: 127
+  completed_plans: 128
   percent: 96
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 28 (phpstan-extension) — VERIFICATION GAPS_FOUND
-Plan: 4 of 4 executed; gap-closure plans pending
+Phase: 28 (phpstan-extension) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-06-16 -- Phase 28 planning complete
+Last activity: 2026-06-17
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
@@ -116,6 +116,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 | Phase 28-phpstan-extension P02 | 35 | 2 tasks | 10 files |
 | Phase 28-phpstan-extension P03 | 35min | 2 tasks | 8 files |
 | Phase 28-phpstan-extension P04 | 15 | 2 tasks | 3 files |
+| Phase 28-phpstan-extension P05 | 25 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -240,6 +241,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 28-03: AttributeHierarchyHelper removed — all three rules inline the ClassReflection.getParentClass() hierarchy walk; dead code must not ship in extension.neon (28-04 dogfood runs over this)
 - [Phase ?]: 28-03: RuleTestCase fixture pattern: entity class file passed alongside violating function file to analyse() so ReflectionProvider can resolve the entity FQCN
 - [Phase ?]: 28-04: Dogfood config targets src/ only (not tests/) — fixture files carry intentional violations; trait.unused suppression mirrors phpstan.neon for consumer-facing traits
+- [Phase ?]: 28-05: ORM-3.x FieldMapping: property_exists+@var narrowing+ArrayAccess accessor; MappedSuperclass skip in processNode; positional arg fallbacks for nullable/type; resolver-injected CI tests with non-null entry proof
 
 ### Pending Todos
 
@@ -259,6 +261,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-16T16:24:48.619Z
-Stopped at: Completed 28-phpstan-extension/28-04-PLAN.md
+Last session: 2026-06-17T06:15:07.833Z
+Stopped at: Completed 28-phpstan-extension/28-05-PLAN.md
 Resume file: None
