@@ -1,17 +1,23 @@
 # phpstan-extension-dogfood.neon
 #
-# Dogfood: runs the shipped tenancy PHPStan rules (extension.neon) against
-# the bundle's own src/ to prove the rules load and run clean on legitimate
-# (non-misusing) code.
+# Dogfood (WITH Doctrine): runs the wired tenancy PHPStan rules (extension-doctrine.neon)
+# against the bundle's own src/ with phpstan/phpstan-doctrine present. Exercises the D-02
+# "metadata path" end-to-end: ObjectMetadataResolver is injected into TenantIdDriftRule
+# (WR-01 wiring) and the CR-01-fixed checkViaMetadata() runs over the bundle's own
+# #[TenantAware] entities — proving ZERO false positives through the resolver path.
 #
-# Purpose: standing CI protection — extension.neon stays loadable and the
-# bundle's own attribute usages never trip the rules.
+# Includes ONLY extension-doctrine.neon (the standalone wired fragment) — NOT base
+# extension.neon. This ensures exactly one TenantIdDriftRule is registered. PHPStan's
+# Nette DI does not dedupe phpstan.rules.rule by class; including both would double-fire.
+#
+# Purpose: standing CI protection for the wired metadata path (truth #10).
+# For the no-doctrine path, see phpstan-extension-dogfood-nodoctrine.neon.
 #
 # Keep this config ENTIRELY SEPARATE from phpstan.neon (level-9 self-analysis).
-# phpstan.neon MUST NOT include extension.neon (Pitfall 4 from RESEARCH.md).
+# phpstan.neon MUST NOT include extension.neon or extension-doctrine.neon (Pitfall 4).
 
 includes:
-    - extension.neon
+    - extension-doctrine.neon
 
 parameters:
     level: 9

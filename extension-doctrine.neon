@@ -1,0 +1,57 @@
+# extension-doctrine.neon — STANDALONE wired fragment for the D-02 "phpstan-doctrine present" path.
+#
+# PURPOSE (WR-01): Injects ObjectMetadataResolver into the drift rule so the advertised
+# "XML/YAML-mapped entity analysis" (composer.json suggest) actually runs. Without this wiring,
+# the optional ?object $objectMetadataResolver constructor arg is always null because PHPStan's
+# Nette DI container cannot autowire a ?object-typed parameter to the concrete service.
+#
+# LOADING CONSTRAINT: This fragment MUST NOT be loaded unless phpstan/phpstan-doctrine is installed.
+# The @PHPStan\Type\Doctrine\ObjectMetadataResolver service reference is resolved at config-merge
+# time. If phpstan-doctrine is absent, the reference crashes the merge for every consumer.
+# This is why the wiring lives here and NOT in the base extension.neon (which must remain safe
+# to load without phpstan-doctrine).
+#
+# SINGLE REGISTRATION: This fragment deliberately does NOT have an 'includes:' section — it does
+# NOT include base extension.neon. It registers the COMPLETE rule set itself (parametersSchema +
+# parameters + all three rules). The dogfood includes ONLY this fragment (not both files). This
+# ensures exactly ONE instance of each rule is registered. PHPStan's Nette DI does not dedupe
+# services tagged phpstan.rules.rule by class; loading both base and this fragment would produce
+# two registrations and every error would fire twice.
+#
+# NON-DOCTRINE PATH: base extension.neon remains the SOLE resolver-less source for consumers
+# without phpstan-doctrine, for the extension-installer auto-loaded path, and for the no-doctrine
+# CI lane. These two files NEVER co-load.
+#
+# CONSUMER GUIDANCE (documented in Phase 29 DOC-20): Consumers who install phpstan/phpstan-doctrine
+# and want the metadata path should replace their base extension.neon include with this fragment
+# — INSTEAD OF the base, not in addition to it.
+
+parametersSchema:
+    tenancy: structure([
+        checkSharedEntityLeaks: bool()
+    ])
+
+parameters:
+    tenancy:
+        checkSharedEntityLeaks: true
+
+services:
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\MutualExclusionRule
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\TenantIdDriftRule
+        arguments:
+            objectMetadataResolver: @PHPStan\Type\Doctrine\ObjectMetadataResolver
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: Tenancy\Bundle\PHPStan\Rule\SharedEntityLeakRule
+        arguments:
+            checkSharedEntityLeaks: %tenancy.checkSharedEntityLeaks%
+            reflectionProvider: @reflectionProvider
+        tags:
+            - phpstan.rules.rule
