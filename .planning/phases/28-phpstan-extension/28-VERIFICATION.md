@@ -1,205 +1,182 @@
 ---
 phase: 28-phpstan-extension
-verified: 2026-06-16T00:00:00Z
+verified: 2026-06-17T00:00:00Z
 status: gaps_found
-score: 8/12 must-haves verified
+score: 8/9 must-haves verified
 overrides_applied: 0
+re_verification:
+  previous_status: gaps_found
+  previous_score: 8/12
+  gaps_closed:
+    - "CR-01: checkViaMetadata() now reads ORM 3.x FieldMapping via instanceof \\ArrayAccess + offset accessor — zero false positives on valid entities"
+    - "WR-01: ObjectMetadataResolver injected via standalone extension-doctrine.neon — D-02 metadata path reachable"
+    - "WR-02: MappedSuperclass/abstract skip guard in processNode() — false positive on base classes eliminated"
+    - "WR-05: no-doctrine CI lane extended to run tests/Unit/PHPStan + base dogfood with phpstan-doctrine removed; phpstan --version survival guard present"
+  gaps_remaining:
+    - "WR-04 test coverage: positional #[ORM\\Column] path code exists but has zero CI test coverage"
+  regressions: []
 gaps:
-  - truth: "D-02 soft-integrate ObjectMetadataResolver path actually works (checkViaMetadata() produces correct results on Doctrine ORM 3.x)"
+  - truth: "A positionally-declared #[ORM\\Column('tenant_id', 'integer')] / nullable positional column is detected (positional type/nullable args are read, not silently passed)"
     status: failed
-    reason: "checkViaMetadata() uses is_array() to test FieldMapping entries; on Doctrine ORM 3.x (3.6.3 installed) every entry is a FieldMapping OBJECT (implements ArrayAccess, not array). is_array() returns false, every iteration continues, $found stays null, evaluateFinding(null) fires 'no column mapped to tenant_id' on EVERY valid #[TenantAware] entity — 100% false-positive rate when the resolver path is reached. Confirmed empirically."
+    reason: "The code fix for WR-04 is present in checkViaReflection() lines 224-225 ($args['nullable'] ?? $args[6] ?? false; $args['type'] ?? $args[1] ?? null). However, plan 28-05 must_have explicitly requires this behavior to be testable in CI: 'A positionally-declared #[ORM\\Column('tenant_id', 'integer')] / nullable positional column is detected.' No fixture files for positional #[ORM\\Column] declarations were created (fixture directory has no TenantIdPositionalType*.php or TenantIdPositionalNullable*.php). No test methods exercise the $args[1] or $args[6] fallback paths. A revert of lines 224-225 back to the pre-fix named-only form would be invisible to CI. This is the sole false-negative direction in an otherwise precision-first rule — the security-relevant direction."
     artifacts:
-      - path: "src/PHPStan/Rule/TenantIdDriftRule.php"
-        issue: "checkViaMetadata() lines 124-126: 'if (!is_array($mapping)) { continue; }' — always continues on ORM 3.x FieldMapping objects"
-    missing:
-      - "Replace is_array($mapping) check with 'is_array($mapping) || $mapping instanceof ArrayAccess' to accept ORM 3.x FieldMapping objects"
-      - "Alternatively access $metadata->fieldMappings directly (public property, array<string, FieldMapping>) and use $fm->columnName / $fm->nullable / $fm->type property access"
-      - "Add a RuleTestCase test that constructs TenantIdDriftRule WITH a real ObjectMetadataResolver and a mapped entity fixture, so this path is exercised in CI"
-
-  - truth: "D-02 ObjectMetadataResolver is injected via extension.neon when phpstan/phpstan-doctrine is installed"
-    status: failed
-    reason: "extension.neon registers TenantIdDriftRule with no arguments. PHPStan's DI container cannot autowire a parameter typed '?object' to the concrete ObjectMetadataResolver service. Even with phpstan-doctrine installed, $this->objectMetadataResolver is always null — the checkViaMetadata() path is never reached. The advertised 'XML/YAML-mapped entity analysis' (composer.json suggest line 61) silently does nothing. Currently the only thing shielding consumers from CR-01 is WR-01 — the feature is non-functional rather than safe by design."
-    artifacts:
-      - path: "extension.neon"
-        issue: "TenantIdDriftRule service entry has no arguments block — objectMetadataResolver is never injected"
-    missing:
-      - "Fix CR-01 first (is_array check), then wire the resolver conditionally in a phpstan-doctrine-present neon fragment referenced from extension.neon, or use the concrete type hint '@PHPStan\\Type\\Doctrine\\ObjectMetadataResolver' with appropriate conditional loading"
-
-  - truth: "#[TenantAware] on a MappedSuperclass base class does not produce a false positive (WR-02: legitimate pattern where subclasses declare the tenant_id column)"
-    status: failed
-    reason: "TenantIdDriftRule has no MappedSuperclass/abstract exemption. The test fixture TenantAwareParent is #[ORM\\MappedSuperclass] with #[TenantAware] and no tenant_id column — the rule fires on the parent itself (codified as expected behavior in testFiresOnInheritedTenantAware). A real consumer placing #[TenantAware] on a MappedSuperclass and declaring the tenant_id column in concrete subclasses (a valid, common Doctrine pattern) will receive a permanent false error on the base class. This is not a security-direction miss (false negative) but it trains users to suppress/ignore the rule."
-    artifacts:
-      - path: "src/PHPStan/Rule/TenantIdDriftRule.php"
-        issue: "processNode() has no check for abstract class or #[ORM\\MappedSuperclass] before evaluating the column — fires on MappedSuperclass bases that legitimately defer tenant_id to concrete subclasses"
       - path: "tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php"
-        issue: "testFiresOnInheritedTenantAware() asserts the rule fires on TenantAwareParent (#[ORM\\MappedSuperclass]) — the test codifies a false-positive as expected behavior"
+        issue: "No test method exercises positional type (index 1) or positional nullable (index 6) fallbacks in checkViaReflection()"
+      - path: "tests/Unit/PHPStan/Rule/Fixtures/"
+        issue: "No TenantIdPositionalNonStringViolating.php or TenantIdPositionalNullableViolating.php fixture created"
     missing:
-      - "Skip classes that are abstract OR carry #[ORM\\MappedSuperclass] when no tenant_id is found in their own hierarchy — require tenant_id only on concrete, instantiable entities"
-      - "Update testFiresOnInheritedTenantAware() to assert the parent is SILENT while the concrete child (without a tenant_id column) still fires"
-
-  - truth: "Positional #[ORM\\Column] type/nullable args on tenant_id are read, not silently passed (WR-04: false-negative in the security direction)"
-    status: failed
-    reason: "checkViaReflection() reads only the NAMED argument keys $args['nullable'] and $args['type'] when building the tenant_id finding. ORM\\Column's constructor lists type at positional index 1 and nullable at positional index 6, so a positionally-declared column — e.g. #[ORM\\Column('tenant_id', 'integer')] (non-string type) or #[ORM\\Column('tenant_id', 'string', 63, null, null, false, true)] (nullable=true) — supplies type/nullable as $args[1]/$args[6], which the rule never inspects. Result: a positionally-declared nullable or non-string tenant_id (a real cross-tenant leak risk) is NOT flagged — the one false-negative path in an otherwise precision-first rule."
-    artifacts:
-      - path: "src/PHPStan/Rule/TenantIdDriftRule.php"
-        issue: "checkViaReflection() lines 183-184: $args['nullable'] ?? false and $args['type'] read only named args — positional nullable (index 6) / type (index 1) silently missed"
-    missing:
-      - "Fall back to positional indices when named keys are absent — nullable at $args[6], type at $args[1] — mirroring the existing name resolution ($args['name'] ?? $args[0]); keep the is_string() guard on the resolved type"
-      - "Add reflection-path tests for #[ORM\\Column('tenant_id', 'integer')] (positional non-string type fires) and a positional nullable=true at index 6 (positional nullable fires)"
+      - "Create tests/Unit/PHPStan/Rule/Fixtures/TenantIdPositionalNonStringViolating.php: #[TenantAware] #[ORM\\Entity] with #[ORM\\Column('tenant_id', 'integer')] — positional type at index 1 must fire tenancy.tenantIdDrift"
+      - "Create tests/Unit/PHPStan/Rule/Fixtures/TenantIdPositionalNullableViolating.php: #[TenantAware] #[ORM\\Entity] with #[ORM\\Column('tenant_id', 'string', 63, null, null, false, true)] — positional nullable at index 6 must fire tenancy.tenantIdDrift"
+      - "Add two test methods in TenantIdDriftRuleTest.php asserting each positional fixture fires the expected error"
+human_verification:
+  - test: "Extension-installer zero-config auto-load in a real consumer project"
+    expected: "Rules auto-register; vendor/bin/phpstan analyse reports tenancy.mutualExclusion on an entity carrying both #[Shared] and #[TenantAware] without manual configuration"
+    why_human: "Cannot be reproduced inside the bundle's own RuleTestCase harness (which bypasses extension-installer via getAdditionalConfigFiles()). Requires a real downstream consumer project."
 ---
 
-# Phase 28: PHPStan Extension Verification Report
+# Phase 28: PHPStan Extension Re-Verification Report
 
-**Phase Goal:** Ship a consumer-facing PHPStan extension with three rules that catch `#[TenantAware]`/`#[Shared]` misuse at static-analysis time before it becomes a runtime cross-tenant data leak.
-**Verified:** 2026-06-16
+**Phase Goal:** Ship a consumer-facing PHPStan extension with three rules catching `#[TenantAware]`/`#[Shared]` misuse at static-analysis time: (1) mutual exclusion, (2) cross-EM leak, (3) tenant_id config drift. Soft-integrates ObjectMetadataResolver when present, degrades to reflection when absent. Ships via extension-installer auto-load.
+**Verified:** 2026-06-17
 **Status:** gaps_found
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — after gap-closure plans 28-05 and 28-06
 
 ## Goal Achievement
 
-### Observable Truths
+### Observable Truths (re-verification focus)
+
+Previously-VERIFIED truths (truths #1-8, #13 from prior report) were quick-regression-checked; PHPStan L9 clean, full suite 9/9 tests green, both dogfoods OK confirmed. They hold.
+
+The four previously-FAILED truths are the focus:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Rule 1 fires when both `#[Shared]` and `#[TenantAware]` on same class (`tenancy.mutualExclusion`) | VERIFIED | `MutualExclusionRule.php` processNode() returns error with identifier; `testMutualExclusionViolation()` green |
-| 2 | Rule 1 is hierarchy-aware (fires when marker on parent class) | VERIFIED | `hasAttributeInHierarchy()` walks getParentClass(); `testFiresOnInheritedAttribute()` green |
-| 3 | Rule 1 is zero-config via extension-installer (`DEC-PHPSTAN-01`) | VERIFIED | `composer.json extra.phpstan.includes: ["extension.neon"]`; `allow-plugins: phpstan/extension-installer: true`; extension-installer in require-dev |
-| 4 | Rule 2 fires when concrete `EntityManager` queries `#[Shared]` entity (`tenancy.sharedEntityLeak`) | VERIFIED | `SharedEntityLeakRule.php` fires on concrete `Doctrine\ORM\EntityManager` caller; `testFiresOnConcreteEntityManagerQueryingShared()` green |
-| 5 | Rule 2 is gated by `tenancy.checkSharedEntityLeaks` (D-01, default true) | VERIFIED | `extension.neon` parametersSchema + default + constructor injection; `testSilentWhenGatedOff()` green |
-| 6 | Rule 2 is conservative — silent on `EntityManagerInterface` caller (D-03) | VERIFIED | Rule checks `Doctrine\ORM\EntityManager::class` exact match; `testSilentOnAmbiguousEntityManagerInterface()` green |
-| 7 | Rule 3 fires when `tenant_id` column missing/nullable/non-string (`tenancy.tenantIdDrift`) | VERIFIED | All three branches in `evaluateFinding()`; `testFiresWhenTenantIdMissing/Nullable/NonString()` green |
-| 8 | Rule 3 reflection fallback (primary path) works correctly | VERIFIED | `checkViaReflection()` walks `#[ORM\Column]` attributes across hierarchy; all 5 TenantIdDriftRule tests pass |
-| 9 | D-02 soft-integrate: `ObjectMetadataResolver` path works on Doctrine ORM 3.x | **FAILED** | CR-01 confirmed empirically: `is_array(FieldMapping) == false` in ORM 3.x; every FieldMapping entry causes `continue` in `checkViaMetadata()`, `$found` stays null, every valid entity triggers false "missing tenant_id" error |
-| 10 | D-02 wiring: `ObjectMetadataResolver` is injected when phpstan-doctrine is installed | **FAILED** | WR-01: `extension.neon` has no `arguments` for `TenantIdDriftRule`; `?object $objectMetadataResolver = null` is always null even with phpstan-doctrine installed |
-| 11 | Rule 3 does not false-positive on `#[TenantAware]` MappedSuperclass bases (WR-02) | **FAILED** | No MappedSuperclass exemption; `TenantAwareParent` (#[ORM\MappedSuperclass]) fires in test; behavior codified as "expected" in test |
-| 12 | Rule 3 reads positional `#[ORM\Column]` nullable/type args on tenant_id (WR-04 — no false negative) | **FAILED** | WR-04: `checkViaReflection()` lines 183-184 read only named `$args['nullable']` / `$args['type']`; a positionally-declared `#[ORM\Column('tenant_id','integer')]` (type at index 1) or nullable at index 6 is silently passed — the one false-negative direction in the security-relevant sense |
-| 13 | Bundle level-9 self-analysis and dogfood analysis both stay green | VERIFIED | `vendor/bin/phpstan analyse` exits 0; `vendor/bin/phpstan analyse -c phpstan-extension-dogfood.neon` exits 0; `phpstan.neon` contains no `extension.neon` include |
+| 9 | D-02 metadata path produces CORRECT results on ORM 3.x (CR-01) | VERIFIED | `checkViaMetadata()` lines 150-174: `instanceof \ArrayAccess` dispatch with `$fm['columnName']` offset accessor replaces broken `is_array()` guard; `testMetadataPathSilentOnValidEntity()` and `testMetadataPathFiresOnMissingTenantId()` both assert non-null `getClassMetadata()` before `analyse()` (W3 trap blocked); 9/9 tests pass |
+| 10 | ObjectMetadataResolver injected when phpstan-doctrine installed (WR-01) | VERIFIED | `extension-doctrine.neon` exists; `arguments: objectMetadataResolver: @PHPStan\Type\Doctrine\ObjectMetadataResolver`; standalone (no `includes:` key — zero base co-load risk); `phpstan-extension-dogfood.neon` includes ONLY `extension-doctrine.neon`; dogfood exits 0 over src/ with phpstan-doctrine present |
+| 11 | MappedSuperclass/abstract #[TenantAware] bases are SILENT (WR-02) | VERIFIED | `processNode()` lines 74-78: `isAbstract()` OR `getAttributes(MappedSuperclass::class)` guard returns `[]` before path branch; `testSilentOnMappedSuperclassBase()` asserts zero errors on `TenantAwareParent`; `testMappedSuperclassParentSilentConcreteChildFires()` asserts exactly one error on concrete child, none on parent |
+| 12 | Positional #[ORM\Column] nullable/type args detected — no false negative (WR-04) | FAILED | Code present (lines 224-225: `$args['nullable'] ?? $args[6] ?? false`; `$args['type'] ?? $args[1] ?? null`). ZERO test coverage: no positional fixture files, no test methods exercise `$args[1]`/`$args[6]` paths. A revert of lines 224-225 is invisible to CI. |
 
-**Score: 8/12 truths verified** (truth #12 added in revision for WR-04; original truth-13 "bundle self-analysis green" remains VERIFIED but the four FAILED truths are #9/#10/#11/#12)
+**Score: 8/9 gap-closure truths verified** (truths #9, #10, #11 closed; truth #12 partially closed — code present, tests absent)
 
-### Deferred Items
+## Code Review Finding Adjudication (W1, W2, W3)
 
-None — all identified gaps are actionable in this phase.
+### W1: ArrayAccess accessor on FieldMapping emits E_USER_DEPRECATED
 
-### Required Artifacts
+**Finding:** `checkViaMetadata()` uses `$fm['columnName']` (ArrayAccess offsetGet) which fires `Deprecation::trigger()` on every call in ORM 3.x and will stop working in ORM 4.0 when FieldMapping drops ArrayAccess entirely.
+
+**Evidence:** `vendor/doctrine/orm/src/Mapping/ArrayAccessImplementation.php` lines 29-36 confirmed: `offsetGet()` calls `Deprecation::trigger()` with message "Using ArrayAccess on FieldMapping is deprecated and will not be possible in Doctrine ORM 4.0. Use the corresponding property instead."
+
+**Assessment:** The prior verification gap specified the must_have as "checkViaMetadata() reads Doctrine ORM 3.x FieldMapping CORRECTLY — a valid #[TenantAware] entity produces ZERO errors via the metadata path." The implementation achieves this: false positives are eliminated on ORM 3.x. The PLAN itself prescribed ArrayAccess offset accessor as the committed fix mechanism (28-05-PLAN.md `<interfaces>` section, `<action>` block — "Use the \ArrayAccess offset accessor as the PRIMARY read path"). The CR-01 must_have is satisfied.
+
+However, W1 describes a real quality issue: the chosen accessor emits deprecation notices per field read on every consumer using ORM 3.x, and will reintroduce the CR-01 false-positive symptom when ORM 4.0 removes ArrayAccess from FieldMapping. This is a **WARNING** against the phase goal's forward-compatibility. It does not block the current ORM 3.x correctness requirement but it is a genuine defect that will require a follow-up fix.
+
+**Classification: WARNING** — not a BLOCKER against the phase must_have (CR-01 is closed for ORM 3.x), but a forward-compat issue that should be tracked. The prescribed fix (property access with an inner `@var object{columnName: string, nullable: bool|null, type: string} $fm` narrowing inside the `instanceof \ArrayAccess` branch) is simple and avoids deprecation notices entirely.
+
+### W2: Misleading comment at TenantIdDriftRule.php line 152
+
+**Finding:** Comment reads "ORM 2.x: plain array entries also satisfy \ArrayAccess check via the is_array() branch below." Plain PHP arrays do NOT implement `\ArrayAccess` — `$arr instanceof ArrayAccess` is `false`.
+
+**Assessment:** The comment describes the ORM 2.x branch correctly in intent (plain arrays fall to `is_array()`) but incorrectly states they "satisfy \ArrayAccess check." A future maintainer could misread this as arrays being accepted by the `instanceof \ArrayAccess` branch.
+
+**Classification: WARNING (cosmetic)** — no behavioral impact; no phase must_have violation; misleading to maintainers only. Not a BLOCKER.
+
+### W3: WR-04 positional arg path has zero test coverage
+
+**Finding:** Plan 28-05 must_have truth explicitly requires: "A positionally-declared #[ORM\Column('tenant_id', 'integer')] / nullable positional column is detected." The code fix lands at lines 224-225 but no fixture files and no test methods were created for this path.
+
+**Assessment:** This is a direct failure of the plan's must_have. The must_have is not just "code exists" — it requires the behavior to be demonstrable. The 28-05 SUMMARY claims `provides: "TenantIdDriftRule::checkViaReflection() — positional fallbacks for nullable ($args[6]) and type ($args[1])"` but does not claim test methods were created for this path (because they were not). The plan task explicitly listed "Add reflection-path tests for #[ORM\Column('tenant_id', 'integer')] (positional non-string type fires) and a positional nullable=true at index 6." These tests do not exist.
+
+The security-relevant false-negative direction is what WR-04 addresses. A revert of lines 224-225 is invisible to CI. This is a **BLOCKER** gap against must_have truth #12.
+
+**Classification: BLOCKER** — see gaps section above.
+
+## Required Artifacts (gap-closure artifacts)
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/PHPStan/Rule/MutualExclusionRule.php` | Rule 1 — mutual exclusion | VERIFIED | `tenancy.mutualExclusion` identifier; hierarchy walk; no Doctrine dep |
-| `src/PHPStan/Rule/TenantIdDriftRule.php` | Rule 3 — tenant_id drift | PARTIAL | Primary reflection path works; `checkViaMetadata()` path broken on ORM 3.x (CR-01); `objectMetadataResolver` never injected (WR-01); positional args missed (WR-04) |
-| `src/PHPStan/Rule/SharedEntityLeakRule.php` | Rule 2 — cross-EM leak | VERIFIED | Conservative D-03 implementation; gate works; `tenancy.sharedEntityLeak` identifier |
-| `extension.neon` | Shipped consumer extension | PARTIAL | parametersSchema, defaults, all 3 rules registered with `phpstan.rules.rule` tag; MISSING `arguments` for `TenantIdDriftRule` (objectMetadataResolver never wired) |
-| `phpstan-extension-dogfood.neon` | Dogfood config | VERIFIED | Includes `extension.neon`; level 9; paths: [src]; exits 0 |
-| `composer.json` | `extra.phpstan.includes`, suggest, allow-plugins | VERIFIED | All three entries present; `type` still `symfony-bundle` |
-| `.github/workflows/ci.yml` | CI dogfood step | VERIFIED | Step at line 74-75 runs dogfood; inside phpstan job |
-| `tests/Unit/PHPStan/Rule/MutualExclusionRuleTest.php` | Rule 1 tests | VERIFIED | 3 test methods; all green |
-| `tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php` | Rule 3 tests | PARTIAL | 5 test methods; all green — but ALL tests use `new TenantIdDriftRule()` with no resolver; checkViaMetadata() has zero test coverage; no positional-arg coverage (WR-04) |
-| `tests/Unit/PHPStan/Rule/SharedEntityLeakRuleTest.php` | Rule 2 tests | VERIFIED | 3 test methods; all green |
+| `src/PHPStan/Rule/TenantIdDriftRule.php` | CR-01 fix + WR-02 skip + WR-04 code | VERIFIED (code); PARTIAL (tests) | `instanceof \ArrayAccess` dispatch present; `isAbstract()`/`MappedSuperclass` skip present; positional fallbacks at lines 224-225 present; no positional fixture/test |
+| `tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php` | All gaps tested including WR-04 positional | PARTIAL | 9 tests (all pass): 4 reflection, 3 WR-02 hierarchy, 2 metadata-path with entry proofs; WR-04 positional tests ABSENT |
+| `tests/Unit/PHPStan/Rule/Fixtures/TenantAwareConcreteChild.php` | WR-02 dedicated fixture | VERIFIED | File exists: concrete `#[ORM\Entity]` subclass of `TenantAwareParent` with no `tenant_id`; fires at line 16 |
+| `extension-doctrine.neon` | Standalone wired fragment (WR-01) | VERIFIED | Exists; standalone (no `includes:` key); `objectMetadataResolver: @PHPStan\Type\Doctrine\ObjectMetadataResolver` present; `TenantIdDriftRule` registered exactly once |
+| `phpstan-extension-dogfood.neon` | Includes ONLY extension-doctrine.neon | VERIFIED | `includes: [extension-doctrine.neon]` only; exits 0 over src/ |
+| `phpstan-extension-dogfood-nodoctrine.neon` | Base-only dogfood for no-doctrine lane (WR-05) | VERIFIED | Exists; `includes: [extension.neon]` only; exits 0 |
+| `.github/workflows/ci.yml` (no-doctrine job) | Remove phpstan-doctrine + phpstan survives + tests/Unit/PHPStan + base dogfood | VERIFIED | `phpstan/phpstan-doctrine` in remove command; `phpstan --version` step present; `tests/Unit/PHPStan` in phpunit step; `phpstan-extension-dogfood-nodoctrine.neon` step present |
 
-### Key Link Verification
+## Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `extension.neon` | `MutualExclusionRule` | `phpstan.rules.rule` tag | WIRED | Line 15-17 |
-| `extension.neon` | `TenantIdDriftRule` | `phpstan.rules.rule` tag | PARTIAL | Tag present (line 20-22); no arguments — `objectMetadataResolver` never injected |
-| `extension.neon` | `SharedEntityLeakRule` | `phpstan.rules.rule` tag + args | WIRED | Lines 24-29; `checkSharedEntityLeaks` and `reflectionProvider` wired |
-| `composer.json` | `extension.neon` | `extra.phpstan.includes` | WIRED | Lines 80-84 |
-| `phpstan-extension-dogfood.neon` | `extension.neon` | `includes:` | WIRED | Line 14 |
-| `.github/workflows/ci.yml` | `phpstan-extension-dogfood.neon` | CI step | WIRED | Lines 74-75 |
-| `TenantIdDriftRule.php` | `ObjectMetadataResolver` | `?object` injection | NOT_WIRED | Constructor accepts `?object $objectMetadataResolver = null` but extension.neon provides nothing; path dead |
+| `extension-doctrine.neon` | `TenantIdDriftRule::$objectMetadataResolver` | `arguments: objectMetadataResolver: @PHPStan\Type\Doctrine\ObjectMetadataResolver` | WIRED | Line 47; standalone fragment (no base include) — single registration confirmed |
+| `phpstan-extension-dogfood.neon` | `extension-doctrine.neon` | `includes:` | WIRED | Line 20; ONLY fragment (not base); dogfood exits 0 |
+| `phpstan-extension-dogfood-nodoctrine.neon` | `extension.neon` | `includes:` | WIRED | Line 26; base resolver-less; no `extension-doctrine` reference |
+| `TenantIdDriftRule.php processNode()` | `isAbstract()`/`MappedSuperclass` skip | Before path branch (lines 74-78) | WIRED | Both checks present; `testSilentOnMappedSuperclassBase()` green |
+| `TenantIdDriftRule.php checkViaReflection()` | Positional args `$args[1]`/`$args[6]` | Lines 224-225 | PARTIAL (code wired, CI not wired) | Code present; no fixture; no test — revert invisible |
+| `.github/workflows/ci.yml` no-doctrine job | `tests/Unit/PHPStan` | phpunit step | WIRED | Line 128 confirmed by grep |
+| `.github/workflows/ci.yml` no-doctrine job | `phpstan-extension-dogfood-nodoctrine.neon` | PHPStan dogfood step | WIRED | Line 138 confirmed |
 
-### Data-Flow Trace (Level 4)
-
-Not applicable — all three rules are static-analysis tools (not components that render runtime data). Data flow is the attribute-reflection chain from PHP source → rule → PHPStan error, which is verified by the RuleTestCase tests.
-
-**Special trace for CR-01 / D-02 path:**
-
-| Path | Data Source | Produces Real Data | Status |
-|------|-------------|-------------------|--------|
-| Rule 3 reflection fallback | `#[ORM\Column]` attrs via `\ReflectionClass::getProperties()` | Yes — correctly reads columnName/nullable/type FOR NAMED ARGS; positional type/nullable missed (WR-04) | FLOWING (named) / DISCONNECTED (positional, WR-04) |
-| Rule 3 metadata path | `ObjectMetadataResolver::getClassMetadata()` → `$metadata->fieldMappings` (FieldMapping objects) | No — `is_array()` false on every ORM 3.x FieldMapping, continue skips all, `$found` stays null | DISCONNECTED (CR-01) |
-| Rule 3 metadata wiring | `extension.neon` injects `objectMetadataResolver` | No — never injected; path unreachable | DISCONNECTED (WR-01) |
-
-### Behavioral Spot-Checks
+## Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| All 11 PHPStan rule tests pass | `vendor/bin/phpunit tests/Unit/PHPStan/ --no-coverage` | 11/11 green | PASS |
-| Full suite (757 tests) green | `vendor/bin/phpunit` | 757 tests, 2 skipped, 3201 assertions | PASS |
-| Level-9 self-analysis clean | `vendor/bin/phpstan analyse` | 0 errors | PASS |
-| Dogfood analysis clean | `vendor/bin/phpstan analyse -c phpstan-extension-dogfood.neon --memory-limit=512M` | 0 errors | PASS |
-| CR-01 empirical confirmation | PHP one-liner: `is_array(new FieldMapping(...))` | `false` — `continue` triggered | CONFIRMED BROKEN |
-| CR-01 ArrayAccess fix works | PHP one-liner: `instanceof ArrayAccess` + `$fm['columnName']` | `tenant_id` correctly returned | FIX VALIDATED |
+| All 9 TenantIdDriftRule tests pass (including 2 metadata-path tests) | `vendor/bin/phpunit tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php --no-coverage` | 9/9 pass, 11 assertions | PASS |
+| Level-9 self-analysis clean | `vendor/bin/phpstan analyse --memory-limit=1G` | [OK] No errors | PASS |
+| Wired dogfood (metadata path end-to-end) | `vendor/bin/phpstan analyse -c phpstan-extension-dogfood.neon --memory-limit=1G` | [OK] No errors — zero false positives via resolver path | PASS |
+| Base dogfood (no-doctrine path) | `vendor/bin/phpstan analyse -c phpstan-extension-dogfood-nodoctrine.neon --memory-limit=1G` | [OK] No errors | PASS |
 
-### Probe Execution
+## W1 Forward-Compatibility Detail
 
-No probe scripts declared in PLAN/SUMMARY for this phase. Step 7c: SKIPPED (no conventional probe paths found).
+The `instanceof \ArrayAccess` + offset accessor approach is functional on ORM 3.x but deprecated. The recommended property access path (adding `/** @var object{columnName: string, nullable: bool|null, type: string} $fm */` inside the `instanceof \ArrayAccess` branch, then using `$fm->columnName` / `$fm->nullable` / `$fm->type`) avoids deprecation notices and is ORM 4.0 safe. This fix is independent of any phase gap and can be applied without touching tests. It is noted here as a forward-compat cleanup item.
 
-### Requirements Coverage
+## Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|------------|-------------|--------|---------|
-| DX-03 (overall) | 28-01/02/03/04 | PHPStan extension for `#[TenantAware]` + `#[Shared]` correctness | PARTIAL | 3 rules exist and CI is green; D-02 path broken (CR-01/WR-01); MappedSuperclass false-positive (WR-02); positional false-negative (WR-04) |
+| DX-03 (overall) | 28-01/02/03/04/05/06 | PHPStan extension for `#[TenantAware]` + `#[Shared]` correctness | PARTIAL | Three rules exist and CI is green; metadata path wired and correct (CR-01/WR-01 closed); WR-02 closed; WR-04 code present but untested |
 | DX-03-AC1 | 28-01 | Rule fires on `#[TenantAware]` AND `#[Shared]` (mutual exclusion) | SATISFIED | `MutualExclusionRule` + 3 tests green |
-| DX-03-AC2 | 28-03 | Rule fires on tenant EM querying `#[Shared]` entity without landlord override | SATISFIED | `SharedEntityLeakRule` (conservative D-03) + 3 tests green |
-| DX-03-AC3 | 28-02 | Rule fires when `tenant_id` missing OR nullable (+ non-string per D-04) | PARTIALLY SATISFIED | Reflection path correct for NAMED args and tested; metadata path broken (CR-01/WR-01); positional args missed (WR-04) — consumers using XML/YAML-mapped or positionally-declared entities cannot benefit fully |
-| DX-03-AC4 | 28-01/04 | Ships as extension-installer auto-loaded via `extra.phpstan.includes`; opt-in snippet | SATISFIED | `composer.json` wired; `allow-plugins` set; manual fallback snippet documented in SUMMARY |
-| DX-03-AC5 | 28-01/02/03 | Clear error message naming file + line + violation kind | SATISFIED | All three identifiers (`tenancy.mutualExclusion`, `tenancy.sharedEntityLeak`, `tenancy.tenantIdDrift`) with descriptive messages |
-| DEC-PHPSTAN-01 | 28-01 | Distribution via extension-installer (zero-config) | SATISFIED | `extra.phpstan.includes` + `allow-plugins`; same pattern as phpstan/phpstan-symfony |
+| DX-03-AC2 | 28-03 | Rule fires on tenant EM querying `#[Shared]` entity | SATISFIED | `SharedEntityLeakRule` (conservative D-03) + 3 tests green |
+| DX-03-AC3 | 28-02/05 | Rule fires when `tenant_id` missing/nullable/non-string; reflection + metadata paths correct | PARTIALLY SATISFIED | Named-arg reflection path fully tested; metadata path tested (CR-01 closed); positional arg path code present but untested (WR-04) |
+| DX-03-AC4 | 28-01/04 | Ships via extension-installer auto-load | SATISFIED | `extra.phpstan.includes`; `allow-plugins` set |
+| DEC-PHPSTAN-01 | 28-01 | Zero-config distribution | SATISFIED | `extra.phpstan.includes: ["extension.neon"]`; `extension.neon` stays resolver-less and crash-safe |
 
-### Anti-Patterns Found
+## Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `src/PHPStan/Rule/TenantIdDriftRule.php` | 117-118 | `(array) $metadata` cast — fragile coupling to Doctrine internals; works only because `$fieldMappings` is public | INFO | IN-02 from review; survivable but brittle for future Doctrine versions |
-| `src/PHPStan/Rule/TenantIdDriftRule.php` | 124-126 | `if (!is_array($mapping)) { continue; }` — always continues on ORM 3.x FieldMapping objects | BLOCKER | CR-01: 100% false-positive rate on valid entities when checkViaMetadata() is reachable |
-| `src/PHPStan/Rule/TenantIdDriftRule.php` | 183-184 | `$args['nullable'] ?? false` and `$args['type']` read only named args — positional `nullable`/`type` in `#[ORM\Column]` silently missed | WARNING | WR-04: false-negative for positional-arg column declarations (security-relevant direction); now tracked as truth #12 |
-| `extension.neon` | 19-22 | `TenantIdDriftRule` registered with no arguments | BLOCKER | WR-01: `objectMetadataResolver` always null — D-02 "present" path permanently dead code |
-| `src/PHPStan/Rule/TenantIdDriftRule.php` | 49-83 | No MappedSuperclass/abstract exemption before evaluating column | WARNING | WR-02: false-positive on MappedSuperclass bases where concrete subclasses declare `tenant_id` |
-| `src/PHPStan/Rule/MutualExclusionRule.php` + `TenantIdDriftRule.php` + `SharedEntityLeakRule.php` | all three | Duplicated `hasAttributeInHierarchy` loop — three copies of security-relevant traversal | INFO | IN-03: fix to one doesn't propagate to others; low immediate risk but maintenance debt |
-| `tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php` | 24-26 | `new TenantIdDriftRule()` with no resolver in all 5 tests | WARNING | checkViaMetadata() has zero test coverage; CR-01 invisible to CI |
+| `src/PHPStan/Rule/TenantIdDriftRule.php` | 151-152 | `instanceof \ArrayAccess` path uses `$fm['columnName']` offset accessor which fires `E_USER_DEPRECATED` on every ORM 3.x FieldMapping read; will break on ORM 4.0 | WARNING | W1: behavior is correct on ORM 3.x; deprecated; ORM-4.0-unsafe; fix is a one-line narrowing + property-access change |
+| `src/PHPStan/Rule/TenantIdDriftRule.php` | 152 | Comment "ORM 2.x: plain array entries also satisfy \ArrayAccess check via the is_array() branch below" — factually incorrect (arrays do NOT implement \ArrayAccess) | WARNING | W2: cosmetic/misleading to maintainers; no behavioral impact |
+| `tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php` | (absent) | WR-04 positional-arg fix (lines 224-225) has zero test coverage — no fixture files, no test methods | BLOCKER | W3: revert of the WR-04 fix is invisible to CI; security-relevant false-negative direction |
 
-No unreferenced TBD/FIXME/XXX markers found in phase files.
+No unreferenced TBD/FIXME/XXX markers found in modified files.
 
-### Human Verification Required
+## Human Verification Required
 
-These items were identified in the PLAN as manual-only and cannot be verified programmatically:
-
-#### 1. Extension-installer zero-config auto-load in a real consumer project
+### 1. Extension-installer zero-config auto-load in a real consumer project
 
 **Test:** In a scratch Symfony project, install `danplaton4/tenancy-bundle` + `phpstan/extension-installer`, run `vendor/bin/phpstan analyse --debug` and confirm the tenancy rules auto-load without any `includes:` in the consumer's `phpstan.neon`.
 **Expected:** Rules auto-register; `vendor/bin/phpstan analyse` reports `tenancy.mutualExclusion` on an entity carrying both `#[Shared]` and `#[TenantAware]` without manual configuration.
-**Why human:** Cannot be reproduced inside the bundle's own RuleTestCase harness (which bypasses extension-installer via `getAdditionalConfigFiles()`). Requires a real downstream consumer project.
+**Why human:** Cannot be reproduced inside the bundle's own RuleTestCase harness. Requires a real downstream consumer project.
 
-**NOTE:** This human check is currently BLOCKED by the gaps above. A consumer following the suggested `phpstan/phpstan-doctrine` install path would encounter CR-01 (false errors on valid entities) before the extension-installer auto-load is even observable as working. Fix CR-01 and WR-01 first.
+**Note:** The underlying gap (CR-01 false-positive storm) that previously blocked this human check is now closed. A consumer can safely install phpstan-doctrine and use the base extension.neon path without receiving false errors. The extension-doctrine.neon path for the metadata-enhanced experience requires consumer-side manual include (documented in Phase 29 DOC-20).
 
-### Gaps Summary
+## Gaps Summary
 
-Four gaps block goal achievement (Gap 4 / WR-04 added in revision as truth #12 so the re-verifier has a clean hook):
+**One gap blocks full goal achievement:**
 
-**Gap 1 (BLOCKER — CR-01): `checkViaMetadata()` broken for Doctrine ORM 3.x**
+**Gap (BLOCKER — WR-04 test coverage): Positional `#[ORM\Column]` path untested**
 
-The D-02 "phpstan-doctrine present" code path in `TenantIdDriftRule::checkViaMetadata()` emits a false "no tenant_id column" error on every valid `#[TenantAware]` entity because it uses `is_array()` to test `FieldMapping` entries, and on Doctrine ORM 3.x every entry is a `FieldMapping` object (implements `ArrayAccess`, not `array`). Empirically confirmed: `is_array(new FieldMapping(...)) === false`. The fix is to replace `!is_array($mapping)` with `!is_array($mapping) && !($mapping instanceof ArrayAccess)`, or better, access `$metadata->fieldMappings` directly and use `$fm->columnName` / `$fm->nullable` / `$fm->type` property access. (Closed by 28-05 Task 1.)
+The WR-04 code fix in `checkViaReflection()` (lines 224-225) is present and correct — `$args['nullable'] ?? $args[6] ?? false` and `$args['type'] ?? $args[1] ?? null`. However, plan 28-05 explicitly promises test coverage of this path, and it is absent. No fixture files for positional column declarations exist in the fixture directory. No test methods assert that `#[ORM\Column('tenant_id', 'integer')]` (positional type at index 1) fires a `tenancy.tenantIdDrift` error, and no test asserts that `#[ORM\Column('tenant_id', 'string', 63, null, null, false, true)]` (positional nullable at index 6) fires. A silent revert of lines 224-225 would pass all CI checks. WR-04 is the sole false-negative direction in an otherwise precision-first security rule.
 
-**Gap 2 (BLOCKER — WR-01): `ObjectMetadataResolver` never injected — D-02 "present" path is dead code**
+Fix requires two fixture files and two test methods — approximately 10 minutes of work. The code change itself is confirmed complete and does not need to be revisited.
 
-`extension.neon` registers `TenantIdDriftRule` with no `arguments`. PHPStan's DI container cannot autowire `?object` to the concrete `ObjectMetadataResolver` service. Even with `phpstan/phpstan-doctrine` installed (which the bundle actively suggests in `composer.json` suggest), `$this->objectMetadataResolver` is always `null`. The advertised "XML/YAML-mapped entity analysis in Rule 3" silently does nothing. Currently WR-01 is the only thing shielding consumers from CR-01 — but the feature is non-functional rather than safe by design. Fix CR-01 first, then wire the resolver in a conditionally-included neon fragment. (Closed by 28-06 Task 1.)
-
-**Gap 3 (WARNING — WR-02): False positive on `#[TenantAware]` MappedSuperclass bases**
-
-`TenantIdDriftRule` fires on any `#[TenantAware]` class lacking a `tenant_id` column regardless of whether the class is a non-instantiable `#[ORM\MappedSuperclass]`. A common, correct Doctrine pattern — `#[TenantAware]` on a mapped superclass, `tenant_id` declared in each concrete subclass — produces a permanent false error on the base class. The test even asserts this is expected behavior (`testFiresOnInheritedTenantAware` expects `TenantAwareParent` to fire). This trains consumers to suppress or disable the rule, undermining its security value. The fix is to skip abstract classes and classes carrying `#[ORM\MappedSuperclass]` when no `tenant_id` is found in their own hierarchy. (Closed by 28-05 Task 2.)
-
-**Gap 4 (WARNING — WR-04): Positional `#[ORM\Column]` nullable/type args silently missed (truth #12)**
-
-`TenantIdDriftRule::checkViaReflection()` reads only the named argument keys `$args['nullable']` and `$args['type']` when building the `tenant_id` finding. `ORM\Column`'s constructor lists `type` at positional index 1 and `nullable` at positional index 6, so a positionally-declared column — `#[ORM\Column('tenant_id', 'integer')]` or `#[ORM\Column('tenant_id', 'string', 63, null, null, false, true)]` — supplies `type`/`nullable` as `$args[1]`/`$args[6]`, which the rule never inspects. A positionally-declared nullable or non-string `tenant_id` (a real cross-tenant leak risk) is NOT flagged — the one false-negative direction in an otherwise precision-first rule. The fix is to fall back to positional indices (`nullable` at `$args[6]`, `type` at `$args[1]`) when named keys are absent, mirroring the existing `name` resolution. (Closed by 28-05 Task 1.)
-
-**Relationship between gaps:** Gap 1 and Gap 2 are interdependent (fix CR-01 before wiring WR-01 or the fix immediately breaks consumers). Gaps 3 and 4 are independent and both live in `TenantIdDriftRule.php`. All four affect the correctness of the D-02 decision and the consumer-facing behavior of Rule 3. Gaps 1 and 2 are BLOCKER severity (breaks the advertised feature for consumers who follow the documented phpstan-doctrine suggestion). Gaps 3 (false positive) and 4 (false negative) are WARNING severity — Gap 4 is the lone security-relevant false-negative direction.
-
-**What IS working:** Rule 1 (`MutualExclusionRule`) and Rule 2 (`SharedEntityLeakRule`) are sound, well-tested, and production-ready. Rule 3's reflection fallback (the primary CI-tested path) is correct for named-argument columns and covers the majority of consumer use cases (PHP attribute-mapped entities). The extension.neon structure, composer.json wiring, dogfood analysis, and CI integration are all correct.
+**What IS working (closed gaps):**
+- CR-01 (truth #9): `checkViaMetadata()` correct on ORM 3.x — zero false positives confirmed by resolver-injected metadata-path tests with non-null entry proofs
+- WR-01 (truth #10): `ObjectMetadataResolver` injected via standalone `extension-doctrine.neon` — metadata path reachable; dogfood proves zero false positives end-to-end
+- WR-02 (truth #11): MappedSuperclass/abstract bases are silent; concrete children fire; three dedicated tests cover all WR-02 cases
+- WR-05: no-doctrine CI lane extended — removes phpstan-doctrine, asserts phpstan survives, runs `tests/Unit/PHPStan` + base dogfood
+- All previously-verified truths (#1-8, #13) hold: MutualExclusionRule, SharedEntityLeakRule, extension-installer wiring, CI dogfood, bundle self-analysis all green
 
 ---
 
-_Verified: 2026-06-16_
+_Verified: 2026-06-17_
 _Verifier: Claude (gsd-verifier)_
-_Revised 2026-06-16: added truth #12 (WR-04) so the gap-closure re-verification has a mapped hook; original "bundle self-analysis green" truth renumbered to #13._
-</content>
+_Re-verification: gaps_found → 1 remaining gap (WR-04 test coverage)_

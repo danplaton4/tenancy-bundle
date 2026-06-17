@@ -1,330 +1,219 @@
 ---
 phase: 28-phpstan-extension
-reviewed: 2026-06-16T00:00:00Z
+reviewed: 2026-06-17T00:00:00Z
 depth: standard
-files_reviewed: 13
+files_reviewed: 7
 files_reviewed_list:
-  - src/PHPStan/Rule/MutualExclusionRule.php
   - src/PHPStan/Rule/TenantIdDriftRule.php
-  - src/PHPStan/Rule/SharedEntityLeakRule.php
-  - extension.neon
-  - phpstan-extension-dogfood.neon
-  - composer.json
-  - .github/workflows/ci.yml
-  - phpunit.xml.dist
-  - src/TenancyBundle.php
-  - tests/Integration/SharedEntity/SharedEntitySyncIntegrationTest.php
-  - tests/Unit/PHPStan/Rule/MutualExclusionRuleTest.php
   - tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php
-  - tests/Unit/PHPStan/Rule/SharedEntityLeakRuleTest.php
+  - tests/Unit/PHPStan/Rule/Fixtures/TenantAwareConcreteChild.php
+  - extension-doctrine.neon
+  - phpstan-extension-dogfood.neon
+  - phpstan-extension-dogfood-nodoctrine.neon
+  - .github/workflows/ci.yml
 findings:
-  critical: 1
-  warning: 5
-  info: 3
-  total: 9
+  critical: 0
+  warning: 3
+  info: 1
+  total: 4
 status: issues_found
 ---
 
-# Phase 28: Code Review Report
+# Phase 28 Gap-Closure: Code Review Report
 
-**Reviewed:** 2026-06-16
-**Depth:** standard
-**Files Reviewed:** 13
+**Reviewed:** 2026-06-17
+**Depth:** standard (gap-closure diff 4db61d0..HEAD)
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the three shipped PHPStan rules (`MutualExclusionRule`, `TenantIdDriftRule`,
-`SharedEntityLeakRule`), their `extension.neon` / dogfood wiring, the `composer.json`
-extension-installer integration, CI changes, and the unit/integration tests.
+This review covers only the gap-closure work from plans 28-05 and 28-06: the ORM-3.x
+`checkViaMetadata()` fix (CR-01), the MappedSuperclass/abstract exemption (WR-02), the
+positional-arg fallbacks (WR-04), the `ObjectMetadataResolver` wiring via standalone
+`extension-doctrine.neon` (WR-01), and the no-doctrine CI lane (WR-05).
 
-Verification performed live against the installed toolchain:
-- `vendor/bin/phpstan analyse` (main `phpstan.neon`) — clean; tenancy rules do **not**
-  auto-load on the bundle's own self-analysis (Pitfall 4 correctly avoided — the root
-  package is not in extension-installer's `GeneratedConfig`).
-- `vendor/bin/phpstan analyse -c phpstan-extension-dogfood.neon` — clean; rules load and
-  run against `src/` without firing on the bundle's own legitimate attribute usage.
-- `vendor/bin/phpunit tests/Unit/PHPStan` — 11/11 green.
-- `php-cs-fixer check src/PHPStan` — clean.
-- Confirmed the `SharedEntityLeakRule` fires end-to-end through real `extension.neon`
-  wiring (parameter `%tenancy.checkSharedEntityLeaks%` resolves, gate works).
+**What is correct:**
+- CR-01 is genuinely fixed: `is_array()` guard replaced with `instanceof \ArrayAccess` + `is_array()` two-branch dispatch; plain PHP arrays do NOT implement ArrayAccess (confirmed), so ORM 2.x entries correctly fall to the `elseif (is_array($fm))` branch. The logic is sound for ORM 3.x FieldMapping objects.
+- WR-02 MappedSuperclass/abstract skip guard is correctly placed in `processNode()` after `hasTenantAwareInHierarchy()` and before the path branch, so it applies to both the metadata and reflection paths. The `::class` reference to `\Doctrine\ORM\Mapping\MappedSuperclass` is PHP compile-time string resolution — no `class_exists` guard is needed and none is missing.
+- WR-01 wiring via standalone `extension-doctrine.neon` is architecturally sound: the fragment owns the full rule set (no `includes:`), PHPStan's Nette DI resolves `@PHPStan\Type\Doctrine\ObjectMetadataResolver` only when phpstan-doctrine is installed, and the dogfood now exercises the wired metadata path end-to-end.
+- WR-05 CI lane correctly removes `phpstan/phpstan-doctrine` (not just `doctrine/orm`), adds the `phpstan --version` survival guard, runs `tests/Unit/PHPStan` (with metadata tests self-skipping via `class_exists`), and runs the base dogfood to prove graceful degradation.
+- The per-test injectable resolver pattern (`private ?object $resolver = null` reset to null per PHPUnit instance) is correct — PHPUnit creates a new test class instance per method, so resolver state cannot leak between tests.
+- The `assertNotNull(getClassMetadata(...))` entry proofs in the metadata tests correctly close the Warning-3 silent-fallthrough trap.
 
-The good: the conservative `SharedEntityLeakRule` (D-03) and `MutualExclusionRule` are
-sound and well-tested. The optional-Doctrine guards in the rules' `processNode` entry
-points are correct.
-
-The serious problem: `TenantIdDriftRule::checkViaMetadata()` — the advertised
-phpstan-doctrine integration path — is **broken against Doctrine ORM 3.x** (the bundle's
-own required version, `doctrine/orm: ^3.3`) and is simultaneously **never wired and never
-tested**, so the breakage is invisible to CI. It is a latent false-positive generator the
-moment a consumer follows the documented `phpstan/phpstan-doctrine` suggestion. Details
-below.
-
-The dominant residual risk class across all three rules is **false positives**
-(over-firing) rather than false negatives, which is the right direction for a precision-
-first security tool, but several of these will produce confusing noise for legitimate
-consumer code (MappedSuperclass bases, non-underscore naming strategies).
+**What is deficient (see findings):**
+Three warnings were found. Two are code quality issues in `TenantIdDriftRule.php` that survive from the gap-closure commit. One is a missing test coverage gap for WR-04. No new critical issues were introduced.
 
 ## Narrative Findings (AI reviewer)
 
-## Critical Issues
-
-### CR-01: `checkViaMetadata()` is broken for Doctrine ORM 3.x — every valid `#[TenantAware]` entity becomes a false "missing tenant_id" positive
-
-**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:114-139`
-
-**Issue:** The phpstan-doctrine metadata path assumes `ClassMetadata::$fieldMappings` is an
-`array<string, array>` ("public array<string, mixed> in Doctrine ORM 2.x/3.x", per the
-inline comment on line 117). That is false for Doctrine ORM 3.x. In ORM 3.x each entry is
-a `Doctrine\ORM\Mapping\FieldMapping` **object** (`final class FieldMapping implements
-ArrayAccess`), not an array.
-
-Verified empirically:
-```
-is_array(FieldMapping): false
-RULE PATH: continue triggered -> mapping skipped (BUG)
-```
-
-Concrete failure trace in `checkViaMetadata()`:
-1. `$raw = (array) $metadata;` then `$fieldMappings = $raw['fieldMappings'] ?? []` —
-   yields `array<string, FieldMapping>` (objects).
-2. `foreach ($fieldMappings as $mapping) { if (!is_array($mapping)) { continue; } ... }`
-   — every `$mapping` is a `FieldMapping` object, so `is_array()` is `false`, every
-   iteration `continue`s, the `tenant_id` mapping is never inspected.
-3. `$found` stays `null` → `evaluateFinding(null, ...)` reports
-   *"Class X is #[TenantAware] but has no column mapped to tenant_id"* for **every**
-   `#[TenantAware]` entity — including perfectly correct ones with a non-nullable
-   `tenant_id` string column.
-
-Severity rationale: this is the path that fires only when a consumer installs
-`phpstan/phpstan-doctrine` — which the bundle actively advertises in `composer.json`
-`suggest` (line 61: *"For full Doctrine metadata support — enables XML/YAML-mapped entity
-analysis in Rule 3"*). The moment a consumer follows that suggestion AND the resolver is
-wired (see WR-01), the rule emits a wall of false errors on correct code, which both
-breaks their CI and trains them to ignore the rule — defeating its security purpose. It is
-shipping, consumer-facing, and incorrect behavior. The breakage is masked because the
-rule's own unit test deliberately constructs `new TenantIdDriftRule()` with no resolver
-(`TenantIdDriftRuleTest.php:24-26`), so this code path has **zero test coverage**.
-
-**Fix:** `FieldMapping` implements `ArrayAccess`, so treat entries as array-accessible
-rather than requiring `is_array()`. Access via `ArrayAccess` works for both ORM 2.x arrays
-and ORM 3.x objects:
-```php
-$found = null;
-foreach ($fieldMappings as $mapping) {
-    // ORM 2.x: array; ORM 3.x: FieldMapping (ArrayAccess). Accept both.
-    if (!is_array($mapping) && !$mapping instanceof \ArrayAccess) {
-        continue;
-    }
-    $colName = $mapping['columnName'] ?? $mapping['column'] ?? null;
-    if ('tenant_id' === $colName) {
-        $found = [
-            'nullable' => (bool) ($mapping['nullable'] ?? false),
-            'type' => isset($mapping['type']) && is_string($mapping['type']) ? $mapping['type'] : null,
-        ];
-        break;
-    }
-}
-```
-Better still, call the documented metadata accessors instead of casting/array-poking:
-`$metadata->fieldMappings`, and read `$fm->columnName`, `$fm->nullable`, `$fm->type`
-property access (guarded with `property_exists`/`isset` for cross-version safety). Then add
-a unit test that constructs the rule **with** a real `ObjectMetadataResolver` against a
-mapped fixture so this path is exercised in CI.
-
 ## Warnings
 
-### WR-01: The `ObjectMetadataResolver` is never injected — the entire phpstan-doctrine path is dead code as wired
+### WR-01: `checkViaMetadata()` uses deprecated `FieldMapping::ArrayAccess` — fires `E_USER_DEPRECATED` per field read and will break on Doctrine ORM 4.0
 
-**File:** `extension.neon:19-22`, `src/PHPStan/Rule/TenantIdDriftRule.php:34-39`
+**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:153-174`
 
-**Issue:** `TenantIdDriftRule::__construct()` declares
-`?object $objectMetadataResolver = null` with the comment *"injected by phpstan-doctrine
-when installed"*. But the `extension.neon` service definition for `TenantIdDriftRule`
-(lines 19-22) declares **no `arguments`**, and PHPStan's Nette DI container cannot autowire
-a parameter typed `?object` to the concrete `@PHPStan\Type\Doctrine\ObjectMetadataResolver`
-service (the type hint is `object`, not the class; the default is `null`). Confirmed by
-grep: nothing in the repo wires `objectMetadataResolver` except the test's
-"No ObjectMetadataResolver" comment. Result: even with `phpstan/phpstan-doctrine`
-installed, `$this->objectMetadataResolver` is always `null`, the `checkViaMetadata()` path
-(see CR-01) is never reached, and the advertised "XML/YAML-mapped entity analysis" feature
-(`composer.json` suggest line 61) silently does nothing.
+**Issue:** The CR-01 fix correctly replaces `is_array()` with `instanceof \ArrayAccess`, but
+then accesses the field data via the ArrayAccess offsetGet interface (`$fm['columnName']`,
+`$fm['nullable']`, `$fm['type']`). The `FieldMapping::ArrayAccessImplementation::offsetGet()`
+method fires `Deprecation::trigger()` on every invocation, emitting `E_USER_DEPRECATED` with
+the message *"Using ArrayAccess on FieldMapping is deprecated and will not be possible in
+Doctrine ORM 4.0. Use the corresponding property instead."* (confirmed from
+`vendor/doctrine/orm/src/Mapping/ArrayAccessImplementation.php:31-36`).
 
-This is the only thing currently shielding consumers from CR-01 — but it means the feature
-is non-functional rather than safe by design.
+Two concrete consequences:
+1. In ORM 3.x today, every call to `checkViaMetadata()` emits deprecation notices —
+   currently suppressed in CI only because `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0`
+   limits the fail-threshold to direct (non-vendor) deprecations. When phpunit-bridge's
+   vendor-deprecation counting is tightened (or under a different consumer's PHPUnit config),
+   these notices will surface as test failures.
+2. In Doctrine ORM 4.0, `FieldMapping` will stop implementing `ArrayAccess` entirely. At
+   that point `$fm instanceof \ArrayAccess` returns `false` for every entry, the metadata
+   path falls through to `$found = null`, and `evaluateFinding(null, ...)` reports
+   *"no tenant_id column"* on every valid `#[TenantAware]` entity — the same symptom as the
+   original CR-01 bug. The fix is ORM-3.x-functional but introduces an ORM-4.0 regression.
 
-**Fix:** Wire the resolver conditionally and reference the concrete type so DI can inject
-it when phpstan-doctrine is present. One option is a dedicated dogfood-with-doctrine neon
-fragment that adds the argument when the class exists; or use a small factory/optional
-service reference, e.g. in `extension.neon`:
-```yaml
-    -
-        class: Tenancy\Bundle\PHPStan\Rule\TenantIdDriftRule
-        arguments:
-            objectMetadataResolver: @PHPStan\Type\Doctrine\ObjectMetadataResolver
-        tags:
-            - phpstan.rules.rule
-```
-…guarded so it does not fail when phpstan-doctrine is absent (PHPStan resolves `@service`
-references at config-merge time, so this must live in a conditionally-included fragment).
-Until CR-01 is fixed, wiring this would expose the FieldMapping bug — fix CR-01 first,
-then wire and add coverage.
+The correct and deprecation-free access pattern — direct property read — was the recommended
+alternative in the verification report and is level-9 clean because `FieldMapping` has typed
+public properties:
 
-### WR-02: `#[TenantAware]` MappedSuperclass base classes produce false positives
-
-**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:49-83`, fixtures `TenantAwareParent.php`
-
-**Issue:** The rule fires on any `#[TenantAware]` class lacking a `tenant_id` column in its
-own hierarchy, with no check for whether the class is a non-instantiable
-`#[ORM\MappedSuperclass]` / abstract base that legitimately defers the `tenant_id` column
-to concrete subclasses. The rule's own test `testFiresOnInheritedTenantAware`
-(`TenantIdDriftRuleTest.php:104-126`) codifies this: it asserts the rule fires on
-`TenantAwareParent` (a `#[ORM\MappedSuperclass]`) itself. A real consumer who puts
-`#[TenantAware]` on a MappedSuperclass and declares the `tenant_id` column in each concrete
-entity (a common, correct Doctrine pattern, and exactly how this bundle's own
-`AbstractTenant` split works) will get a permanent false error on the base class even
-though every concrete entity is correct. This trains users to suppress/ignore the rule.
-
-**Fix:** Skip classes that are abstract or carry `#[ORM\MappedSuperclass]` /
-`#[ORM\Embeddable]` when no `tenant_id` is found in their own hierarchy — only the
-concrete, instantiable entity should be required to resolve a `tenant_id`:
+**Fix:**
 ```php
-$nativeReflection = $classReflection->getNativeReflection();
-if ($nativeReflection->isAbstract()
-    || [] !== $nativeReflection->getAttributes(\Doctrine\ORM\Mapping\MappedSuperclass::class)) {
-    return [];
+foreach ($meta->fieldMappings as $fm) {
+    if ($fm instanceof \ArrayAccess) {
+        // ORM 3.x: FieldMapping — read public properties directly (deprecation-free, ORM-4.0 safe).
+        // property_exists() guards are not needed: columnName/nullable/type are declared on FieldMapping.
+        /** @var object{columnName: string, nullable: bool|null, type: string} $fm */
+        $colName = $fm->columnName ?? null;
+        if ('tenant_id' === $colName) {
+            $found = [
+                'nullable' => (bool) ($fm->nullable ?? false),
+                'type' => is_string($fm->type) ? $fm->type : null,
+            ];
+            break;
+        }
+    } elseif (is_array($fm)) {
+        // ORM 2.x fallback: plain array entry (unchanged)
+        $colName = $fm['columnName'] ?? $fm['column'] ?? null;
+        if ('tenant_id' === $colName) {
+            $found = [
+                'nullable' => (bool) ($fm['nullable'] ?? false),
+                'type' => isset($fm['type']) && is_string($fm['type']) ? $fm['type'] : null,
+            ];
+            break;
+        }
+    }
 }
 ```
-Place after the `hasTenantAwareInHierarchy` check, before evaluating the column.
+If PHPStan level 9 does not accept `->columnName` on the object-shape-narrowed `$fm`
+(the `@var object{fieldMappings: iterable<object>}` annotates `$fm` as `object`, not the
+concrete `FieldMapping` class), add a more specific `@var` annotation:
+`/** @var object{columnName: string, nullable: bool|null, type: string} $fm */`
+inside the `instanceof \ArrayAccess` branch. No `@phpstan-ignore` is needed.
 
-### WR-03: Reflection fallback hardcodes underscore naming — wrong column derivation under Doctrine's actual default strategy
+### WR-02: Misleading comment on ORM 2.x `ArrayAccess` branch in `checkViaMetadata()`
 
-**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:174-179`
+**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:152`
 
-**Issue:** For a `#[ORM\Column]` with no explicit name, the rule derives the column from the
-property via `strtolower(preg_replace('/([A-Z])/', '_$1', lcfirst($propName)))`, i.e. it
-assumes the `UnderscoreNamingStrategy` (`$tenantId` → `tenant_id`). But Doctrine ORM's
-**default** strategy is `DefaultNamingStrategy::propertyToColumnName()`, which returns the
-property name verbatim (verified: `return $propertyName;`). So under the default strategy,
-property `$tenantId` with `#[ORM\Column]` maps to column `tenantId`, not `tenant_id`. The
-rule cannot know the consumer's configured naming strategy from pure reflection, so this
-derivation is a guess that is wrong for the default strategy. In the default-strategy case
-the rule's *conclusion* ("no tenant_id column") happens to align with the
-`TenantAwareFilter`'s hardcoded `tenant_id` (which also won't match `tenantId`), so it is
-not a leak — but the diagnostic reasoning is incorrect and the message will mislead users
-who actually wrote `tenant_id` literally via a non-default-but-non-underscore mapping.
+**Issue:** The inline comment reads:
+> "ORM 2.x: plain array entries also satisfy \ArrayAccess check via the is_array() branch below."
 
-**Fix:** Treat the property-name-derivation branch as best-effort and lower-confidence:
-prefer matching only the explicit-name and exact `tenant_id` property cases with high
-confidence, and document that reliable detection of unnamed columns requires the
-phpstan-doctrine metadata path (once CR-01/WR-01 are fixed, that path knows the real
-column name and naming strategy). At minimum, also match the verbatim property name
-(`$tenantId` → column `tenantId`) so the default strategy is covered, and only emit the
-"non-string"/"nullable" sub-diagnostics when the column was resolved with certainty.
+This is factually incorrect in its first clause. Plain PHP arrays do NOT implement
+`\ArrayAccess` — `$arr instanceof ArrayAccess` is `false` for any PHP native array (confirmed
+empirically). The sentence intends to say ORM 2.x arrays are handled by the `is_array()`
+branch, but states instead that they "satisfy \ArrayAccess check," which is the opposite of
+what happens. A future maintainer reading this could conclude plain arrays fall through the
+`instanceof \ArrayAccess` branch (they do not) and misunderstand the invariant.
 
-### WR-04: Positional `nullable`/`type` arguments on `#[ORM\Column]` are silently missed
+**Fix:** Replace the comment with an accurate description:
+```php
+// ORM 3.x: FieldMapping objects implement \ArrayAccess — caught by the instanceof branch above.
+// ORM 2.x: plain array entries do NOT implement \ArrayAccess — they reach this is_array() branch.
+```
 
-**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:183-184`
+### WR-03: WR-04 (positional `#[ORM\Column]` args) has no test coverage despite the plan promising fixtures
 
-**Issue:** When reading the resolved `tenant_id` column's attributes, the rule reads only
-the **named** argument keys: `$args['nullable']` and `$args['type']`. `ORM\Column`'s
-constructor lists `nullable` at positional index 6 and `type` at index 1. A consumer who
-writes the attribute positionally — e.g.
-`#[ORM\Column('tenant_id', 'integer')]` or
-`#[ORM\Column('tenant_id', 'string', 63, null, null, false, true)]` — supplies `type` /
-`nullable` as `$args[1]` / `$args[6]`, which the rule never inspects. Result: a
-positionally-declared nullable or non-string `tenant_id` (a real cross-tenant leak risk)
-is **not** flagged — a false negative in the security-relevant direction. This is narrow
-(few people write `Column` fully positionally past `name`), but it is the one false-
-negative path in an otherwise precision-first rule, so it deserves a fix.
+**File:** `tests/Unit/PHPStan/Rule/TenantIdDriftRuleTest.php` (missing tests),
+`src/PHPStan/Rule/TenantIdDriftRule.php:224-225`
 
-**Fix:** Fall back to positional indices when the named keys are absent, mirroring the
-`name` resolution already done on line 172:
+**Issue:** Plan 28-05 and the 28-05 SUMMARY both list as a `provides:` deliverable:
+*"TenantIdDriftRule::checkViaReflection() — positional fallbacks for nullable ($args[6]) and
+type ($args[1]) in addition to named args (WR-04)"* and describe adding
+*"reflection-path tests for #[ORM\Column('tenant_id', 'integer')] (positional non-string type
+fires) and a positional nullable=true at index 6 (positional nullable fires)"*.
+
+The code changes in `checkViaReflection()` at lines 224-225 are present:
 ```php
 $nullableRaw = $args['nullable'] ?? $args[6] ?? false;
 $typeRaw     = $args['type']     ?? $args[1] ?? null;
-$found = [
-    'nullable' => (bool) $nullableRaw,
-    'type' => is_string($typeRaw) ? $typeRaw : null,
-];
 ```
+But no fixture files for positional `#[ORM\Column]` declarations were created (the fixture
+directory contains no new `TenantIdPositionalType*.php` or `TenantIdPositionalNullable*.php`
+files), and no test methods exercise the `$args[1]` or `$args[6]` fallback paths. The fix was
+delivered at the code level but not the test level.
 
-### WR-05: CI never runs the dogfood (or any rule) without Doctrine — the optional-dependency guards are untested
+The consequence is direct: a regression that reverts lines 224-225 back to
+`$args['nullable'] ?? false` / `$args['type']` (the pre-fix form) would be invisible to CI.
+The WR-04 fix is the security-relevant false-negative direction — a positionally-declared
+nullable or non-string `tenant_id` would silently pass — which makes the missing coverage
+more concerning than a typical code quality gap.
 
-**File:** `.github/workflows/ci.yml:74-115`
+**Fix:** Add at minimum two fixtures and two test methods:
+```php
+// Fixture: tests/Unit/PHPStan/Rule/Fixtures/TenantIdPositionalNonStringViolating.php
+#[TenantAware]
+#[ORM\Entity]
+class TenantIdPositionalNonStringViolating
+{
+    // type at positional index 1 — must fire tenancy.tenantIdDrift (non-string type)
+    #[ORM\Column('tenant_id', 'integer')]
+    private int $tenantId;
+}
 
-**Issue:** Two of the three rules guard their entry points with
-`interface_exists(\Doctrine\ORM\EntityManagerInterface::class)`
-(`TenantIdDriftRule.php:55`, `SharedEntityLeakRule.php:72`) precisely because Doctrine is
-an optional dependency. But CI never exercises that guard:
-- The `phpstan` job (incl. the dogfood, lines 59-75) runs with the full `require-dev`,
-  i.e. Doctrine present — the early-return branch is never taken.
-- The `no-doctrine` job (lines 95-115) removes Doctrine but runs **only PHPUnit** against
-  a hand-listed set of unit directories; it does **not** run PHPStan or the dogfood, and
-  the PHPStan rule unit tests under `tests/Unit/PHPStan` are not in its allow-list.
-
-So the central design claim — "the rules load and degrade gracefully when Doctrine is
-absent" — has no automated proof. A regression that hard-references a Doctrine class at
-class-load time (e.g. type-hinting a Doctrine class in a signature, or a `use` that
-triggers autoload) would pass all current CI.
-
-**Fix:** Add a dogfood-without-Doctrine step to the `no-doctrine` job (or a new job): after
-`composer remove --dev doctrine/*`, run
-`vendor/bin/phpstan analyse -c phpstan-extension-dogfood.neon --memory-limit=512M` and
-assert it exits clean, plus run `vendor/bin/phpunit tests/Unit/PHPStan`. This is the only
-way to lock in the optional-dependency contract for the shipped extension.
+// Fixture: tests/Unit/PHPStan/Rule/Fixtures/TenantIdPositionalNullableViolating.php
+#[TenantAware]
+#[ORM\Entity]
+class TenantIdPositionalNullableViolating
+{
+    // nullable at positional index 6 — must fire tenancy.tenantIdDrift (nullable)
+    #[ORM\Column('tenant_id', 'string', 63, null, null, false, true)]
+    private ?string $tenantId;
+}
+```
+And corresponding test methods in `TenantIdDriftRuleTest` asserting each fires. These close
+the CI blind spot on the security-direction false-negative path.
 
 ## Info
 
-### IN-01: `composer.json` `extra.phpstan.includes` + extension-installer is two delivery mechanisms — document the precedence
+### IN-01: `extension-doctrine.neon` and `extension.neon` can be accidentally co-loaded via extension-installer without any runtime guard
 
-**File:** `composer.json:80-85`, `composer.json:60`
+**File:** `extension-doctrine.neon:1-28` (header comments), `extension.neon`
 
-**Issue:** The bundle ships its extension via both `extra.phpstan.includes: ["extension.neon"]`
-and by relying on `phpstan/extension-installer` (suggested for "zero-config auto-loading").
-For a consumer these do not double-load (PHPStan core reads `extra.phpstan.includes` only
-from the root project, while extension-installer reads it from dependencies — verified in
-`Plugin.php:124-176`), so this is correct. But it is non-obvious and a future maintainer
-could "simplify" by deleting one and break either the with-installer or without-installer
-consumer path. Add a short comment / doc note recording why both exist and that neither
-should be removed without testing the other consumer scenario.
+**Issue:** `extension-doctrine.neon` correctly documents that it MUST NOT be co-loaded with
+the base `extension.neon` (PHPStan's Nette DI does not dedupe `phpstan.rules.rule` services
+by class — co-loading doubles every error). The no-co-load constraint is enforced only by
+documentation. A consumer who has `phpstan/extension-installer` registered (which auto-loads
+`extension.neon` via `extra.phpstan.includes`) and then manually adds `extension-doctrine.neon`
+to their `phpstan.neon` will silently get doubled rule firings. There is no runtime check,
+version constraint, or parametersSchema collision that would surface this error loudly.
 
-**Fix:** Document in the extension README/install docs the two supported install paths and
-that `extra.phpstan.includes` is the fallback for consumers who do not run
-extension-installer.
+The schema IS duplicated verbatim in both files (the `parametersSchema: tenancy: structure()`
+block), but PHPStan merges schema definitions rather than erroring on duplicate keys, so even
+that won't alert the consumer.
 
-### IN-02: `(array)` cast on a Doctrine `ClassMetadata` object is fragile beyond the CR-01 bug
+This remains acceptable as a known design limitation pending the Phase 29 DOC-20 consumer
+guidance, but the `extension-doctrine.neon` header should mention the extension-installer
+co-load risk explicitly (not just the dogfood double-registration scenario) so the consuming
+developer has the full picture without reading the SUMMARY.
 
-**File:** `src/PHPStan/Rule/TenantIdDriftRule.php:118`
-
-**Issue:** Even once CR-01 is fixed, `$raw = (array) $metadata;` to reach `fieldMappings`
-relies on the property being `public` and on object-to-array cast semantics (which mangle
-private/protected keys with null-byte prefixes). It works today only because
-`ClassMetadata::$fieldMappings` happens to be public, but it is an undocumented coupling to
-Doctrine internals.
-
-**Fix:** Read `$metadata->fieldMappings` directly (it is a documented public property) or,
-better, go through the metadata accessor API, rather than casting the whole object to an
-array.
-
-### IN-03: Duplicated `hasAttributeInHierarchy` walk across all three rules
-
-**File:** `src/PHPStan/Rule/MutualExclusionRule.php:75-88`,
-`src/PHPStan/Rule/TenantIdDriftRule.php:92-105`,
-`src/PHPStan/Rule/SharedEntityLeakRule.php:159-172`
-
-**Issue:** The "walk PHPStan `ClassReflection` ancestors and check
-`getNativeReflection()->getAttributes($attr)`" loop is copy-pasted into all three rules
-(and a fourth native-reflection variant lives in `SharedEntityMutualExclusionPass`). Four
-copies of a security-relevant traversal means a fix to one (e.g. handling interfaces, or a
-BetterReflection edge case) can silently miss the others.
-
-**Fix:** Extract a small shared helper (e.g. a trait or a static utility in
-`src/PHPStan/`) `hasClassAttributeInHierarchy(ClassReflection, string $attr): bool` and
-have all three rules delegate to it. Keep it dependency-free so it loads without Doctrine.
+**Fix:** Add one line to the `extension-doctrine.neon` LOADING CONSTRAINT comment:
+```
+# If phpstan/extension-installer is installed (auto-loads extension.neon), you MUST remove
+# the extension-installer auto-load entry (or pin allow-plugins: false for this package) to
+# avoid co-loading both files. Loading both doubles every rule error.
+```
 
 ---
 
-_Reviewed: 2026-06-16_
+_Reviewed: 2026-06-17_
 _Reviewer: Claude (gsd-code-reviewer)_
-_Depth: standard_
+_Depth: standard (gap-closure diff 4db61d0..HEAD)_
