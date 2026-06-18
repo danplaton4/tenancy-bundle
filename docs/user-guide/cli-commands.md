@@ -1,10 +1,11 @@
 # CLI Commands
 
-The bundle provides four commands: a one-shot setup command — `tenancy:install` — that
+The bundle provides five commands: a one-shot setup command — `tenancy:install` — that
 auto-registers the bundle and scaffolds `config/packages/tenancy.yaml` in a single step, plus
-three subcommands: `tenancy:init` for regenerating the config file standalone, `tenancy:migrate`
-for running Doctrine Migrations across all tenants, and `tenancy:run` for executing any Symfony
-console command within a specific tenant's context.
+four subcommands: `tenancy:init` for regenerating the config file standalone, `tenancy:migrate`
+for running Doctrine Migrations across all tenants, `tenancy:run` for executing any Symfony
+console command within a specific tenant's context, and `tenancy:shared:resync` for
+re-synchronizing `#[Shared]` entities to tenant databases.
 
 ## tenancy:install
 
@@ -235,10 +236,11 @@ No additional installation is needed.
 ## tenancy:shared:resync
 
 Re-synchronizes `#[Shared]` Doctrine entity records from the landlord database to every
-tenant database. Supports `--tenant <slug>` (single tenant; absent means all tenants),
-`--dry-run` (classify drift without writing), and `--force` (skip the confirmation prompt
-for CI or non-interactive use). There is no `--all` flag — omitting `--tenant` already
-targets all tenants.
+tenant database. Each `#[Shared]` record has a single **landlord-side master** that is
+fanned out as a **tenant-side read-only copy** in every tenant database. Supports
+`--tenant <slug>` (single tenant; absent means all tenants), `--dry-run` (classify drift
+without writing), and `--force` (skip the confirmation prompt for CI or non-interactive
+use). There is no `--all` flag — omitting `--tenant` already targets all tenants.
 
 ```bash
 # Dry-run: show what would be inserted/updated per tenant
