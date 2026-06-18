@@ -79,8 +79,53 @@ is never read. No Doctrine migration is needed for prefix-mode-only deployments.
 The `tenancy.filesystem.enabled` parameter defaults to `false`. Projects that don't opt in
 see zero behaviour change when upgrading from v0.3 to v0.4.
 
-> **Note:** This section will be expanded with troubleshooting tips and additional adoption
-> notes in the v0.4 docs refresh (Phase 29 / DOC-20).
+### New: Shared Entities (SHARE-01/02/03)
+
+v0.4 ships the `#[Shared]` attribute — a Doctrine entity sync model for database-per-tenant
+projects. Entities marked `#[Shared]` are maintained on the landlord EntityManager and
+automatically fanned out to every tenant database on `postFlush`.
+
+This feature is fully opt-in. Projects that do not mark any entity `#[Shared]` see zero
+behaviour change. No schema migration is required unless you adopt the feature.
+
+For full details see [Shared Entities](docs/user-guide/shared-entities.md).
+
+#### No action required
+
+Adopting shared entities is opt-in:
+
+- Mark a Doctrine entity with `#[Shared]` when you want it mirrored to all tenant databases.
+- Run `bin/console tenancy:shared:resync` after the first migration to backfill existing tenants.
+- No `TenantInterface` changes. No new config keys required (async mode is opt-in via
+  `tenancy.shared.async: true`).
+
+---
+
+### New: PHPStan Extension (DX-03)
+
+v0.4 ships three static analysis rules for PHPStan Level 9 projects. The extension is
+distributed via `phpstan/extension-installer` — zero manual config for most projects.
+
+```bash
+composer require --dev phpstan/extension-installer
+```
+
+If you already use `phpstan/phpstan-doctrine`, include `extension-doctrine.neon` **instead of**
+`extension.neon` — not in addition to it.
+
+For full details see [PHPStan Extension](docs/user-guide/phpstan-extension.md).
+
+#### No action required
+
+The extension only runs if explicitly installed. Existing projects see zero behaviour change.
+
+---
+
+### v0.4 milestone: no breaking changes
+
+All four v0.4 capabilities (filesystem bootstrapper, shared entities, `tenancy:shared:resync`
+command, PHPStan extension) are fully opt-in. `TenantInterface` is unchanged. Any project that
+implemented `TenantInterface` in v0.3 runs without modification in v0.4.
 
 ---
 
