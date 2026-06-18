@@ -88,6 +88,28 @@ if [ -n "$BUNDLES_VIOLATIONS" ]; then
     EXIT=1
 fi
 
+# D-04: fail when a docs/ file references "shared entity/entities" without BOTH
+# canonical disambiguation phrases ("landlord-side master" AND "tenant-side read-only copy").
+# Scoped to docs/ only — UPGRADE.md and CHANGELOG.md are NOT under docs/ and are exempt.
+# Per-file AND-logic requires a loop; the flat check() helper cannot do this.
+
+SHARED_ENTITY_VIOLATIONS=""
+while IFS= read -r -d $'\0' f; do
+    if grep -qiE 'shared entit(y|ies)' "$f"; then
+        if ! grep -q 'landlord-side master' "$f" || ! grep -q 'tenant-side read-only copy' "$f"; then
+            SHARED_ENTITY_VIOLATIONS="${SHARED_ENTITY_VIOLATIONS}${f}\n"
+            EXIT=1
+        fi
+    fi
+done < <(find docs/ -name '*.md' -print0)
+
+if [ -n "$SHARED_ENTITY_VIOLATIONS" ]; then
+    echo ""
+    echo "ERROR: File(s) reference 'shared entity/entities' without BOTH disambiguation phrases"
+    echo "       ('landlord-side master' AND 'tenant-side read-only copy'):"
+    printf "%b" "$SHARED_ENTITY_VIOLATIONS"
+fi
+
 if [[ $EXIT -eq 0 ]]; then
     echo "docs-lint: OK — no stale v0.1 terms in docs/ or tenancy:init command, and no bundles.php install-path regressions."
 fi
