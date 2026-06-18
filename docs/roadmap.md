@@ -17,7 +17,9 @@ Bundle is functionally complete for a v1 surface: two isolation drivers (databas
 ## Next — v0.4 Storage & shared entities
 
 - **Filesystem (Flysystem) bootstrapper** — per-tenant uploads with prefixed adapters
-- **Shared-entity replication** — sync via Doctrine events, async via Messenger; one row in the landlord, fan-out to N tenant DBs
+- **Shared-entity replication** — sync via Doctrine events, async via Messenger; each `#[Shared]`
+  record is a **landlord-side master** on the landlord EntityManager, fanned out as a
+  **tenant-side read-only copy** to every tenant database. See [Shared Entities](user-guide/shared-entities.md).
 - **PHPStan extension** for `#[TenantAware]` correctness — static check that tenant-scoped repositories aren't accidentally injected into shared services
 
 ## Planned

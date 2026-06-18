@@ -96,7 +96,7 @@ When `tenantContext` is null (i.e. `setTenantContext()` was never called), the f
 
 ### Branch 2: Not TenantAware — No Filter Applied
 
-If the entity does not have the `#[TenantAware]` attribute, the filter returns `''` — Doctrine does not append any SQL condition. Shared entities (e.g. `User`, `Permission`, `Country`) are never tenant-scoped.
+If the entity does not have the `#[TenantAware]` attribute, the filter returns `''` — Doctrine does not append any SQL condition. Shared entities (e.g. `User`, `Permission`, `Country`) are never tenant-scoped. This category includes `#[Shared]` entities — each is a landlord-side master fanned out as a tenant-side read-only copy (one per tenant database) by `SharedEntitySyncSubscriber`; see [Shared Entities](../user-guide/shared-entities.md) for the full sync model.
 
 Attribute detection uses PHP's `ReflectionClass::getAttributes()`:
 

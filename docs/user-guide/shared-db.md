@@ -174,9 +174,14 @@ class Receipt extends Document { ... }  // inherits tenant scoping
 ## Shared Entities (`#[Shared]`) Under `shared_db`
 
 The `#[Shared]` attribute and `SharedEntitySyncSubscriber` are designed for the
-**database-per-tenant** driver, where each tenant has its own EntityManager that must receive a
-copy of landlord-side "global" data. Under `shared_db`, all tenants already share the same
-database and the same default EntityManager — there is nothing to fan out to.
+**database-per-tenant** driver, where each tenant has its own EntityManager. In that model a
+record is a **landlord-side master** on the landlord EM and each tenant receives a
+**tenant-side read-only copy** fanned out by the subscriber. See [Shared Entities](shared-entities.md)
+for the full fan-out documentation.
+
+Under `shared_db`, all tenants already share the same database and the same default EntityManager —
+there is nothing to fan out to and the landlord-side master / tenant-side read-only copy split
+does not apply.
 
 `SharedEntitySyncSubscriber` detects `driver: shared_db` at runtime and short-circuits
 immediately in `postFlush()`. No `findAll()` is called, no tenant EM is looked up, and no
