@@ -202,7 +202,7 @@ tenancy:
 ?array{
     prefix?: string,          // override for prefix mode (defaults to 'tenant_{slug}/')
     adapter_dsn?: string,     // per_tenant_adapter DSN (e.g. 's3:///bucket?region=eu-central-1')
-    services?: string[],      // limit scoping to these service IDs (empty = all tagged)
+    services?: string[],      // reserved — no-op in v0.4; setting this key has no effect in the current release
 }
 ```
 
@@ -431,3 +431,5 @@ the constructor's `$inner` parameter and for the service alias. The bundle's con
   bootstrapper follows the same lifecycle shape.
 - [Profiler Tab](profiler-tab.md) — Phase 29 (DOC-20) will add a Filesystem subsection to
   the WDT panel showing the active tenant's storage strategy, prefix, and LRU cache state.
+- [Shared Entities](shared-entities.md) — the `#[Shared]` sync model: landlord-side master records fanned out as tenant-side read-only copy to each tenant database.
+- [PHPStan Extension](phpstan-extension.md) — static-analysis rules that catch tenancy + filesystem misconfiguration at edit time.
