@@ -88,15 +88,20 @@ if [ -n "$BUNDLES_VIOLATIONS" ]; then
     EXIT=1
 fi
 
-# D-04: fail when a docs/ file references "shared entity/entities" without BOTH
-# canonical disambiguation phrases ("landlord-side master" AND "tenant-side read-only copy").
+# D-04: fail when a docs/ file references the shared-entity feature — either via the
+# two-word phrase "shared entity/entities" OR via the attribute notation `#[Shared]` —
+# without BOTH canonical disambiguation phrases ("landlord-side master" AND
+# "tenant-side read-only copy"). The trigger covers attribute-only prose so a page that
+# discusses the concept exclusively as "a `#[Shared]` entity is …" is still required to
+# disambiguate. The phrase checks are case-INsensitive to match the case-insensitive
+# trigger — a heading-cased variant of either phrase must not fail the gate.
 # Scoped to docs/ only — UPGRADE.md and CHANGELOG.md are NOT under docs/ and are exempt.
 # Per-file AND-logic requires a loop; the flat check() helper cannot do this.
 
 SHARED_ENTITY_VIOLATIONS=""
 while IFS= read -r -d $'\0' f; do
-    if grep -qiE 'shared entit(y|ies)' "$f"; then
-        if ! grep -q 'landlord-side master' "$f" || ! grep -q 'tenant-side read-only copy' "$f"; then
+    if grep -qiE 'shared entit(y|ies)|#\[Shared\]' "$f"; then
+        if ! grep -qi 'landlord-side master' "$f" || ! grep -qi 'tenant-side read-only copy' "$f"; then
             SHARED_ENTITY_VIOLATIONS="${SHARED_ENTITY_VIOLATIONS}${f}\n"
             EXIT=1
         fi
