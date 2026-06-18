@@ -232,6 +232,30 @@ No additional installation is needed.
 
 ---
 
+## tenancy:shared:resync
+
+Re-synchronizes `#[Shared]` Doctrine entity records from the landlord database to every
+tenant database. Supports `--tenant <slug>` (single tenant; absent means all tenants),
+`--dry-run` (classify drift without writing), and `--force` (skip the confirmation prompt
+for CI or non-interactive use). There is no `--all` flag — omitting `--tenant` already
+targets all tenants.
+
+```bash
+# Dry-run: show what would be inserted/updated per tenant
+bin/console tenancy:shared:resync --dry-run
+
+# Live resync for a single tenant
+bin/console tenancy:shared:resync --tenant=acme
+
+# Live resync for all tenants, no confirmation prompt
+bin/console tenancy:shared:resync --force
+```
+
+See [shared-entities.md](shared-entities.md) for full options, dry-run output, confirmation
+prompt behavior, and continue-on-failure semantics.
+
+---
+
 ## See Also
 
 - [Installation](installation.md) — initial setup with tenancy:init
