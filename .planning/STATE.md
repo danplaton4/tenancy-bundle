@@ -4,13 +4,13 @@ milestone: v0.4
 milestone_name: milestone
 status: executing
 stopped_at: Phase 29 context gathered
-last_updated: "2026-06-18T12:18:15.537Z"
-last_activity: 2026-06-18 -- Phase 29 planning complete
+last_updated: "2026-06-18T12:49:19.349Z"
+last_activity: 2026-06-18
 progress:
   total_phases: 28
   completed_phases: 27
   total_plans: 133
-  completed_plans: 130
+  completed_plans: 131
   percent: 96
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 29 — Docs Refresh (next)
+**Current focus:** Phase 29 — docs-refresh
 
 ## Current Position
 
-Phase: 28 (phpstan-extension) — COMPLETE (verified 9/9 automated; 1 manual extension-installer UAT tracked in 28-HUMAN-UAT.md)
-Plan: 7 of 7 complete
+Phase: 29 (docs-refresh) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-18 -- Phase 29 planning complete
+Last activity: 2026-06-18
 
 Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
 
@@ -265,6 +265,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-18T11:34:45.045Z
+Last session: 2026-06-18T12:49:19.332Z
 Stopped at: Phase 29 context gathered
-Resume file: .planning/phases/29-docs-refresh/29-CONTEXT.md
+Resume file: None

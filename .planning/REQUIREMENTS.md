@@ -50,7 +50,7 @@ For prior-milestone (v0.3) requirements, see `.planning/milestones/v0.3-REQUIREM
 
 ### Documentation
 
-- [ ] **DOC-20**: Documentation reflects everything v0.4 ships. New pages for Filesystem bootstrapper, Shared Entities sync model, PHPStan extension setup; UPGRADE.md 0.3 → 0.4 explains any BC breaks; `docs-lint.sh` extended with shared-entity-related anti-pattern checks.
+- [x] **DOC-20**: Documentation reflects everything v0.4 ships. New pages for Filesystem bootstrapper, Shared Entities sync model, PHPStan extension setup; UPGRADE.md 0.3 → 0.4 explains any BC breaks; `docs-lint.sh` extended with shared-entity-related anti-pattern checks.
   - Acceptance: new `user-guide/filesystem-bootstrapper.md` page — covers prefix vs per-tenant-adapter modes, configuration, MissingFilesystemConfigException
   - Acceptance: new `user-guide/shared-entities.md` page — covers `#[Shared]` attribute, sync model (sync vs async), `tenancy:shared:resync` command, cascade-depth landmine, write-protection invariant
   - Acceptance: new `user-guide/phpstan-extension.md` page — covers installation, `phpstan.neon` snippet, each rule's purpose + example violation/fix
@@ -96,7 +96,7 @@ Filled by roadmap step. Each requirement maps to exactly one phase.
 | SHARE-02 | Phase 26 — `tenancy:shared:resync` command | Complete |
 | SHARE-03 | Phase 27 — Async Shared Entities | Complete |
 | DX-03 | Phase 28 — PHPStan Extension | Complete |
-| DOC-20 | Phase 29 — Docs Refresh | Pending |
+| DOC-20 | Phase 29 — Docs Refresh | Complete |
 
 **Coverage:**
 
