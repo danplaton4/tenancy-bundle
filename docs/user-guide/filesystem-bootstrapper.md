@@ -301,8 +301,13 @@ $filesystem->writeStream($filename, $stream);
 ```php
 // Verify the resolved path stays within the tenant's own storage root.
 // realpath() returns false for non-existent paths — check before using.
+// Compare with a trailing separator on BOTH sides so a sibling directory whose
+// name merely *starts with* the root (e.g. /srv/storage-evil for /srv/storage)
+// cannot pass a naive str_starts_with($resolved, $realRoot) prefix check.
+$realRoot = realpath($root);
 $resolved = realpath($root . '/' . $userPath);
-if (false === $resolved || !str_starts_with($resolved, realpath($root))) {
+if (false === $realRoot || false === $resolved
+    || !str_starts_with($resolved . \DIRECTORY_SEPARATOR, $realRoot . \DIRECTORY_SEPARATOR)) {
     throw new \InvalidArgumentException('Path traversal detected.');
 }
 ```
