@@ -1,6 +1,6 @@
 # Upgrade Guide
 
-## 0.3 → 0.4
+## 0.3 to 0.4
 
 ### Breaking changes
 
