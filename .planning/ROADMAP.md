@@ -16,3 +16,14 @@
     - [x] 29-01-PLAN.md — Wave 1: author NEW `shared-entities.md` (D-02/D-07, both canonical phrases) + NEW `phpstan-extension.md` (D-03, 3 rule IDs + install paths) + reconcile the 3 existing shared-entity-mentioning docs (`shared-db.md`, `sql-filter.md`, `roadmap.md`) to carry both canonical phrases + register both new pages in `mkdocs.yml` nav (D-06)
     - [x] 29-02-PLAN.md — Wave 1: `filesystem-bootstrapper.md` `services?` no-op drift fix + cross-links to both new pages (D-01, file also gains both canonical phrases via its See-also link) + `cli-commands.md` `tenancy:shared:resync` stub/cross-link + expand UPGRADE.md `0.3 → 0.4` with shared-entities + PHPStan subsections, remove the Phase-29 placeholder, add no-breaking-changes statement (D-05)
     - [x] 29-03-PLAN.md — Wave 2 (depends 29-01, 29-02): wire the D-04 per-file shared-entity disambiguation check into `scripts/docs-lint.sh` (find-loop idiom, docs/-only scoping, UPGRADE/CHANGELOG exempt) + full-tree validation (`bash scripts/docs-lint.sh` exits 0, `mkdocs build --strict` green or CI-deferred)
+
+### Phase 30: v0.4 pre-tag closure: integration warnings + roadmap drift
+
+**Goal:** Close the non-blocking tech debt surfaced by the v0.4 milestone audit (`v0.4-MILESTONE-AUDIT.md`, status `tech_debt`) before tagging v0.4. Scope: (W-01) extract/use `SharedEntityCopierInterface` in `SharedEntitySyncSubscriber` + `SharedEntityWriteProtectionListener` so a mock copier can be injected (they currently type-hint the `final SharedEntityCopier`); (W-02) de-duplicate the verbatim `switchToTenant()`/`restoreTenantContext()` logic shared between `SharedEntityChangedMessageHandler` and `SharedEntitySyncSubscriber` into one source of truth; (W-03) reconcile or explicitly document the asymmetric tenant-switch mechanisms between `tenancy:shared:resync` (`setTenant()`+`bootstrapperChain->boot()`) and the subscriber/handler (`close()`+`resetManager()`); (WR-06/WR-07) fix `docs/roadmap.md` drift — it frames shipped v0.4 features as "Next/not started" and mischaracterizes the PHPStan extension's three rules. Keep the full suite + PHPStan L9 + cs-fixer + docs-lint green.
+**Requirements**: Tech-debt closure — no new REQ-IDs. Source: `v0.4-MILESTONE-AUDIT.md` (W-01/W-02/W-03 integration warnings + WR-06/WR-07 docs drift). Optionally fold in the Phase 29 deferred WR-03 (docs-lint D-15 cross-file awk bug) if cheap.
+**Depends on:** Phase 29
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd:plan-phase 30 to break down)

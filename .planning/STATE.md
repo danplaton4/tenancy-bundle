@@ -130,6 +130,7 @@ Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 pa
 - Phase 12 added: Developer Onboarding — tenancy:init scaffolding command
 - Phase 14 added: Documentation refresh — update docs for phase 12-13 changes (tenancy:init command, resolver config filtering, EM targeting behavior)
 - Phase 23 added (2026-05-29): v0.3 tech-debt closure — audit-driven; closes INT-01 Twig contract drift, CR-01/WR-01 Phase 18 advisory findings, IN-01..IN-05 ZeroConfigKernelBootTest cosmetics, smoke.sh mailer assertion, CHANGELOG Unreleased→0.3.2/0.3.3 promotion. Gate before tagging v0.3.3.
+- Phase 30 added (2026-06-18): v0.4 pre-tag closure — audit-driven (v0.4-MILESTONE-AUDIT.md, status tech_debt); closes integration warnings W-01 (subscriber type-hints final SharedEntityCopier, blocks mocking), W-02 (handler duplicates switchToTenant verbatim), W-03 (resync vs subscriber asymmetric tenant-switch) + roadmap.md drift WR-06/WR-07. Gate before tagging v0.4.
 
 ### Decisions
 
