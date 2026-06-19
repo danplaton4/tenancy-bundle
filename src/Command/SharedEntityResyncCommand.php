@@ -229,6 +229,19 @@ final class SharedEntityResyncCommand extends Command
      * Called inside the continue-on-failure try block — throws on any error
      * so the caller's catch records the failure.
      *
+     * ## Full bootstrapper-chain path (intentional — contrast with TenantEmSwitcher)
+     *
+     * This method uses setTenant() + bootstrapperChain->boot() (the full boot path),
+     * which fires TenantBootstrapped and every registered bootstrapper. This is correct
+     * for CLI backfill: the resync command is a heavyweight one-off that should apply
+     * all tenant configuration exactly as a real request would.
+     *
+     * SharedEntitySyncSubscriber and SharedEntityChangedMessageHandler use the lightweight
+     * TenantEmSwitcher (setTenant + DBAL close + resetManager) instead — firing all
+     * bootstrappers on every per-change / per-message event would cause perf and side-effects.
+     *
+     * @see TenantEmSwitcher — the lightweight per-change path
+     *
      * @param array<class-string, list<object>> $landlordRowsByClass
      */
     private function resyncForTenant(TenantInterface $tenant, array $landlordRowsByClass): void

@@ -17,6 +17,7 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Message\SharedEntityChangedMessage;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Shared\SharedEntityCopier;
+use Tenancy\Bundle\Shared\TenantEmSwitcher;
 use Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber;
 use Tenancy\Bundle\TenantInterface;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlan;
@@ -60,6 +61,7 @@ final class SharedEntitySyncSubscriberAsyncTest extends TestCase
         /** @var ManagerRegistry&MockObject $registry */
         $registry = $this->createMock(ManagerRegistry::class);
         $copier = new SharedEntityCopier(new NullLogger());
+        $switcher = new TenantEmSwitcher($tenantContext, $registry);
 
         return new SharedEntitySyncSubscriber(
             $tenantContext,
@@ -68,6 +70,7 @@ final class SharedEntitySyncSubscriberAsyncTest extends TestCase
             new NullLogger(),
             'database_per_tenant',
             $copier,
+            $switcher,
             $bus,
         );
     }

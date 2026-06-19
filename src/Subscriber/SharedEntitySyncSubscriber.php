@@ -15,7 +15,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Message\SharedEntityChangedMessage;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
-use Tenancy\Bundle\Shared\SharedEntityCopier;
+use Tenancy\Bundle\Shared\SharedEntityCopierInterface;
+use Tenancy\Bundle\Shared\TenantEmSwitcherInterface;
 use Tenancy\Bundle\TenantInterface;
 
 /**
@@ -94,7 +95,8 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
         private readonly ManagerRegistry $registry,
         private readonly LoggerInterface $logger,
         private readonly string $driver,
-        private readonly SharedEntityCopier $copier,
+        private readonly SharedEntityCopierInterface $copier,
+        private readonly TenantEmSwitcherInterface $switcher,
         private readonly ?MessageBusInterface $bus = null,
     ) {
     }
@@ -221,7 +223,7 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
 
         try {
             foreach ($tenants as $tenant) {
-                $tenantEm = $this->switchToTenant($tenant);
+                $tenantEm = $this->switcher->switchTo($tenant);
 
                 foreach ($changes as $change) {
                     // applyChange returns the EM to use for the NEXT change: a failed flush
@@ -232,34 +234,8 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
                 }
             }
         } finally {
-            $this->restoreTenantContext($previousTenant);
+            $this->switcher->restore($previousTenant);
         }
-    }
-
-    /**
-     * Switch TenantContext to $tenant and return a fresh tenant EM bound to that tenant's DB.
-     *
-     * WR-04: called ONCE per tenant (not once per changed entity). Resetting the tenant EM once
-     * per tenant keeps the identity map warm across all of that tenant's changes, so a later
-     * shared entity in the same flush can resolve an earlier-synced one.
-     */
-    private function switchToTenant(TenantInterface $tenant): EntityManagerInterface
-    {
-        $this->tenantContext->setTenant($tenant);
-
-        // Force the tenant DBAL connection to reconnect via TenantAwareDriver::connect()
-        // so it picks up the new tenant's connection params. Without close(), the
-        // previously-open socket stays connected to the prior tenant's DB (DBAL only
-        // calls connect() when the internal connection handle is null).
-        $tenantConn = $this->registry->getConnection('tenant');
-        if ($tenantConn instanceof \Doctrine\DBAL\Connection) {
-            $tenantConn->close();
-        }
-
-        /** @var EntityManagerInterface $tenantEm */
-        $tenantEm = $this->registry->resetManager('tenant');
-
-        return $tenantEm;
     }
 
     /**
@@ -270,7 +246,7 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
      * is owned per-flush by SharedEntityCopier::applyRow(), not here.
      *
      * The pre-fan-out TenantContext is NOT restored here — that is owned centrally by
-     * postFlush()/restoreTenantContext() so the original request-scoped tenant survives the
+     * postFlush()/switcher->restore() so the original request-scoped tenant survives the
      * whole loop (CR-01).
      *
      * @param array{entity: object, type: 'insert'|'update'|'delete', ids?: array<string, mixed>} $change
@@ -314,31 +290,5 @@ final class SharedEntitySyncSubscriber implements EventSubscriber
 
             return $freshEm;
         }
-    }
-
-    /**
-     * Restore the tenant context that was active before the fan-out and drop the tenant
-     * connection handle so the next query reconnects under the restored context.
-     *
-     * CR-01: re-instates the request-scoped tenant (or clears if none was active) instead of
-     * leaving the context wiped after the loop.
-     * CR-02: the fan-out leaves the tenant DBAL connection open against the LAST tenant's DB
-     * (close() only runs before each switch, never after the final one). Closing it here forces
-     * TenantAwareDriver::connect() to re-resolve against the restored context on next use,
-     * preventing later queries in the same request from silently hitting the wrong tenant's DB.
-     */
-    private function restoreTenantContext(?TenantInterface $previousTenant): void
-    {
-        if (null !== $previousTenant) {
-            $this->tenantContext->setTenant($previousTenant);
-        } else {
-            $this->tenantContext->clear();
-        }
-
-        $tenantConn = $this->registry->getConnection('tenant');
-        if ($tenantConn instanceof \Doctrine\DBAL\Connection) {
-            $tenantConn->close();
-        }
-        $this->registry->resetManager('tenant');
     }
 }

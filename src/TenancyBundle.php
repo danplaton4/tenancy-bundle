@@ -37,6 +37,8 @@ use Tenancy\Bundle\MessageHandler\SharedEntityChangedMessageHandler;
 use Tenancy\Bundle\Resolver\OriginHeaderResolver;
 use Tenancy\Bundle\Resolver\TenantResolverInterface;
 use Tenancy\Bundle\Shared\SharedEntityCopier;
+use Tenancy\Bundle\Shared\TenantEmSwitcher;
+use Tenancy\Bundle\Shared\TenantEmSwitcherInterface;
 use Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber;
 use Tenancy\Bundle\Subscriber\SharedEntityWriteProtectionListener;
 
@@ -291,6 +293,14 @@ class TenancyBundle extends AbstractBundle
                         service('logger'),
                     ]);
 
+                // EM switcher — single source of truth for per-change/per-message tenant switching (W-02).
+                $services->set('tenancy.shared.em_switcher', TenantEmSwitcher::class)
+                    ->args([
+                        service('tenancy.context'),
+                        service('doctrine'),
+                    ]);
+                $services->alias(TenantEmSwitcherInterface::class, 'tenancy.shared.em_switcher');
+
                 $services->set('tenancy.shared_entity_sync_subscriber', SharedEntitySyncSubscriber::class)
                     ->args([
                         service('tenancy.context'),
@@ -299,6 +309,7 @@ class TenancyBundle extends AbstractBundle
                         service('logger'),
                         param('tenancy.driver'),
                         service('tenancy.shared_entity_copier'),
+                        service('tenancy.shared.em_switcher'),
                     ])
                     ->tag('doctrine.event_listener', ['event' => 'onFlush', 'connection' => 'landlord'])
                     ->tag('doctrine.event_listener', ['event' => 'postFlush', 'connection' => 'landlord']);
@@ -347,6 +358,7 @@ class TenancyBundle extends AbstractBundle
                             service('tenancy.context'),
                             service('doctrine'),
                             service('logger'),
+                            service('tenancy.shared.em_switcher'),
                         ])
                         ->tag('messenger.message_handler', ['handles' => SharedEntityChangedMessage::class]);
                 }

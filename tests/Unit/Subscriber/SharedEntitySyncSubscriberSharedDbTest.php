@@ -15,6 +15,7 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Shared\SharedEntityCopier;
+use Tenancy\Bundle\Shared\TenantEmSwitcher;
 use Tenancy\Bundle\Subscriber\SharedEntitySyncSubscriber;
 use Tenancy\Bundle\TenantInterface;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlan;
@@ -73,6 +74,7 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
         $registry->expects($this->never())->method('getManager');
 
         $copier = new SharedEntityCopier(new NullLogger());
+        $switcher = new TenantEmSwitcher($tenantContext, $registry);
 
         $subscriber = new SharedEntitySyncSubscriber(
             $tenantContext,
@@ -81,6 +83,7 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
             new NullLogger(),
             'shared_db',
             $copier,
+            $switcher,
         );
 
         // Build a fake onFlush event that returns one #[Shared] entity insertion
@@ -145,6 +148,7 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
         $registry->expects($this->never())->method('resetManager');
 
         $copier = new SharedEntityCopier(new NullLogger());
+        $switcher = new TenantEmSwitcher($tenantContext, $registry);
 
         $subscriber = new SharedEntitySyncSubscriber(
             $tenantContext,
@@ -153,6 +157,7 @@ final class SharedEntitySyncSubscriberSharedDbTest extends TestCase
             new NullLogger(),
             'shared_db',
             $copier,
+            $switcher,
         );
 
         $uow = $this->createMock(UnitOfWork::class);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tenancy\Bundle\MessageHandler;
 
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
@@ -14,7 +13,7 @@ use Tenancy\Bundle\Exception\SharedEntityAsyncFanOutException;
 use Tenancy\Bundle\Message\SharedEntityChangedMessage;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Shared\SharedEntityCopierInterface;
-use Tenancy\Bundle\TenantInterface;
+use Tenancy\Bundle\Shared\TenantEmSwitcherInterface;
 
 /**
  * Async handler for SharedEntityChangedMessage — per-tenant convergence on the worker thread.
@@ -39,15 +38,13 @@ use Tenancy\Bundle\TenantInterface;
  * (RESEARCH Pattern 1 / Pitfall 4 — FrameworkExtension processes #[AsMessageHandler] only
  * for autoconfigured services, which bundle services are not.)
  *
- * ## switchToTenant() + restoreTenantContext() source-of-truth note
+ * ## Tenant switching (W-02 de-dup)
  *
- * These two private methods are duplicated verbatim from SharedEntitySyncSubscriber (OQ-2
- * resolution: duplicate ~30 lines rather than extracting a shared service to keep Plan 27-02
- * file-scoped and avoid touching the subscriber's proven CR-01/CR-02 internals). If the
- * subscriber's tenant-switch logic changes, update this class in sync.
+ * Tenant context switching is delegated to the injected TenantEmSwitcherInterface.
+ * The duplicated switchToTenant()/restoreTenantContext() private methods from Plan 27-02
+ * have been extracted into TenantEmSwitcher (single source of truth).
  *
- * @see SharedEntitySyncSubscriber::switchToTenant()
- * @see SharedEntitySyncSubscriber::restoreTenantContext()
+ * @see TenantEmSwitcher
  */
 final class SharedEntityChangedMessageHandler
 {
@@ -58,6 +55,7 @@ final class SharedEntityChangedMessageHandler
         private readonly TenantContext $tenantContext,
         private readonly ManagerRegistry $registry,
         private readonly LoggerInterface $logger,
+        private readonly TenantEmSwitcherInterface $switcher,
     ) {
     }
 
@@ -122,7 +120,7 @@ final class SharedEntityChangedMessageHandler
 
         try {
             foreach ($tenants as $tenant) {
-                $tenantEm = $this->switchToTenant($tenant);
+                $tenantEm = $this->switcher->switchTo($tenant);
                 try {
                     if ('delete' === $effectiveType) {
                         // OQ-1 resolution: deleteRow() accepts class + capturedIds without
@@ -149,7 +147,7 @@ final class SharedEntityChangedMessageHandler
             }
         } finally {
             // CR-01/CR-02: always restore tenant context (and close connection) after the loop.
-            $this->restoreTenantContext($previousTenant);
+            $this->switcher->restore($previousTenant);
         }
 
         // ---- Throw to retry (D-02) ----
@@ -158,51 +156,5 @@ final class SharedEntityChangedMessageHandler
         if ([] !== $failures) {
             throw new SharedEntityAsyncFanOutException(sprintf('Async shared entity fan-out failed for %d tenant(s): %s. Message will be retried per transport retry_strategy.', \count($failures), implode(', ', $failures)));
         }
-    }
-
-    /**
-     * Switch TenantContext to $tenant and return a fresh tenant EM bound to that tenant's DB.
-     *
-     * SOURCE-OF-TRUTH TWIN: duplicated verbatim from SharedEntitySyncSubscriber::switchToTenant()
-     * (OQ-2 resolution — see class docblock). Keep in sync with the subscriber.
-     */
-    private function switchToTenant(TenantInterface $tenant): EntityManagerInterface
-    {
-        $this->tenantContext->setTenant($tenant);
-
-        // Force the tenant DBAL connection to reconnect via TenantAwareDriver::connect()
-        // so it picks up the new tenant's connection params. Without close(), the
-        // previously-open socket stays connected to the prior tenant's DB.
-        $tenantConn = $this->registry->getConnection('tenant');
-        if ($tenantConn instanceof Connection) {
-            $tenantConn->close();
-        }
-
-        /** @var EntityManagerInterface $tenantEm */
-        $tenantEm = $this->registry->resetManager('tenant');
-
-        return $tenantEm;
-    }
-
-    /**
-     * Restore the tenant context that was active before the fan-out and drop the tenant
-     * connection handle so the next query reconnects under the restored context.
-     *
-     * SOURCE-OF-TRUTH TWIN: duplicated verbatim from SharedEntitySyncSubscriber::restoreTenantContext()
-     * (OQ-2 resolution — see class docblock). Keep in sync with the subscriber.
-     */
-    private function restoreTenantContext(?TenantInterface $previousTenant): void
-    {
-        if (null !== $previousTenant) {
-            $this->tenantContext->setTenant($previousTenant);
-        } else {
-            $this->tenantContext->clear();
-        }
-
-        $tenantConn = $this->registry->getConnection('tenant');
-        if ($tenantConn instanceof Connection) {
-            $tenantConn->close();
-        }
-        $this->registry->resetManager('tenant');
     }
 }

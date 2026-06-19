@@ -10,7 +10,7 @@ use Doctrine\ORM\Events;
 use Tenancy\Bundle\Attribute\Shared;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Exception\SharedEntityWriteInTenantContextException;
-use Tenancy\Bundle\Shared\SharedEntityCopier;
+use Tenancy\Bundle\Shared\SharedEntityCopierInterface;
 
 /**
  * Tenant-EM Doctrine event listener that enforces full read-only access to #[Shared]
@@ -41,7 +41,7 @@ final class SharedEntityWriteProtectionListener implements EventSubscriber
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
-        private readonly SharedEntityCopier $copier,
+        private readonly SharedEntityCopierInterface $copier,
     ) {
     }
 
