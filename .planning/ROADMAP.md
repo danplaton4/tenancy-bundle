@@ -22,7 +22,7 @@
 **Goal:** Close the non-blocking tech debt surfaced by the v0.4 milestone audit (`v0.4-MILESTONE-AUDIT.md`, status `tech_debt`) before tagging v0.4. Scope: (W-01) extract/use `SharedEntityCopierInterface` in `SharedEntitySyncSubscriber` + `SharedEntityWriteProtectionListener` so a mock copier can be injected (they currently type-hint the `final SharedEntityCopier`); (W-02) de-duplicate the verbatim `switchToTenant()`/`restoreTenantContext()` logic shared between `SharedEntityChangedMessageHandler` and `SharedEntitySyncSubscriber` into one source of truth; (W-03) reconcile or explicitly document the asymmetric tenant-switch mechanisms between `tenancy:shared:resync` (`setTenant()`+`bootstrapperChain->boot()`) and the subscriber/handler (`close()`+`resetManager()`); (WR-06/WR-07) fix `docs/roadmap.md` drift — it frames shipped v0.4 features as "Next/not started" and mischaracterizes the PHPStan extension's three rules. Keep the full suite + PHPStan L9 + cs-fixer + docs-lint green.
 **Requirements**: Tech-debt closure — no new REQ-IDs. Source: `v0.4-MILESTONE-AUDIT.md` (W-01/W-02/W-03 integration warnings + WR-06/WR-07 docs drift). WR-03 (docs-lint D-15 cross-file awk bug) folded in (D-10).
 **Depends on:** Phase 29
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 
