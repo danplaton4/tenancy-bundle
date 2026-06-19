@@ -71,6 +71,7 @@ check 'sqlite://' "Found 'sqlite://' URL form (use discrete driver:/path: params
 # after the section detection ensures this).
 
 BUNDLES_VIOLATIONS=$(awk '
+    FNR==1 { in_whitelist=0 }
     /^## / {
         section = $0
         sub(/^## /, "", section)
