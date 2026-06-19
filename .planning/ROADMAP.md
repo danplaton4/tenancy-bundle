@@ -27,4 +27,4 @@
 Plans:
 
 - [x] 30-01-PLAN.md — Wave 1: code refactor — extract `TenantEmSwitcherInterface` + `final TenantEmSwitcher` (W-02), swap two copier type-hints to `SharedEntityCopierInterface` (W-01), inject the switcher into subscriber + handler + DI wiring, document the intentional asymmetry on `TenantEmSwitcher` + `SharedEntityResyncCommand` (W-03), add the mock-copier seam test (D-07), keep PHPUnit/PHPStan L9/cs-fixer green
-- [ ] 30-02-PLAN.md — Wave 1 (parallel): docs/tooling — reconcile `docs/roadmap.md` to shipped reality (v0.4 under Shipped, correct 3 rule IDs, drop stale v0.3/Phase-22 framing, no-tag-number framing, Next=v0.5) (WR-06/WR-07) + fold in the `FNR==1` awk state-reset in `scripts/docs-lint.sh` (WR-03), keep docs-lint green
+- [x] 30-02-PLAN.md — Wave 1 (parallel): docs/tooling — reconcile `docs/roadmap.md` to shipped reality (v0.4 under Shipped, correct 3 rule IDs, drop stale v0.3/Phase-22 framing, no-tag-number framing, Next=v0.5) (WR-06/WR-07) + fold in the `FNR==1` awk state-reset in `scripts/docs-lint.sh` (WR-03), keep docs-lint green
