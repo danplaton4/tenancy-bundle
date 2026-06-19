@@ -2,12 +2,25 @@
 
 ## Current State
 
-**Shipped:** v0.3.3 (2026-05-29) — Packagist-published at `danplaton4/tenancy-bundle`. 7 v0.3 phases (16 skipped, 17–23), 53 plans, 568 PHPUnit tests / 2122 assertions, PHPStan level 9 clean, php-cs-fixer @Symfony clean, docs-lint clean, composer validates. v0.3 closed the install-funnel gap (one-command `tenancy:install`), shipped per-tenant Mailer + Profiler tab + OriginHeaderResolver, gated by a runnable demo (`examples/saas/`) under FrankenPHP + Caddy + MariaDB.
+**Shipped:** v0.4.0 (2026-06-19) — Packagist-published at `danplaton4/tenancy-bundle`. 7 v0.4 phases (24–30), 34 plans, 770 PHPUnit tests / 3242 assertions, PHPStan level 9 clean, php-cs-fixer @Symfony clean, docs-lint clean, composer validates. v0.4 closed the storage and data-sharing gaps that block real SaaS use cases: a per-tenant Filesystem (Flysystem) bootstrapper, the `#[Shared]` landlord→tenant sync model (sync + async via Messenger) with `tenancy:shared:resync`, a consumer-facing PHPStan extension (3 rules) catching attribute misuse at static-analysis time, and a full docs refresh. The milestone audit returned `tech_debt` (6/6 requirements satisfied, 0 blockers); the audit-driven **Phase 30 pre-tag closure** landed every code-closeable item (single `TenantEmSwitcher`, `SharedEntityCopierInterface` seam, docs reconciliation).
 
-**Up next:** All v0.4 Storage & Shared Entities phases (24–29) complete as of 2026-06-18, plus the audit-driven **Phase 30 pre-tag closure** complete 2026-06-19 (W-01/W-02/W-03 integration warnings + WR-06/WR-07 docs drift + WR-03 docs-lint awk fix). The v0.4 milestone is fully executed and verified — ready for `/gsd:audit-milestone` then `/gsd:complete-milestone`. See [Next Milestone Goals](#next-milestone-goals--v04-storage--shared-entities) below.
+**Up next:** **v0.5 Operations & Scale** — production-readiness (tenant-level maintenance mode, health checks, parallel migrations). Start with `/gsd:new-milestone`. See [Next Milestone Goals](#next-milestone-goals--v05-operations--scale) below.
 
 <details>
-<summary>Prior milestone — v0.3 Adoption Surface (shipped 2026-05-29)</summary>
+<summary>Prior milestone — v0.4 Storage & Shared Entities (shipped 2026-06-19, tag v0.4.0)</summary>
+
+**Goal:** Make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closed the storage + data-sharing gaps.
+
+**Delivered (all 6 requirements):** BOOT-03 per-tenant Filesystem bootstrapper (prefix + per-tenant-adapter modes); SHARE-01 `#[Shared]` sync model (landlord-side master → tenant-side read-only copy, compile-time mutual exclusion, write protection, one-level cascade); SHARE-02 `tenancy:shared:resync` (idempotent, continue-on-failure, `--dry-run`); SHARE-03 async fan-out via Messenger (opt-in, scalar message, re-fetch-at-handle); DX-03 PHPStan extension (`tenancy.mutualExclusion`/`tenancy.sharedEntityLeak`/`tenancy.tenantIdDrift`, extension-installer auto-load); DOC-20 docs refresh. Plus audit-driven Phase 30 pre-tag closure (W-01/W-02/W-03 + WR-06/WR-07 + WR-03).
+
+**Known deferred (non-blocking):** 2 manual-UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load), 5 Nyquist VALIDATION.md discovery flags, Phase 27 advisory code-review notes, `mkdocs build --strict` CI-deferred.
+
+Full milestone history: `.planning/milestones/v0.4-ROADMAP.md` + `.planning/MILESTONES.md`.
+
+</details>
+
+<details>
+<summary>Prior milestone — v0.3 Adoption Surface (shipped 2026-05-29, tag v0.3.3)</summary>
 
 **Goal:** Lower install friction and ship the highest-leverage missing features. v0.2 shipped to two self-installs / zero external dependents; v0.3 attacked the install funnel.
 
@@ -25,22 +38,21 @@ Full milestone history: `.planning/milestones/v0.3-ROADMAP.md` + `.planning/MILE
 
 </details>
 
-## Next Milestone Goals — v0.4 Storage & Shared Entities
+## Next Milestone Goals — v0.5 Operations & Scale
 
-**Theme:** Make a real SaaS work end-to-end. v0.3 closed the install funnel; v0.4 closes the storage and data-sharing gaps that block real SaaS use cases.
+**Theme:** Production-readiness. v0.4 made a real SaaS work end-to-end; v0.5 makes it operable at scale.
 
 **Candidate requirements (to be refined in `/gsd:new-milestone`):**
-- **BOOT-03:** Filesystem (Flysystem) bootstrapper for per-tenant uploads
-- **SHARE-01/02:** Shared entity sync mode via Doctrine events (landlord-side master record, tenant-side denormalized copy)
-- **SHARE-03:** Async shared entities via Messenger fan-out
-- **DX-03:** PHPStan extension for `#[TenantAware]` correctness (pairs naturally with SHARE-* work where attribute misuse risk increases)
-- Docs refresh: sharing model, filesystem guide, PHPStan rules
+- **OPS-01:** Tenant-level maintenance mode
+- **OPS-02:** Health check / MonitorBundle integration
+- **ISOL-07:** Parallel `tenancy:migrate` via `symfony/process` (sequential since Phase 07; parallelize now)
+- Docs: new ops section — deploy guide, runbook patterns
 
 **Retrospective carry-forward (to consider during planning):**
-- 72-hour TTL on `human_needed` VERIFICATION status
-- Plan↔summary parity check (Phase 16 GOV-01 was skipped in v0.3 as non-functional; consider whether v0.4 work justifies it)
-- Closure-phase CONTEXT.md should `git log --since=<audit-date>` over canonical_refs files before generating decisions (lesson from Phase 23 stale-audit findings on CR-01 and IN-05)
-- `examples/saas/composer.lock` vs `Dockerfile` PHP version drift — refresh early (tech debt carried from v0.3)
+- `examples/saas/composer.lock` vs `Dockerfile` PHP-version drift — still unresolved (carried from v0.3 → v0.4); refresh early in v0.5
+- Per-phase Nyquist VALIDATION.md coverage was partial across v0.4 (phases 24/26/28/29/30 missing/non-compliant) — decide whether v0.5 enforces it or keeps it discovery-only
+- Two `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load) carried open at v0.4 close — exercise in a real consumer project or convert to code-level testability seams
+- Closure-phase CONTEXT.md should `git log --since=<audit-date>` over canonical_refs files before generating decisions (lesson from Phase 23; reaffirmed Phase 30)
 
 **Start with:** `/gsd:new-milestone`.
 
@@ -134,7 +146,16 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 ### Active
 
-*(No active requirements — v0.3 scope fully shipped. v0.4 scope below pending `/gsd:new-milestone`.)*
+*(No active requirements — v0.4 scope fully shipped. v0.5 Operations & Scale scope pending `/gsd:new-milestone`.)*
+
+### Validated — v0.4 Storage & Shared Entities (Shipped 2026-06-19, tag v0.4.0)
+
+- ✓ **BOOT-03** Per-tenant Filesystem (Flysystem) bootstrapper — `prefix` mode (default, `tenant_<slug>/` via `PathPrefixer`, live-read `TenantContext`) + `per_tenant_adapter` mode (DSN-parsed, LRU-cached); `FilesystemBootstrapper` priority −30, `FilesystemContractPass` 3-guard compile-time check, `TenantFilesystemConfigTrait` (zero BC break), `MissingFilesystemConfigException`, credential-redacted exceptions. Proven against a real kernel with `league/flysystem-bundle`. — v0.4 (Phase 24)
+- ✓ **SHARE-01** Shared-entity sync model — `#[Shared]` marker → landlord-side master fans out a tenant-side read-only copy via `SharedEntitySyncSubscriber` (onFlush buffer + postFlush fan-out); tenant-side write protection (`SharedEntityWriteInTenantContextException`), compile-time `#[Shared]` ⊕ `#[TenantAware]` mutual exclusion, one-level cascade limit (documented landmine). UAT 8/8. — v0.4 (Phase 25)
+- ✓ **SHARE-02** `tenancy:shared:resync` command — idempotent bulk/initial sync, two-pass classify→confirm→apply, `--tenant=<slug>|--all`, `--dry-run`, continue-on-failure with per-tenant summary; `SharedEntityCopier` as the single write path (cross-DB key equality). — v0.4 (Phase 26)
+- ✓ **SHARE-03** Async shared-entity fan-out via Messenger — opt-in `tenancy.shared.async: true`, scalar `SharedEntityChangedMessage` (class + identifier + change-type), worker re-fetches latest landlord state, best-effort attempt-all → throw-to-retry; `SharedAsyncContractPass` compile-time guard, `SharedEntityAsyncCanaryTest` `sync://` round-trip proof. — v0.4 (Phase 27)
+- ✓ **DX-03** PHPStan extension — three rules (`tenancy.mutualExclusion` hierarchy-aware, `tenancy.sharedEntityLeak` gated/conservative, `tenancy.tenantIdDrift` missing/nullable/non-string); soft-integrates `phpstan/phpstan-doctrine` `ObjectMetadataResolver`, degrades to `#[ORM\Column]` reflection; `phpstan/extension-installer` auto-load; no-doctrine CI lane proves optional-dep guards; bundle's own L9 self-analysis stays green and separate. — v0.4 (Phase 28)
+- ✓ **DOC-20** Docs refresh — NEW `shared-entities.md` (locked D-07 vocabulary "landlord-side master" + "tenant-side read-only copy") + `phpstan-extension.md` (3 rule IDs) + `filesystem-bootstrapper.md` drift fix, UPGRADE 0.3→0.4 with no-breaking-changes statement, `docs-lint.sh` per-file shared-entity disambiguation check, both pages in `mkdocs.yml`. — v0.4 (Phase 29)
 
 ### Validated — v0.3 Adoption Surface (Shipped 2026-05-29, tag v0.3.3)
 
@@ -146,15 +167,7 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 - ✓ **DOC-19** Docs refresh — new pages for OriginHeaderResolver / Profiler tab / Mailer Bootstrapper, thin saas-demo walkthrough, canonical roadmap mirrored to docs site, UPGRADE 0.2→0.3 + 0.3.1→0.3.2 + 0.3.2→0.3.3 sections, `scripts/docs-lint.sh` extended with bundles.php install-path regression guard. — v0.3 (Phase 22)
 - ⊘ **GOV-01** Plan↔summary parity check + 72-hour TTL on `human_needed` — SKIPPED as non-functional governance gate (bundle-user value zero). Retrospective items #1 and #2 acknowledged as known gaps; humans surface via RETROSPECTIVE.md. May revisit as part of v0.4 retro carry-forward.
 
-### Later Milestones (planned, scope subject to v0.3 telemetry)
-
-**v0.4 — Storage & Shared Entities** *(make a real SaaS work)*
-- **BOOT-03** Filesystem (Flysystem) bootstrapper — per-tenant uploads
-- **SHARE-01/02** Shared entity sync mode via Doctrine events
-- **SHARE-03** Async shared entities via Messenger fan-out
-- **DX-03** PHPStan extension for `#[TenantAware]` correctness
-- Docs refresh: sharing model, filesystem guide, PHPStan rules
-- Retro: 72-hour TTL on `human_needed` VERIFICATION status
+### Later Milestones (planned, scope subject to v0.4 telemetry)
 
 **v0.5 — Operations & Scale** *(production-readiness)*
 - **OPS-01** Tenant-level maintenance mode
@@ -209,6 +222,12 @@ Tracked but not scheduled. **Open an issue to request prioritization** — these
 | Full contract parity for cache decorators + compile-time guard | Liskov at the DI level — a decorator must honor every interface the decorated service exposes (issue #5) | ✓ Good (Phase 15) |
 | Remove Symfony Flex recipe, use `tenancy:init` instead | Lower-maintenance, more discoverable, zero race with external recipe submission flow | ✓ Good (Phase 14) |
 | Retract v1.0.0, restart at v0.1.0, graduate to v0.2.0 | Four defects (#5–#8) surfaced in downstream demo projects post-tag; architectural fixes rather than patches | ✓ Good (Phase 15 — semver integrity) |
+| Filesystem adapter-strategy defaults to `prefix` mode | Lower-friction onboarding; per-tenant-adapter is opt-in for S3-style separation (DEC-FILE-01) | ✓ Good (validated Phase 24) |
+| `#[Shared]` sync mode defaults to synchronous | Predictable + easy to reason about; async is opt-in via `tenancy.shared.async` (DEC-SHARE-01) | ✓ Good (validated Phase 25/27) |
+| One-level cascade for `#[Shared]` fan-out | Avoids unbounded sync cost; every shared entity carries an explicit `#[Shared]` (DEC-SHARE-02) | ✓ Good (validated Phase 25) |
+| `#[Shared]` ⊕ `#[TenantAware]` mutual exclusion at compile time + PHPStan rule | Prevents the cross-tenant data-leak bug class entirely, not per-instance (DEC-SHARE-03) | ✓ Good (validated Phase 25/28) |
+| PHPStan extension via `phpstan/extension-installer` auto-load | Zero-config, same pattern as phpstan-symfony/doctrine; degrades gracefully without phpstan-doctrine (DEC-PHPSTAN-01) | ✓ Good (validated Phase 28) |
+| Single `TenantEmSwitcher` owns tenant-switch logic; resync keeps `setTenant()`+`boot()` | De-duplicates byte-identical logic across subscriber + async handler; resync's bootstrapper path is intentionally asymmetric and documented (W-02/W-03) | ✓ Good (validated Phase 30) |
 
 ---
-*Last updated: 2026-06-19 — Phase 30 (v0.4 pre-tag closure) complete: extracted a single mockable `TenantEmSwitcher` (interface + final class) owning `switchTo()`/`restore()` — de-duplicating the byte-identical tenant-switch logic previously twinned across `SharedEntitySyncSubscriber` + `SharedEntityChangedMessageHandler` (W-02, CR-01/CR-02 semantics preserved), swapped two copier type-hints to `SharedEntityCopierInterface` so a mock copier injects (W-01) with a new `SharedEntityWriteProtectionListenerTest` seam test (D-07), documented the per-event-vs-resync asymmetry (W-03, docblock-only), reconciled `docs/roadmap.md` to shipped reality (v0.4 under Shipped, 3 real PHPStan rule IDs, no forward-ref tag, Next=v0.5) (WR-06/WR-07), and added the `FNR==1` per-file awk reset to `scripts/docs-lint.sh` (WR-03/D-10). Verification 11/11 must-haves; code review 0 critical / 0 warning / 3 info (advisory polish). 770 PHPUnit tests / 3242 assertions, PHPStan level 9 clean, cs-fixer clean, docs-lint clean. v0.4 milestone fully executed — ready for `/gsd:audit-milestone` → `/gsd:complete-milestone`. — Earlier: 2026-06-18 — v0.4 Storage & Shared Entities: ALL phases (24–29) complete, milestone ready to ship. Phase 29 (Docs Refresh, DOC-20) complete — NEW `shared-entities.md` (D-02, locked D-07 vocabulary "landlord-side master" + "tenant-side read-only copy") + `phpstan-extension.md` (D-03, all 3 rule IDs) user-guide pages, `filesystem-bootstrapper.md` `services?` no-op drift fix (D-01), expanded `UPGRADE.md` 0.3→0.4 with no-breaking-changes statement (D-05), a `docs-lint.sh` per-file shared-entity disambiguation check (D-04), both pages registered in `mkdocs.yml` nav (D-06). Verification 10/10 must-haves; code review 0 critical / 7 warning / 3 info — 4 in-scope warnings fixed (WR-01 broken anchors, WR-02 stale command count, WR-04 D-04 false-negative, WR-05 insecure sample), 3 deferred (WR-03 pre-existing D-15 awk bug, WR-06/07 roadmap.md content drift). 763 PHPUnit tests / 3209 assertions, PHPStan level 9 clean, cs-fixer clean, docs-lint clean. Phase 28 (PHPStan extension) shipped prior. — Earlier: Phase 27 (SHARE-03 Async Shared Entities) complete — opt-in `tenancy.shared.async: true` mode where `SharedEntitySyncSubscriber::postFlush()` dispatches a scalar `SharedEntityChangedMessage` (class + identifier + change-type) instead of writing synchronously, clearing `TenantContext` before dispatch (D-01 isolation); a Messenger handler re-fetches the latest landlord state and fans out to ALL tenants via the existing `SharedEntityCopier` (now with a `deleteRow()` helper, OQ-1) best-effort attempt-all → throw-to-retry (D-02). Sync remains the default (DEC-SHARE-01). Ships a `SharedAsyncContractPass` compile-time guard (async:true + no Messenger → build-time `LogicException`) and a `SharedEntityAsyncCanaryTest` round-trip proof through a real `sync://` transport (all-tenant fan-out, wrong-tenant isolation, vanished-row→delete, throw-to-retry, idempotency). Verification 10/10 must-haves; code review 0 critical / 4 warning / 5 info (advisory — unvalidated `changeType`, tenant-switch twin without drift test, stale-context-on-failure, dead `findAll()` loop). 746 PHPUnit tests / 3190 assertions, PHPStan level 9 clean, cs-fixer clean. Phase 26 (SHARE-02 resync command) + Phase 25 (SHARE-01 sync) shipped prior. Phases 28–29 (PHPStan extension, docs) remain.*
+*Last updated: 2026-06-19 after v0.4 milestone — Storage & Shared Entities shipped (tag v0.4.0): per-tenant Filesystem bootstrapper, `#[Shared]` sync model (sync + async), `tenancy:shared:resync`, PHPStan extension (3 rules), docs refresh, and audit-driven Phase 30 pre-tag closure. 770 PHPUnit tests / 3242 assertions, PHPStan level 9 clean, cs-fixer clean, docs-lint clean. Full history: `.planning/MILESTONES.md` + `.planning/milestones/v0.4-ROADMAP.md`. Next: v0.5 Operations & Scale (`/gsd:new-milestone`).*

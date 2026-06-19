@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v0.4
-milestone_name: "pre-tag closure: integration warnings + roadmap drift"
-status: executing
-stopped_at: Phase 30 context gathered
-last_updated: "2026-06-19T18:02:24.300Z"
-last_activity: 2026-06-19
+milestone_name: "Storage & Shared Entities"
+status: v0.4 milestone complete
+stopped_at: v0.4 milestone completed and archived
+last_updated: "2026-06-19"
+last_activity: 2026-06-19 — Milestone v0.4 completed and archived
 progress:
   total_phases: 1
   completed_phases: 1
@@ -18,19 +18,36 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-17)
+See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 30 — v0-4-pre-tag-closure-integration-warnings-roadmap-drift
+**Current focus:** Planning next milestone — v0.5 Operations & Scale (`/gsd:new-milestone`)
 
 ## Current Position
 
-Phase: 30
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-19
+Phase: Milestone v0.4 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-19 — Milestone v0.4 completed and archived
 
-Phase 25 (shared-entities-sync-mode) verified complete 2026-06-12 — UAT 8/8 passed, 0 issues; code review CR-01 + WR-01..05 fixed with regression tests; security verified (0 threats open).
+v0.4 Storage & Shared Entities shipped (tag v0.4.0): 7 phases (24–30), 34 plans, 770 PHPUnit tests / 3242 assertions, PHPStan L9 clean, cs-fixer clean, docs-lint clean. Milestone audit `tech_debt` (6/6 requirements satisfied, 0 blockers); residual debt accepted (see Deferred Items below). Archived to `.planning/milestones/v0.4-*`.
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-06-19 (from `audit-open`; v0.4 items + v0.3-residual flags re-surfaced by the global query):
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 26 — TTY confirm prompt (SHARE-02-c), 1 scenario | partial (manual/CI-gated) |
+| uat_gap | Phase 28 — extension-installer zero-config auto-load, 1 scenario | partial (manual/CI-gated) |
+| uat_gap | Phase 19 — Profiler tab, 3 scenarios (v0.3 residual) | partial |
+| uat_gap | Phase 22 — docs refresh, 0 open scenarios (v0.3 residual) | partial |
+| uat_gap | Phase 18 — tenancy:install, 0 open scenarios (v0.3 residual) | passed |
+| verification_gap | Phase 26 — 26-VERIFICATION.md | human_needed |
+| verification_gap | Phase 28 — 28-VERIFICATION.md | human_needed |
+| verification_gap | Phase 22 — 22-VERIFICATION.md (v0.3 residual) | human_needed |
+
+Plus 5 Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30 — `/gsd:validate-phase <N>`) noted in `v0.4-MILESTONE-AUDIT.md`; live suite green regardless.
 
 ## Performance Metrics
 

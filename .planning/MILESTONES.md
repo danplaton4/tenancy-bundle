@@ -1,5 +1,30 @@
 # Milestones
 
+## v0.4 Storage & Shared Entities (Shipped: 2026-06-19, Tag: v0.4.0)
+
+**Phases completed:** 7 phases (24–29 feature phases + audit-driven Phase 30 pre-tag closure), 34 plans, ~70 tasks
+**Git range:** v0.3.3 → v0.4.0 (216 commits, ~21 days of active work across 2026-05-29 to 2026-06-19)
+**Test suite:** 770 PHPUnit tests / 3242 assertions (up from 568 in v0.3); PHPStan level 9 clean; php-cs-fixer @Symfony clean; docs-lint clean; composer validates.
+**Known deferred items at close:** 8 (see STATE.md Deferred Items) — 2 manual-UAT (Phase 26 TTY confirm, Phase 28 extension-installer auto-load) + v0.3-residual UAT/verification flags re-surfaced by the global audit-open query. All non-blocking; milestone audit verdict `tech_debt`, 6/6 requirements satisfied, 0 blockers.
+
+**Key accomplishments:**
+
+- **Per-tenant Filesystem bootstrapper (BOOT-03, Phase 24):** Flysystem integration scoping each tenant's uploads. Two modes — `prefix` (default, `tenant_<slug>/` concatenation, live-read TenantContext via PathPrefixer per-call) and `per_tenant_adapter` (DSN-parsed per-tenant Filesystem, LRU-cached). `FilesystemBootstrapper` at priority −30, `FilesystemContractPass` 3-guard compile-time check, `TenantFilesystemConfigTrait` (zero BC break), credential-redacted exceptions. Proven against a real kernel with `league/flysystem-bundle` (10 integration tests incl. 100-tenant LRU pressure).
+- **Shared-entity sync model (SHARE-01, Phase 25):** `#[Shared]` bare marker attribute → landlord-side master record fans out a tenant-side read-only copy via `SharedEntitySyncSubscriber` (onFlush buffer + postFlush fan-out across active tenants). Tenant-side write protection (`SharedEntityWriteInTenantContextException`), compile-time mutual-exclusion guard (`#[Shared]` ⊕ `#[TenantAware]`), one-level cascade limit (documented landmine). UAT 8/8.
+- **`tenancy:shared:resync` command (SHARE-02, Phase 26):** Idempotent bulk/initial sync — two-pass classify→confirm→apply, `--tenant=<slug>|--all`, `--dry-run` ("N × M = X writes"), continue-on-failure with per-tenant summary table. `SharedEntityCopier` extracted from the subscriber as the single write path; cross-DB key equality (CR-01).
+- **Async shared-entity fan-out (SHARE-03, Phase 27):** Opt-in `tenancy.shared.async: true` — subscriber dispatches a scalar `SharedEntityChangedMessage` (class + identifier + change-type, not the full payload), worker re-fetches latest landlord state and fans out to all tenants (best-effort attempt-all → throw-to-retry). `SharedAsyncContractPass` compile-time Messenger guard, `SharedEntityAsyncCanaryTest` round-trip proof through a real `sync://` transport (D-01 stamp-clearing, vanished-row→delete, throw-to-retry, idempotency).
+- **PHPStan extension (DX-03, Phase 28):** Three consumer-facing rules catching attribute misuse before it becomes a runtime data leak — `tenancy.mutualExclusion` (hierarchy-aware), `tenancy.sharedEntityLeak` (gated/conservative MethodCall rule on concrete EM querying `#[Shared]`), `tenancy.tenantIdDrift` (missing/nullable/non-string `tenant_id`). Soft-integrates `phpstan/phpstan-doctrine` `ObjectMetadataResolver`, degrades to `#[ORM\Column]` reflection. Shipped via `phpstan/extension-installer` auto-load; no-doctrine CI lane proves optional-dep guards. Bundle's own L9 self-analysis stays green and separate.
+- **Docs refresh (DOC-20, Phase 29):** NEW `shared-entities.md` (locked D-07 vocabulary "landlord-side master" + "tenant-side read-only copy") + `phpstan-extension.md` (all 3 rule IDs, install paths) + `filesystem-bootstrapper.md` drift fix, UPGRADE 0.3→0.4 with explicit no-breaking-changes statement, `docs-lint.sh` per-file shared-entity disambiguation check (D-04), both pages in `mkdocs.yml`.
+- **Audit-driven pre-tag closure (Phase 30):** `/gsd:audit-milestone` produced status `tech_debt`; a 2-plan closure phase extracted a single mockable `TenantEmSwitcher` (interface + final class) de-duplicating byte-identical tenant-switch logic twinned across the sync subscriber + async handler (W-02), swapped two copier type-hints to `SharedEntityCopierInterface` so a mock injects (W-01, seam test added), documented the resync-vs-per-event asymmetry (W-03, docblock-only), reconciled `docs/roadmap.md` to shipped reality (WR-06/WR-07), and fixed a docs-lint cross-file awk state leak (WR-03/D-10). Re-audit confirmed 11/11 must-haves, 0 blockers.
+
+**v0.4 Architectural Decisions Ratified:** DEC-FILE-01 prefix-mode default, DEC-FILE-02 optional config via trait, DEC-SHARE-01 sync default, DEC-SHARE-02 one-level cascade, DEC-SHARE-03 compile-time mutual exclusion, DEC-PHPSTAN-01 extension-installer auto-load, D-07 locked shared-entity vocabulary.
+
+**Residual tech debt (accepted, non-code-closeable):** 2 manual-UAT items (CI/real-world gated), 5 Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30 — live suite green regardless), Phase 27 advisory code-review notes, `mkdocs build --strict` CI-deferred, and the v0.3-carried `examples/saas` Dockerfile/composer.lock PHP-version drift.
+
+**Explicit non-goals still:** v1.0 tag (deferred until external adoption signals validate the public surface) and Symfony Flex recipe (`tenancy:install` remains the onboarding path).
+
+---
+
 ## v0.3 Adoption Surface (Shipped: 2026-05-29, Tag: v0.3.3)
 
 **Phases completed:** 7 phases (17–23; Phase 16 GOV-01 skipped as non-functional gate), 53 plans, ~110 tasks
