@@ -13,11 +13,19 @@
 #   - TenantIdDriftRule: interface_exists(EntityManagerInterface) guard returns false → returns []
 #   - SharedEntityLeakRule: same interface_exists guard → returns []
 #   - MutualExclusionRule: walks PHPStan ClassReflection attrs with no Doctrine dep
-# The rules load without fatal errors and src/ exits clean.
+# The rules load without fatal errors and analyse clean.
 #
 # Purpose: standing CI protection for the optional-dependency contract (WR-05).
-# Any load-time hard reference to a Doctrine class would fail this dogfood loudly,
-# proving the class_exists/interface_exists guards are in place.
+#
+# SCOPE: this dogfood analyses ONLY `src/PHPStan` — the shipped extension (the rules
+# + their support code). It deliberately does NOT analyse the rest of `src/`: the
+# bundle's runtime Doctrine integration (DoctrineBootstrapper, DatabaseSwitchBootstrapper,
+# the migrate/resync commands, …) type-hints optional Doctrine classes, which are
+# legitimately unresolvable when Doctrine is absent — PHPStan reports every such type
+# as `class.notFound`, so analysing all of `src/` here would drown in ~150 expected
+# "unknown Doctrine class" errors. The bundle's runtime graceful-degradation WITHOUT
+# Doctrine is proven by the no-doctrine UNIT-TEST lane (it actually executes the guarded
+# code); this dogfood proves the RULES themselves load + analyse clean without Doctrine.
 #
 # For the with-Doctrine (wired) path, see phpstan-extension-dogfood.neon.
 # Keep this config ENTIRELY SEPARATE from phpstan.neon (level-9 self-analysis).
@@ -28,11 +36,21 @@ includes:
 parameters:
     level: 9
     paths:
-        - src
+        - src/PHPStan
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
         -
             identifier: trait.unused
+            reportUnmatched: false
+        # The rules reference optional Doctrine symbols by `::class` (e.g.
+        # Doctrine\ORM\EntityManager, …\Mapping\Column, …\Mapping\MappedSuperclass) to
+        # MATCH the consumer's Doctrine attributes/types. Each rule guards these behind
+        # interface_exists(EntityManagerInterface) at runtime, so they never fire without
+        # Doctrine; statically, with Doctrine absent, they are expected `class.notFound`.
+        # reportUnmatched:false keeps this tolerant in the with-Doctrine paths (dogfood +
+        # level-9 self-analysis), where these classes resolve and no such error exists.
+        -
+            message: '#^Class Doctrine\\[^ ]+ not found\.$#'
             reportUnmatched: false
     parallel:
         maximumNumberOfProcesses: 1

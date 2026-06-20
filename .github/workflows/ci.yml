@@ -130,13 +130,13 @@ jobs:
         run: vendor/bin/phpunit tests/Unit/Context tests/Unit/Event tests/Unit/Resolver tests/Unit/Messenger tests/Unit/Cache tests/Unit/Exception tests/Unit/Attribute tests/Unit/DependencyInjection tests/Unit/Command/TenantRunCommandTest.php tests/Unit/Bootstrapper/BootstrapperChainTest.php tests/Unit/Bootstrapper/DatabaseSwitchBootstrapperTest.php tests/Unit/EventListener/TenantContextOrchestratorTest.php tests/Unit/PHPStan
 
       - name: PHPStan dogfood without Doctrine — prove optional-dep guards (WR-05)
-        # Runs the base-only dogfood (extension.neon, resolver-less) over src/ with Doctrine +
-        # phpstan-doctrine absent. Proves the shipped rules degrade gracefully:
-        #   - TenantIdDriftRule: interface_exists(EntityManagerInterface) → returns []
-        #   - SharedEntityLeakRule: same guard → returns []
-        #   - MutualExclusionRule: no Doctrine dep, runs normally
-        # Any load-time hard reference to a Doctrine class would fail this step, locking the
-        # optional-dependency contract that is the bundle's defining identity.
+        # Runs the base-only dogfood (extension.neon, resolver-less) over src/PHPStan — the
+        # shipped rules — with Doctrine + phpstan-doctrine absent. Proves the rules load and
+        # analyse clean without Doctrine; expected "Class Doctrine\* not found" hits on the
+        # rules' ::class matchers are tolerated in the config (they're interface_exists-guarded
+        # at runtime). The bundle's runtime Doctrine integration is intentionally out of scope
+        # here — its graceful degradation is proven by the "Run unit tests without Doctrine"
+        # step above, which actually executes the guarded code. See the neon config header.
         run: vendor/bin/phpstan analyse -c phpstan-extension-dogfood-nodoctrine.neon --memory-limit=512M
 
   prefer-lowest:
