@@ -60,4 +60,21 @@ final class RecordingLogger extends AbstractLogger
             static fn (array $r): bool => LogLevel::WARNING === $r['level'],
         ));
     }
+
+    /**
+     * Records logged at PSR-3 ERROR level.
+     *
+     * Mirrors warnings(); used by the shared-entity sync integration suite to
+     * assert the per-tenant fan-out failure log (D-07). `AbstractLogger::error()`
+     * dispatches to `log(LogLevel::ERROR, ...)`.
+     *
+     * @return list<array{level: mixed, message: string|\Stringable, context: array<mixed>}>
+     */
+    public function errors(): array
+    {
+        return array_values(array_filter(
+            $this->records,
+            static fn (array $r): bool => LogLevel::ERROR === $r['level'],
+        ));
+    }
 }

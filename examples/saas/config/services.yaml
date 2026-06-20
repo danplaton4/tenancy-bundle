@@ -15,11 +15,11 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    # Tag users.storage for per-tenant filesystem scoping (prefix mode).
-    # The bundle's FilesystemContractPass decorates this service at compile time
-    # with FilesystemPrefixingDecorator, which transparently prepends tenant_{slug}/
-    # to every Flysystem operation. TenantUploadController's $usersStorage arg
-    # receives the decorator — no manual slug handling needed.
-    users.storage:
-        tags:
-            - { name: tenancy.scoped, strategy: prefix, prefix_template: 'tenant_{slug}/' }
+    # Per-tenant filesystem scoping for users.storage is applied via
+    # App\DependencyInjection\Compiler\ScopedStorageTaggingPass (registered in
+    # Kernel::build()), NOT here. flysystem-bundle builds the `users.storage`
+    # definition (class League\Flysystem\Filesystem) during extension load, so
+    # the tenancy.scoped tag must be attached to that existing definition at
+    # compile time. Declaring `users.storage` here would instead create a
+    # classless service that shadows flysystem's and breaks the bundle's
+    # FilesystemPrefixingDecorator (the decorated `.inner` would have no class).

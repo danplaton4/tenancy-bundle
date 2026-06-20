@@ -6,18 +6,33 @@ namespace Tenancy\Bundle\Tests\Unit\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\Group;
 use Tenancy\Bundle\PHPStan\Rule\SharedEntityLeakRule;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\SharedProductViolating;
 
 /**
  * @extends RuleTestCase<SharedEntityLeakRule>
  */
+#[Group('phpstan-extension')]
 final class SharedEntityLeakRuleTest extends RuleTestCase
 {
     /**
      * Whether to construct the rule with checkSharedEntityLeaks=true (default) or false (gate test).
      */
     private bool $checkLeaks = true;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // SharedEntityLeakRule returns [] when Doctrine ORM is absent (optional dependency —
+        // the rule guards on interface_exists(EntityManagerInterface)). The "fires" assertion
+        // has no premise without Doctrine, so skip the whole class in the no-doctrine CI lane.
+        // The dogfood step separately proves the rule loads and degrades gracefully.
+        if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+            self::markTestSkipped('SharedEntityLeakRule returns [] without Doctrine ORM — optional dependency.');
+        }
+    }
 
     protected function getRule(): Rule
     {

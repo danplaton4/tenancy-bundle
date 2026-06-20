@@ -17,9 +17,9 @@ use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlan;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlanCategory;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\Entity\TestPlanWithAssociation;
-use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\RecordingLogger;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\SharedEntityFailureLoggingTestKernel;
 use Tenancy\Bundle\Tests\Integration\SharedEntity\Support\StubMultiTenantProvider;
+use Tenancy\Bundle\Tests\Support\RecordingLogger;
 
 /**
  * Integration test suite for SHARE-01: synchronous fan-out from landlord to all tenant EMs.
@@ -578,7 +578,7 @@ final class SharedEntitySyncIntegrationTest extends TestCase
         );
 
         // (b) The subscriber must have logged exactly one error for tenant_a's failure (D-07)
-        $errorRecords = $recordingLogger->getErrorRecords();
+        $errorRecords = $recordingLogger->errors();
         $this->assertCount(
             1,
             $errorRecords,

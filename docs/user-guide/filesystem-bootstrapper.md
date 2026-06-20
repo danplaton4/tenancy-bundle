@@ -430,7 +430,7 @@ the constructor's `$inner` parameter and for the service alias. The bundle's con
 ## See also
 
 - [Configuration Reference](configuration.md) — `tenancy.filesystem.*` keys.
-- [UPGRADE.md → 0.3 to 0.4](../../UPGRADE.md#03-to-04) — the zero-BC-break adoption path
+- [UPGRADE.md → 0.3 to 0.4](https://github.com/danplaton4/tenancy-bundle/blob/master/UPGRADE.md#03-to-04) — the zero-BC-break adoption path
   for existing v0.3 projects.
 - [Mailer Bootstrapper](mailer-bootstrapper.md) — the structural twin; the filesystem
   bootstrapper follows the same lifecycle shape.

@@ -295,5 +295,5 @@ for the `shared_db` isolation model.
   `#[Shared]` entity through the tenant EM).
 - [CLI Commands](cli-commands.md) — full reference for all bundle commands.
 - [Configuration Reference](configuration.md) — `tenancy.shared.*` keys.
-- [UPGRADE.md → 0.3 to 0.4](../../UPGRADE.md#03-to-04) — opt-in adoption path; no breaking
+- [UPGRADE.md → 0.3 to 0.4](https://github.com/danplaton4/tenancy-bundle/blob/master/UPGRADE.md#03-to-04) — opt-in adoption path; no breaking
   changes for existing projects.

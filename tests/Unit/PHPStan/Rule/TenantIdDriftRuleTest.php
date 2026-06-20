@@ -6,6 +6,7 @@ namespace Tenancy\Bundle\Tests\Unit\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\Group;
 use Tenancy\Bundle\PHPStan\Rule\TenantIdDriftRule;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantAwareConcreteChild;
 use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantAwareParent;
@@ -20,6 +21,7 @@ use Tenancy\Bundle\Tests\Unit\PHPStan\Rule\Fixtures\TenantIdValidClean;
 /**
  * @extends RuleTestCase<TenantIdDriftRule>
  */
+#[Group('phpstan-extension')]
 final class TenantIdDriftRuleTest extends RuleTestCase
 {
     /**
@@ -27,6 +29,20 @@ final class TenantIdDriftRuleTest extends RuleTestCase
      * D-02: degrade gracefully when phpstan-doctrine is absent — null is the default CI lane.
      */
     private ?object $resolver = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // TenantIdDriftRule returns [] when Doctrine ORM is absent (optional dependency —
+        // the rule guards on interface_exists(EntityManagerInterface)). Every "fires"
+        // assertion below therefore has no premise without Doctrine, so skip the whole
+        // class in the no-doctrine CI lane. The dogfood step (phpstan-extension-dogfood-
+        // nodoctrine.neon) separately proves the rule loads and degrades gracefully.
+        if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+            self::markTestSkipped('TenantIdDriftRule returns [] without Doctrine ORM — optional dependency.');
+        }
+    }
 
     protected function getRule(): Rule
     {

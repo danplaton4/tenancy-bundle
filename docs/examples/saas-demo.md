@@ -34,7 +34,7 @@ git clone https://github.com/danplaton4/tenancy-bundle && \
 
 On a warm Docker image cache the stack boots in ~50s; cold (first image pull) ~110s.
 `--wait` returns only when every healthcheck has passed. If `*.tenancy.localhost`
-doesn't resolve in your browser, the [demo README](../../examples/saas/README.md) walks
+doesn't resolve in your browser, the [demo README](https://github.com/danplaton4/tenancy-bundle/blob/master/examples/saas/README.md) walks
 through the three-step fallback ladder (curl `Host:` header → `/etc/hosts` → browser-native).
 
 ## A peek at the demo
@@ -59,7 +59,7 @@ tenant's isolated row set.
 The canonical demo doc covers the two-minute boot, the three-step fallback ladder, the
 Profiler walkthrough, the Mailpit walkthrough, the OriginHeaderResolver scenario, the
 optional HTTPS-with-Caddy step, and the bundle-source dev loop. See
-**[examples/saas/README.md](../../examples/saas/README.md)** for the full guide.
+**[examples/saas/README.md](https://github.com/danplaton4/tenancy-bundle/blob/master/examples/saas/README.md)** for the full guide.
 
 ## See also
 

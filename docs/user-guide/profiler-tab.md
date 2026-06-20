@@ -64,7 +64,7 @@ when@dev:
 
 ## What will I see?
 
-The panel has three render states — one per request — driven by what happened during tenant resolution. Want to see this live? The [SaaS demo](../../examples/saas/README.md) ships with the Profiler enabled — `docker compose up` and visit any tenant URL.
+The panel has three render states — one per request — driven by what happened during tenant resolution. Want to see this live? The [SaaS demo](https://github.com/danplaton4/tenancy-bundle/blob/master/examples/saas/README.md) ships with the Profiler enabled — `docker compose up` and visit any tenant URL.
 
 ### Resolved state (green)
 

@@ -6,11 +6,13 @@ namespace Tenancy\Bundle\Tests\Unit\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
+use PHPUnit\Framework\Attributes\Group;
 use Tenancy\Bundle\PHPStan\Rule\MutualExclusionRule;
 
 /**
  * @extends RuleTestCase<MutualExclusionRule>
  */
+#[Group('phpstan-extension')]
 final class MutualExclusionRuleTest extends RuleTestCase
 {
     protected function getRule(): Rule

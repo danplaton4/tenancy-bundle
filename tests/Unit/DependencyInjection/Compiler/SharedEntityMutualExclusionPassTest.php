@@ -30,6 +30,17 @@ final class SharedEntityMutualExclusionPassTest extends TestCase
                 'SharedEntityMutualExclusionPass not yet available — lands in Plan 25-02.'
             );
         }
+
+        // The pass deliberately no-ops when Doctrine ORM is absent (optional dependency —
+        // see SharedEntityMutualExclusionPass::process()). Without Doctrine there are no
+        // shared entities to inspect, so the throwing tests below have no premise. Skip the
+        // whole class in the no-doctrine CI lane; the dogfood step proves the pass still
+        // loads without fatal.
+        if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+            self::markTestSkipped(
+                'SharedEntityMutualExclusionPass no-ops without Doctrine ORM — optional dependency.'
+            );
+        }
     }
 
     /**

@@ -8,6 +8,7 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
+use Tenancy\Bundle\Tests\Support\RecordingLogger;
 
 /**
  * Compiler pass that registers a RecordingLogger service and wires it as the

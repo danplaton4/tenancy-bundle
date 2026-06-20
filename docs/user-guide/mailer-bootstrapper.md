@@ -110,7 +110,7 @@ The result: misconfiguring async Mailer transport selection is **impossible** in
 
 ## Migration recipe (existing projects with a custom Tenant entity)
 
-If your project upgraded from v0.2 → v0.3 and already has a custom `Tenant` entity, the canonical migration recipe lives in [`UPGRADE.md`](../../UPGRADE.md#02-to-03) under the **0.2 to 0.3** section. Two paths are documented there:
+If your project upgraded from v0.2 → v0.3 and already has a custom `Tenant` entity, the canonical migration recipe lives in [`UPGRADE.md`](https://github.com/danplaton4/tenancy-bundle/blob/master/UPGRADE.md#02-to-03) under the **0.2 to 0.3** section. Two paths are documented there:
 
 - **Path A (recommended):** add `use TenantMailerConfigTrait;` to your entity class body. Run `bin/console doctrine:migrations:diff` and apply the generated migration — the three nullable columns will be added to your tenants table.
 - **Path B:** implement the three `TenantInterface` methods manually (use this when your column names, types, or storage strategy diverge from the trait defaults).
@@ -133,6 +133,6 @@ After running `tenancy:install --with-mailer`, apply the migration with `bin/con
 
 - [Configuration Reference](configuration.md) — `tenancy.mailer.async`, `tenancy.mailer.transport_cache_size`, the per-tenant mailer config block.
 - [CLI Commands](cli-commands.md#tenancy-install) — `tenancy:install --with-mailer` scaffold flag.
-- [UPGRADE.md → 0.2 to 0.3](../../UPGRADE.md#02-to-03) — the canonical BC-break migration recipe.
+- [UPGRADE.md → 0.2 to 0.3](https://github.com/danplaton4/tenancy-bundle/blob/master/UPGRADE.md#02-to-03) — the canonical BC-break migration recipe.
 - [Messenger Integration](messenger.md) — how tenant context propagates through Messenger workers (the same `BootstrapperChain::boot()` invocation that powers async Mailer dispatch).
 - [Profiler Tab](profiler-tab.md) — the dev-only Tenancy WDT panel shows the active tenant's `mailerFrom`, redacted `mailerDsn`, transport cache size, and last-send strategy. Catches misconfigs before they reach prod.
