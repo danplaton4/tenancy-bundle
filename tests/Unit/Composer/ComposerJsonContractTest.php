@@ -7,14 +7,17 @@ namespace Tenancy\Bundle\Tests\Unit\Composer;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Composer manifest contract test (Phase 22 D-09/D-10/D-13).
+ * Composer manifest contract test (Phase 22 D-09/D-10/D-13; revised v0.4.1).
  *
- * v0.3.3 reverses Phase 18 DEC-INST-02: `nikic/php-parser` is now a hard runtime
+ * v0.3.3 reversed Phase 18 DEC-INST-02: `nikic/php-parser` is a hard runtime
  * dependency declared in `composer.json#require` so that `tenancy:install` works
- * one-command for end users. The library is also kept in `require-dev` (so the
- * bundle's own test suite continues to resolve it explicitly) and removed from
- * `suggest` (since it's no longer a suggestion — it's required). This test
- * guards the new contract.
+ * one-command for end users, and it is removed from `suggest` (it is required,
+ * not suggested).
+ *
+ * v0.4.1 removes the redundant `require-dev` copy: a `require` dependency is
+ * always installed in the dev environment too, so the duplicate entry added
+ * nothing and tripped `composer validate` ("required both in require and
+ * require-dev"). This test now guards that nikic lives in `require` only.
  */
 final class ComposerJsonContractTest extends TestCase
 {
@@ -47,17 +50,14 @@ final class ComposerJsonContractTest extends TestCase
         );
     }
 
-    public function testNikicPhpParserIsPresentInRequireDev(): void
+    public function testNikicPhpParserIsNotDuplicatedInRequireDev(): void
     {
         $manifest = $this->manifest();
         $requireDev = \is_array($manifest['require-dev'] ?? null) ? $manifest['require-dev'] : [];
-        self::assertArrayHasKey('nikic/php-parser', $requireDev);
-        $version = $requireDev['nikic/php-parser'];
-        self::assertIsString($version);
-        self::assertMatchesRegularExpression(
-            '/^\^5\./',
-            $version,
-            'nikic/php-parser must be pinned to ^5.x (the v5 namespace shape is what BundlesPhpInstaller targets).'
+        self::assertArrayNotHasKey(
+            'nikic/php-parser',
+            $requireDev,
+            'nikic/php-parser must NOT be duplicated in composer.json `require-dev` (v0.4.1) — it is a hard `require`, which Composer always installs in the dev environment too, and the duplicate entry trips `composer validate`.'
         );
     }
 

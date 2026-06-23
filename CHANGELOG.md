@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-06-23
+
+Release-integrity patch. The `v0.4.0` tag was cut before four CI lanes
+(prefer-lowest, no-doctrine, demo-smoke, and `mkdocs build --strict`) were
+greened; those fixes plus packaging hygiene are folded into a tagged release
+here. **No `src/` runtime change — the bundle behaves identically to v0.4.0.**
+
+### Fixed
+
+- CI lanes that were greened immediately after the `v0.4.0` push are now part of
+  a tagged release: prefer-lowest `psr/log` v1 compatibility (test-harness
+  `RecordingLogger` consolidation), no-doctrine self-skip guards on the
+  attribute/PHPStan tests, `examples/saas` `FlysystemBundle` registration plus a
+  scoped-storage tagging pass, and seven cross-tree documentation links rewritten
+  so `mkdocs build --strict` exits 0.
+- The **0.4.0** release is now recorded in this changelog — the milestone was
+  tagged without a `[0.4.0]` entry.
+
+### Changed
+
+- `composer.lock` regenerated to match `composer.json` (the `league/flysystem
+  ^3.34` dev-dependency floor added post-tag had left the lock content-hash
+  stale).
+- Removed the duplicate `nikic/php-parser` entry from `require-dev` — it has been
+  a hard `require` since 0.3.3, and the duplication tripped `composer validate`.
+
+### Packaging
+
+- Added `.gitattributes` `export-ignore` rules so the Composer dist no longer
+  ships `tests/`, `examples/`, `docs/`, `.planning/`, CI workflows, or dev
+  tooling configs. Consumers still receive `src/`, `config/`, and the shipped
+  PHPStan extension configs (`extension.neon`, `extension-doctrine.neon`).
+
+## [0.4.0] — 2026-06-19
+
+v0.4 Storage & Shared Entities — closes the storage and data-sharing gaps that
+block real SaaS use cases. No breaking changes: `TenantInterface` is unchanged
+from v0.3 (see [UPGRADE.md](UPGRADE.md), "0.3 to 0.4").
+
+### Added
+
+- **Per-tenant Filesystem bootstrapper (BOOT-03)** — Flysystem integration that
+  scopes each tenant's storage. Two modes: `prefix` (default — a `tenant_<slug>/`
+  sub-prefix on a shared adapter, resolved per-call from the live `TenantContext`)
+  and `per_tenant_adapter` (DSN-parsed per-tenant `Filesystem`, LRU-cached).
+  `FilesystemBootstrapper` (priority −30), `FilesystemContractPass` compile-time
+  guard, `TenantFilesystemConfigTrait` (zero BC break), credential-redacted
+  exceptions. See `docs/user-guide/filesystem-bootstrapper.md`.
+- **Shared-entity sync model (SHARE-01)** — the `#[Shared]` marker attribute: a
+  landlord-side master record fans out a read-only copy into each tenant via
+  `SharedEntitySyncSubscriber` (onFlush buffer + postFlush fan-out). Tenant-side
+  write protection (`SharedEntityWriteInTenantContextException`), compile-time
+  `#[Shared]` ⊕ `#[TenantAware]` mutual exclusion, and a one-level cascade limit.
+  See `docs/user-guide/shared-entities.md`.
+- **`tenancy:shared:resync` command (SHARE-02)** — idempotent bulk/initial sync:
+  two-pass classify→confirm→apply, `--tenant=<slug>|--all`, `--dry-run`, and
+  continue-on-failure with a per-tenant summary. `SharedEntityCopier` is the
+  single write path.
+- **Async shared-entity fan-out (SHARE-03)** — opt-in `tenancy.shared.async:
+  true`. The subscriber dispatches a scalar `SharedEntityChangedMessage` (class +
+  identifier + change-type); the worker re-fetches the latest landlord state and
+  fans out best-effort (attempt-all → throw-to-retry). `SharedAsyncContractPass`
+  compile-time Messenger guard.
+- **PHPStan extension (DX-03)** — three consumer-facing rules catching attribute
+  misuse before it becomes a runtime data leak: `tenancy.mutualExclusion`,
+  `tenancy.sharedEntityLeak`, and `tenancy.tenantIdDrift`. Auto-loaded via
+  `phpstan/extension-installer`; soft-integrates `phpstan/phpstan-doctrine` and
+  degrades to `#[ORM\Column]` reflection without it. See
+  `docs/user-guide/phpstan-extension.md`.
+
+### Changed
+
+- A single `TenantEmSwitcher` now owns tenant-switch logic, de-duplicating the
+  byte-identical switch previously twinned across the sync subscriber and the
+  async handler; the copier seams are type-hinted to `SharedEntityCopierInterface`
+  for testability (Phase 30 pre-tag closure — W-01/W-02/W-03).
+
+### Documentation
+
+- New `shared-entities.md` and `phpstan-extension.md` user-guide pages, a
+  `filesystem-bootstrapper.md` drift fix, an `UPGRADE.md` "0.3 to 0.4" section
+  with an explicit no-breaking-changes statement, and a per-file shared-entity
+  disambiguation check added to `scripts/docs-lint.sh` (DOC-20).
+
 ## [0.3.3] — 2026-05-29
 
 v0.3.3 closes the v0.3 milestone tech-debt audit and finalizes the install
@@ -400,7 +484,9 @@ Initial public release. Multi-tenancy for Symfony with zero boilerplate and zero
   - CI jobs for no-Doctrine, no-Messenger, and prefer-lowest dependency validation
   - Codecov coverage reporting
 
-[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.0...v0.3.1

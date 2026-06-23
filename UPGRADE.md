@@ -1,5 +1,13 @@
 # Upgrade Guide
 
+## 0.4.0 to 0.4.1
+
+**No action required.** 0.4.1 is a release-integrity patch — it folds the
+post-`v0.4.0` CI fixes and packaging hygiene into a tagged release. There is no
+`src/` runtime change, no configuration change, and no API change; the bundle
+behaves identically to 0.4.0. Consumers who pin `^0.4` receive 0.4.1
+automatically. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+
 ## 0.3 to 0.4
 
 ### Breaking changes

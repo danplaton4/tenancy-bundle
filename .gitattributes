@@ -1,0 +1,28 @@
+# Keep the Composer dist tarball lean. `git archive` (and GitHub's archive
+# endpoint, which Composer uses for dist downloads) strips everything marked
+# export-ignore. Consumers still receive src/, config/, the shipped PHPStan
+# extension configs (extension.neon + extension-doctrine.neon), and the
+# consumer-facing docs (README, CHANGELOG, UPGRADE, LICENSE, SECURITY).
+
+# Dev / test / CI / docs / planning directories
+/.github                                    export-ignore
+/.planning                                  export-ignore
+/docs                                       export-ignore
+/examples                                   export-ignore
+/scripts                                    export-ignore
+/tests                                      export-ignore
+
+# Dev tooling and internal config files
+/.gitattributes                             export-ignore
+/.gitignore                                 export-ignore
+/.php-cs-fixer.dist.php                      export-ignore
+/CONTRIBUTING.md                            export-ignore
+/Dockerfile                                 export-ignore
+/Makefile                                   export-ignore
+/ROADMAP.md                                 export-ignore
+/docker-compose.yml                         export-ignore
+/mkdocs.yml                                 export-ignore
+/phpstan.neon                               export-ignore
+/phpstan-extension-dogfood.neon             export-ignore
+/phpstan-extension-dogfood-nodoctrine.neon  export-ignore
+/phpunit.xml.dist                           export-ignore
