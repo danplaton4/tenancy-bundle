@@ -124,8 +124,14 @@ final class TenancyInstallCommandIntegrationTest extends TestCase
 
     public function testRefusalAgainstDddOverrideFixture(): void
     {
-        $this->copyFixture('ddd-override');
+        // Boot BEFORE placing the throwing fixture. Symfony 8.1's kernel build
+        // require()s config/bundles.php to compute allowed envs
+        // (KernelTrait::getBundlesDefinition), so a fixture whose top-level
+        // statement is `throw` aborts the kernel boot itself. The command under
+        // test reads the file at execute() time — by which point the fixture is
+        // in place — so the refusal behaviour being asserted is unchanged.
         $this->bootKernel();
+        $this->copyFixture('ddd-override');
         $originalBytes = (string) file_get_contents($this->tmpDir.'/config/bundles.php');
 
         $app = new Application($this->kernel);

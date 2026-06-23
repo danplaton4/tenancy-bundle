@@ -8,6 +8,11 @@ site/
 CLAUDE.md
 vendor
 
+# Symfony 8.1+ auto-generates this app-only config-reference dump into config/
+# whenever the suite boots a kernel on 8.1. It is "for apps only" and must never
+# be committed into the bundle.
+/config/reference.php
+
 # Demo app generated files
 /examples/saas/var/
 /examples/saas/vendor/

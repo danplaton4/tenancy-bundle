@@ -17,6 +17,8 @@ jobs:
         include:
           - php: '8.4'
             symfony: '8.0.*'
+          - php: '8.4'
+            symfony: '8.1.*'
     steps:
       - uses: actions/checkout@v5
 
@@ -186,3 +188,26 @@ jobs:
 
       - name: Run unit tests without Messenger
         run: vendor/bin/phpunit tests/Unit/Context tests/Unit/Event tests/Unit/Resolver tests/Unit/Cache tests/Unit/Exception tests/Unit/Attribute tests/Unit/DependencyInjection tests/Unit/Command tests/Unit/Bootstrapper tests/Unit/EventListener
+
+  audit:
+    runs-on: ubuntu-latest
+    name: Composer Audit
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: flex
+          coverage: none
+
+      # No SYMFONY_REQUIRE: resolve the highest versions allowed by composer.json
+      # so the audit reflects what a fresh consumer install (or CI run) actually
+      # pulls. composer.lock is gitignored, so every install resolves fresh — this
+      # job is the standing check that the latest in-range resolution carries no
+      # known advisory. It goes red only when a dependency has a published CVE with
+      # no patched release inside our constraints — i.e. a real "bump the floor or
+      # add a constraint" signal.
+      - uses: ramsey/composer-install@v4
+
+      - run: composer audit

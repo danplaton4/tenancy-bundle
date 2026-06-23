@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
 use Tenancy\Bundle\TenancyBundle;
 use Tenancy\Bundle\Tests\Integration\Messenger\Support\MakeMessengerServicesPublicPass;
+use Tenancy\Bundle\Tests\Integration\Messenger\Support\NoopMessageHandler;
 use Tenancy\Bundle\Tests\Integration\Messenger\Support\ReplaceProviderWithStubPass;
 
 /**
@@ -66,6 +67,14 @@ class MessengerTestKernel extends Kernel
                 'driver' => 'database_per_tenant',
                 'strict_mode' => false,
             ]);
+
+            // Register a no-op handler for the bare \stdClass probe messages the
+            // integration tests dispatch. Symfony 8.1 no longer honours the bus's
+            // `default_middleware: allow_no_handlers` the way 7.4/8.0 did, so a
+            // handler-less dispatch throws NoHandlerForMessageException. An explicit
+            // handler keeps the probe valid across all supported Symfony versions.
+            $container->register(NoopMessageHandler::class, NoopMessageHandler::class)
+                ->addTag('messenger.message_handler');
         });
     }
 
