@@ -2,9 +2,9 @@
 
 ## Current State
 
-**Shipped:** v0.4.0 (2026-06-19) — Packagist-published at `danplaton4/tenancy-bundle`. 7 v0.4 phases (24–30), 34 plans, 770 PHPUnit tests / 3242 assertions, PHPStan level 9 clean, php-cs-fixer @Symfony clean, docs-lint clean, composer validates. v0.4 closed the storage and data-sharing gaps that block real SaaS use cases: a per-tenant Filesystem (Flysystem) bootstrapper, the `#[Shared]` landlord→tenant sync model (sync + async via Messenger) with `tenancy:shared:resync`, a consumer-facing PHPStan extension (3 rules) catching attribute misuse at static-analysis time, and a full docs refresh. The milestone audit returned `tech_debt` (6/6 requirements satisfied, 0 blockers); the audit-driven **Phase 30 pre-tag closure** landed every code-closeable item (single `TenantEmSwitcher`, `SharedEntityCopierInterface` seam, docs reconciliation).
+**Shipped:** v0.4.1 (2026-06-23) — Packagist-published at `danplaton4/tenancy-bundle`. v0.4.1 is a release-integrity patch over v0.4.0: it folds the post-tag CI green-up into a tagged release, adds lean-dist `.gitattributes`, and backfills the CHANGELOG; `src/` is byte-identical to v0.4.0. The v0.4 milestone (phases 24–30, 770 PHPUnit tests / 3242 assertions, PHPStan L9, cs-fixer @Symfony) shipped a per-tenant Filesystem (Flysystem) bootstrapper, the `#[Shared]` landlord→tenant sync model (sync + async via Messenger) with `tenancy:shared:resync`, a consumer-facing PHPStan extension (3 rules), and a full docs refresh. Post-v0.4.1 hardening on `master`: a CI `composer audit` gate plus verified **Symfony 8.1** support (added `8.1.*` CI matrix leg).
 
-**Up next:** **v0.5 Operations & Scale** — production-readiness (tenant-level maintenance mode, health checks, parallel migrations). Start with `/gsd:new-milestone`. See [Next Milestone Goals](#next-milestone-goals--v05-operations--scale) below.
+**In progress:** **v0.5 Operations & Scale** — production-readiness: tenant-level maintenance mode, health checks, parallel migrations, and ops docs. See [Current Milestone](#current-milestone-v05-operations--scale) below.
 
 <details>
 <summary>Prior milestone — v0.4 Storage & Shared Entities (shipped 2026-06-19, tag v0.4.0)</summary>
@@ -38,23 +38,26 @@ Full milestone history: `.planning/milestones/v0.3-ROADMAP.md` + `.planning/MILE
 
 </details>
 
-## Next Milestone Goals — v0.5 Operations & Scale
+## Current Milestone: v0.5 Operations & Scale
 
 **Theme:** Production-readiness. v0.4 made a real SaaS work end-to-end; v0.5 makes it operable at scale.
 
-**Candidate requirements (to be refined in `/gsd:new-milestone`):**
-- **OPS-01:** Tenant-level maintenance mode
-- **OPS-02:** Health check / MonitorBundle integration
+**Goal:** Give operators per-tenant maintenance control, health visibility, faster migrations, and the docs to run the bundle in production.
+
+**Target features (confirmed scope):**
+- **OPS-01:** Tenant-level maintenance mode — per-tenant toggle, isolated from other tenants
+- **OPS-02:** Health check / MonitorBundle integration — per-tenant connectivity + bootstrapper probes
 - **ISOL-07:** Parallel `tenancy:migrate` via `symfony/process` (sequential since Phase 07; parallelize now)
-- Docs: new ops section — deploy guide, runbook patterns
+- **Ops docs:** new section — production deploy guide + runbook patterns
 
-**Retrospective carry-forward (to consider during planning):**
-- `examples/saas/composer.lock` vs `Dockerfile` PHP-version drift — still unresolved (carried from v0.3 → v0.4); refresh early in v0.5
-- Per-phase Nyquist VALIDATION.md coverage was partial across v0.4 (phases 24/26/28/29/30 missing/non-compliant) — decide whether v0.5 enforces it or keeps it discovery-only
-- Two `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load) carried open at v0.4 close — exercise in a real consumer project or convert to code-level testability seams
-- Closure-phase CONTEXT.md should `git log --since=<audit-date>` over canonical_refs files before generating decisions (lesson from Phase 23; reaffirmed Phase 30)
+**Folded-in v0.4 carry-forward (confirmed in scope):**
+- Fix `examples/saas` `Dockerfile` ↔ `composer.lock` PHP-version drift (open since v0.3)
+- Decide + apply Nyquist `VALIDATION.md` enforcement (vs v0.4's discovery-only stance)
+- Close the 2 `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load) — convert to code-level testability seams or exercise in a real consumer
 
-**Start with:** `/gsd:new-milestone`.
+**Planning lesson to carry:** Closure-phase CONTEXT.md should `git log --since=<audit-date>` over canonical_refs files before generating decisions (Phase 23; reaffirmed Phase 30).
+
+Phase numbering continues from **Phase 31**. Detailed requirements live in `.planning/REQUIREMENTS.md`; phase breakdown in `.planning/ROADMAP.md`.
 
 ## What This Is
 
@@ -146,7 +149,14 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 ### Active
 
-*(No active requirements — v0.4 scope fully shipped. v0.5 Operations & Scale scope pending `/gsd:new-milestone`.)*
+<!-- v0.5 Operations & Scale — building toward these. Detailed REQ-IDs in REQUIREMENTS.md; phases from 31 in ROADMAP.md. -->
+
+- [ ] **OPS-01** Tenant-level maintenance mode — per-tenant toggle, isolated from other tenants
+- [ ] **OPS-02** Health check / MonitorBundle integration — per-tenant connectivity + bootstrapper probes
+- [ ] **ISOL-07** Parallel `tenancy:migrate` via `symfony/process` (sequential since Phase 07)
+- [ ] **DOC-21** Ops docs section — production deploy guide + runbook patterns
+
+Plus folded-in v0.4 carry-forward: fix `examples/saas` `Dockerfile`↔`composer.lock` PHP-version drift, decide + apply Nyquist `VALIDATION.md` enforcement, and close the 2 `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load). See [Current Milestone](#current-milestone-v05-operations--scale).
 
 ### Validated — v0.4 Storage & Shared Entities (Shipped 2026-06-19, tag v0.4.0)
 
@@ -167,14 +177,9 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 - ✓ **DOC-19** Docs refresh — new pages for OriginHeaderResolver / Profiler tab / Mailer Bootstrapper, thin saas-demo walkthrough, canonical roadmap mirrored to docs site, UPGRADE 0.2→0.3 + 0.3.1→0.3.2 + 0.3.2→0.3.3 sections, `scripts/docs-lint.sh` extended with bundles.php install-path regression guard. — v0.3 (Phase 22)
 - ⊘ **GOV-01** Plan↔summary parity check + 72-hour TTL on `human_needed` — SKIPPED as non-functional governance gate (bundle-user value zero). Retrospective items #1 and #2 acknowledged as known gaps; humans surface via RETROSPECTIVE.md. May revisit as part of v0.4 retro carry-forward.
 
-### Later Milestones (planned, scope subject to v0.4 telemetry)
+### Later Milestones (planned, scope subject to telemetry)
 
-**v0.5 — Operations & Scale** *(production-readiness)*
-- **OPS-01** Tenant-level maintenance mode
-- **OPS-02** Health check / MonitorBundle integration
-- **ISOL-07** Parallel `tenancy:migrate` via `symfony/process`
-- New ops docs section: deploy guide, runbook patterns
-- Retro: root-cause executor sandbox denial seen in plan 15-01
+<!-- v0.5 Operations & Scale is now the Current Milestone (see top of file). -->
 
 **v0.6 — Advanced Isolation** *(demand-gated)*
 - **ISOL-06** PostgreSQL Row-Level Security driver
@@ -229,5 +234,22 @@ Tracked but not scheduled. **Open an issue to request prioritization** — these
 | PHPStan extension via `phpstan/extension-installer` auto-load | Zero-config, same pattern as phpstan-symfony/doctrine; degrades gracefully without phpstan-doctrine (DEC-PHPSTAN-01) | ✓ Good (validated Phase 28) |
 | Single `TenantEmSwitcher` owns tenant-switch logic; resync keeps `setTenant()`+`boot()` | De-duplicates byte-identical logic across subscriber + async handler; resync's bootstrapper path is intentionally asymmetric and documented (W-02/W-03) | ✓ Good (validated Phase 30) |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-06-19 after v0.4 milestone — Storage & Shared Entities shipped (tag v0.4.0): per-tenant Filesystem bootstrapper, `#[Shared]` sync model (sync + async), `tenancy:shared:resync`, PHPStan extension (3 rules), docs refresh, and audit-driven Phase 30 pre-tag closure. 770 PHPUnit tests / 3242 assertions, PHPStan level 9 clean, cs-fixer clean, docs-lint clean. Full history: `.planning/MILESTONES.md` + `.planning/milestones/v0.4-ROADMAP.md`. Next: v0.5 Operations & Scale (`/gsd:new-milestone`).*
+*Last updated: 2026-06-25 — v0.5 Operations & Scale milestone started. Active scope: OPS-01 tenant maintenance mode, OPS-02 health checks/MonitorBundle, ISOL-07 parallel `tenancy:migrate`, DOC-21 ops docs, plus v0.4 carry-forward (saas PHP-version drift, Nyquist `VALIDATION.md` enforcement, 2 `human_needed` UAT items). Baseline: v0.4.1 (tag), green CI, Symfony 8.1 supported, `composer audit` gate. Phases continue from 31. Prior milestone: v0.4 Storage & Shared Entities (tags v0.4.0 / v0.4.1). Full history: `.planning/MILESTONES.md` + `.planning/milestones/v0.4-ROADMAP.md`.*

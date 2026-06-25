@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.4
-milestone_name: "Storage & Shared Entities"
-status: v0.4 milestone complete
-stopped_at: v0.4 milestone completed and archived
-last_updated: "2026-06-19"
-last_activity: 2026-06-19 — Milestone v0.4 completed and archived
+milestone: v0.5
+milestone_name: Operations & Scale
+status: planning
+last_updated: "2026-06-25T20:28:20.104Z"
+last_activity: 2026-06-25
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 
 ## Current Position
 
-Phase: Milestone v0.4 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-19 — Milestone v0.4 completed and archived
-
-v0.4 Storage & Shared Entities shipped (tag v0.4.0): 7 phases (24–30), 34 plans, 770 PHPUnit tests / 3242 assertions, PHPStan L9 clean, cs-fixer clean, docs-lint clean. Milestone audit `tech_debt` (6/6 requirements satisfied, 0 blockers); residual debt accepted (see Deferred Items below). Archived to `.planning/milestones/v0.4-*`.
+Status: Defining requirements
+Last activity: 2026-06-25 — Milestone v0.5 started
 
 ## Deferred Items
 
