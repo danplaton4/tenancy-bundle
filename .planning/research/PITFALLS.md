@@ -1,438 +1,692 @@
-# Pitfalls Research — v0.3 Adoption Surface
+# Pitfalls Research — v0.5 Operations & Scale
 
-**Domain:** Symfony multi-tenancy bundle (`danplaton4/tenancy-bundle`), v0.3 adoption-surface features added to a published v0.2 bundle
-**Researched:** 2026-05-15
-**Confidence:** HIGH for technical findings (Symfony Mailer/Profiler/Messenger internals verified against official docs and source-cited GitHub issues); MEDIUM for cross-OS demo-app failure modes (verified via vendor bug trackers, not empirically reproduced)
+**Domain:** Symfony multi-tenancy bundle (`danplaton4/tenancy-bundle`), v0.5 operational features added to an event-driven multi-tenant kernel (OPS-01 maintenance mode, OPS-02 health checks, ISOL-07 parallel migrations)
+**Researched:** 2026-06-25
+**Confidence:** HIGH for lifecycle/bootstrapper pitfalls (grounded in live source reading of `TenantContextOrchestrator`, `BootstrapperChain`, `TenantMigrateCommand`, and the `TenantContext` value holder); MEDIUM for health-check integration patterns (verified against Symfony MonitorBundle design intent and common probe patterns); HIGH for parallel-process pitfalls (grounded in `symfony/process` documented behavior and existing `TenantRunCommand` pattern in codebase).
 
-> **Scope note.** This research only covers the *new attack surface* introduced by v0.3 (`tenancy:install`, demo app, profiler tab, Mailer bootstrapper, OriginHeaderResolver) and the operational/governance risks of adding adoption features to an already-published bundle. The general bundle pitfalls (identity-map pollution, DBAL reset, SQL filter bypass, etc.) live in `.planning/milestones/v0.2-research/PITFALLS.md` and are still in force — this file does not re-derive them. Where a v0.3 feature *intersects* an existing pitfall (e.g., the Mailer bootstrapper inherits the Messenger worker teardown pitfall), the intersection is called out explicitly.
->
-> **Governing lesson from v0.2** (issues #5–#8, retraction of v1.0.0): a defect that compiles cleanly and only manifests downstream is a tag-retraction event. The v0.3 features are *exactly* the surface that downstream users see first. Apply the issue #5 lesson — **codify the invariant at compile time** wherever the contract is enforceable in the container — to every v0.3 feature where the failure mode is "looks fine in our tests, breaks in someone else's project."
+> **Scope note.** This research covers only the *new attack surface* introduced by v0.5. General bootstrapper lifecycle pitfalls (identity-map pollution, DBAL reset, SQL filter bypass, Messenger worker teardown) live in `.planning/milestones/v0.2-research/PITFALLS.md`. Where a v0.5 feature intersects an existing pitfall, the intersection is called out explicitly. The **prime directive throughout is zero cross-tenant leaks** — a data leak is a security incident, not a configuration mistake (`strict_mode` ON by default).
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Mailer transport overridden at dispatch-time instead of send-time → async emails go to wrong tenant
+### Pitfall 1: Maintenance check fires BEFORE tenant resolution — can't gate per tenant
+
+**[SECURITY-CRITICAL — zero-leak guarantee at risk]**
 
 **What goes wrong:**
-The Mailer bootstrapper (BOOT-04) overrides the active SMTP transport when `TenantResolved` fires. In the sync mailer path this is correct: `$mailer->send()` resolves the transport immediately, the tenant is still active, the right SMTP is used.
+A `kernel.request` listener that checks "is this tenant in maintenance mode?" runs before the orchestrator at priority 20. At that point `TenantContext` is empty — no tenant has been resolved yet. The check cannot read the tenant slug, falls back to "no tenant → not in maintenance", and passes every request through. Maintenance mode effectively does nothing.
 
-In the **async** path it is silently wrong. When `symfony/mailer` is configured to route `SendEmailMessage` to a Messenger transport (the recommended default), `$mailer->send()` dispatches a serialized message to the queue and returns. The Messenger worker consumes the message in a **separate process**, in which:
-
-1. The original request's `TenantContext` does not exist.
-2. The handler reconstructs tenant context from the `TenantStamp` carried on the envelope (this already works — Phase 06).
-3. The handler then asks the Mailer service for *its* transport — which was wired at container compile time as the **default landlord transport**, because nothing in the worker process has yet swapped it.
-
-Result: the email body says "Welcome to Acme Corp" but the SMTP that sends it is the landlord's SES account, with the landlord's `From:` header, and (if rate-limit-segregated) the landlord's reputation. In multi-tenant SaaS this is a customer-visible incident — DKIM mismatches, replies routed to the wrong inbox, support tickets ("why did my customer get an email from `noreply@platform.example.com`?").
-
-This is the v0.3 equivalent of **issue #5** (decorator-contract incompleteness): the bootstrapper looks complete because the sync test passes, but a downstream user with `messenger.transports.async: "%env(MESSENGER_TRANSPORT_DSN)%"` and async-routed Mailer hits the failure mode on first send.
+Alternatively, the implementation registers at priority > 20 (higher priority = earlier execution in Symfony), runs before the orchestrator, cannot determine the tenant, and silently passes.
 
 **Why it happens:**
-Two layered Symfony architectural facts make this counter-intuitive:
+Symfony's `kernel.request` listener priority ordering is counterintuitive: priority 32 = router (runs first), priority 20 = orchestrator, priority 8 = security firewall. A developer adding a maintenance listener at priority 30 (before router) or 25 (after router, before orchestrator) has no tenant context yet.
 
-1. **`SendEmailMessage` rendering is deferred.** Per Symfony Mailer docs and `symfony/mailer` source, when async, the "rendering" of the email (computed headers, body rendering, transport selection) is deferred until the Messenger handler runs. The handler is `Symfony\Component\Mailer\Messenger\MessageHandler`, and it calls `$transport->send($message, $envelope)` on the transport injected at construction time.
-2. **`MessageEvent` cannot change the transport.** The `RawMessage` on `MessageEvent` is a clone in some dispatch paths (see [symfony/symfony#34972](https://github.com/symfony/symfony/issues/34972)), and the transport itself is selected **before** `MessageEvent` is dispatched. Listeners that attempt `$event->setEnvelope()` or mutate transport DSN are fighting the framework.
+The existing `TenantContextOrchestrator` is registered at `PRIORITY = 20`. Any maintenance-check listener at priority > 20 fires before tenant resolution.
 
-The bootstrapper-author's mental model — "I'll override the mailer at boot, just like the cache adapter" — works for cache because cache resolves at call-time. It fails for Mailer-via-Messenger because the actual transport decision is made in the worker, by a service whose construction parameters were locked at compile time.
+**How to avoid:**
+Register the maintenance-mode listener at **priority < 20** (e.g., priority 15 — after orchestrator but before security at 8). By the time the listener fires, `TenantContext` is populated (or null for landlord/health/public routes). The listener reads `$tenantContext->getTenant()`, fetches that tenant's maintenance flag, and either short-circuits with a 503 or passes. When `$tenantContext->getTenant()` is null (landlord/health routes — see Pitfall 3), the listener MUST pass through unconditionally.
 
-**How to avoid — recommended extension point:**
+Add a `MaintenanceModeContractPass` that asserts: if a service is tagged `tenancy.maintenance_checker`, it is NOT registered at priority >= 20 on `kernel.request`. Fail compile with a descriptive error if the ordering invariant is broken — this is the v0.2 `CacheDecoratorContractPass` pattern applied to listener ordering.
 
-There are three viable extension points, in **strict preference order**:
+**Warning signs:**
+- A maintenance-mode integration test passes (listener fires, checks, allows) when the tenant IS in maintenance, meaning the check is running after context is set — but fails to block if the listener is accidentally re-registered at the wrong priority.
+- `dump($tenantContext->getTenant())` inside the listener returns null even on tenant routes.
+- Maintenance flag set for tenant-A, tenant-A request still reaches controller.
 
-1. **`X-Transport` header at dispatch + multi-transport mailer config** (RECOMMENDED for v0.3).
-   - At dispatch time, the Mailer bootstrapper installs a `MessageEvent` listener that reads `TenantContext`, looks up the tenant's transport *name* (not DSN), and sets header `X-Transport: tenant_<slug>` on the message.
-   - User configures `framework.mailer.transports` with one named transport per tenant — or per tenant *group* — using Symfony's existing multi-transport routing (`X-Transport` is the supported selection header, per [symfony/symfony#46372](https://github.com/symfony/symfony/discussions/46372)).
-   - The header is part of the serialized message; it survives the queue; the worker's `Mailer` resolves transport by header at send-time.
-   - **Why this is safe:** zero reflection, zero container mutation, uses Symfony's documented selection mechanism. The transport-name → DSN mapping is in user config, which is the right place — DSNs with credentials never touch our code.
-
-2. **`TenantStamp`-aware `TransportFactory` decoration** (FALLBACK for dynamic DSN — e.g., when tenants are not enumerable at compile time).
-   - Decorate `mailer.transports` (the `Transports` collection service). The decorator, on `send($envelope, $message)`, reads the current `TenantContext` (which is already restored by `TenantWorkerMiddleware` in the worker thanks to the `TenantStamp`), resolves a DSN from a `TenantTransportProviderInterface`, and instantiates a transport via `Transport::fromDsn()`.
-   - **Must cache the resolved transport per tenant slug** inside the decorator (LRU, bounded size) — `Transport::fromDsn()` re-establishes SMTP/HTTP connections; doing it on every email is a perf cliff.
-   - **Must invalidate cache on `TenantContextCleared`** to prevent leaking a tenant's SMTP socket into a subsequent message for a different tenant in the same worker.
-
-3. **`MessageEvent` with envelope mutation** (NOT RECOMMENDED — listed only to explicitly reject):
-   - You can mutate `$event->getEnvelope()->setSender(...)` to change the `From:`, but **you cannot change the transport** at this point.
-   - This is the trap most blog posts fall into. The transport is already selected.
-
-**Compile-time guard (issue #5 lesson):**
-Add a `MailerTransportContractPass` that asserts:
-- If `BOOT-04` is enabled (mailer config present) AND `interface_exists(\Symfony\Component\Mailer\MailerInterface::class)`, then **either** (a) at least one `X-Transport`-routed transport is configured in `framework.mailer.transports`, OR (b) a service implementing `TenantTransportProviderInterface` is registered.
-- If neither is true, the bundle is in "mailer enabled but no transport resolution strategy" state — fail compile with `LogicException` and link to docs.
-
-Also assert: if Messenger is installed AND mailer is routed async (detectable by inspecting `messenger.routing` config), then strategy #1 (`X-Transport` header) MUST be active, because strategy #2 with a worker that processes other tenants' messages between Mailer.send and SMTP-dispatch is async-unsafe unless the decorator is wrapped by `TenantWorkerMiddleware` (which it would be, but the audit trail is easier to verify with a compile-time check).
-
-**Warning signs (detection):**
-- Integration test: dispatch an email in tenant A context with async transport, run worker, assert the SMTP transport the worker used has DSN matching tenant A's mailer config. **This is the canary test** — write it before writing the bootstrapper.
-- Worker logs grep for tenant slug in From: header → mismatched against `TenantStamp` slug
-- DKIM signing keys: if the landlord domain signs an email whose `From:` is a tenant domain, MTAs will drop it (SPF/DKIM failure). User reports will be "emails not arriving".
-- `Mailer\Transport\TransportException: Unable to authenticate` from tenant A's worker run after a healthy tenant B run → cached/leaked SMTP socket
-
-**Phase to address:** Phase BOOT-04 (Mailer bootstrapper). **Must include:**
-- Async canary test (above) as a phase quality gate
-- `MailerTransportContractPass` as a compile-time guard
-- Documentation page comparing the three strategies, with the recommendation explicit
+**Phase to address:** Phase 31 (OPS-01 maintenance mode). The listener-priority contract test (`assert maintenance listener fires AFTER orchestrator`) is a quality gate.
 
 ---
 
-### Pitfall 2: `tenancy:install` corrupts a user's `config/bundles.php`
+### Pitfall 2: Maintenance listener fires TOO LATE — controller already did work before 503
 
 **What goes wrong:**
-The `tenancy:install` command (DX-06) mutates a file in the user's project that they did not write recently and may have edited heavily. The Symfony default `config/bundles.php` is a literal PHP array literal returned by `return [ ... ];`, but a non-trivial fraction of real projects have:
+The maintenance listener is registered at priority < kernel.request (e.g., a `kernel.controller` listener or an event subscriber on `kernel.controller_arguments`). The router runs, the controller is dispatched, the controller hits the database, does expensive work, and THEN maintenance mode is checked — returning a 503 that still logged a query and mutated state for a tenant that should have been blocked.
 
-- **DDD/Hexagonal layouts** where `bundles.php` is replaced by a `Kernel::registerBundles()` override that does not use the file at all.
-- **Conditional bundle loading** (`if ('dev' === $env)` blocks).
-- **Comments and trailing commas** inserted by other tools.
-- **Custom array keys** (`SomeBundle::class => ['all' => true, 'when@worker' => false]`).
-- **Multi-line bundle declarations** for readability.
-
-Naive append-via-`file_put_contents(..., FILE_APPEND)` will produce a syntactically invalid file the moment any of these patterns are present. Naive regex insertion will produce a syntactically valid but semantically wrong file (insertion inside the wrong array, after the closing `];`, etc.).
-
-**This is the user's code. We do not get to break it.** A user whose `config/bundles.php` is corrupted on first install will not file an issue — they will `composer remove danplaton4/tenancy-bundle` and tell their team to use the manual instructions. That is an irrecoverable adoption loss.
+Subtler: the listener is correctly registered on `kernel.request` at priority 15, but conditionally defers to a second listener tagged `kernel.controller` (e.g., a "check in the controller trait" approach). Same result — expensive work runs before the gate.
 
 **Why it happens:**
-- Symfony Flex normally does this via a recipe and PHP-AST manipulation, but **v0.3 explicitly has no Flex recipe** (per PROJECT.md and the `feedback_no_flex.md` memory). The bundle must do this work itself, without the recipe infrastructure.
-- The simplest implementation (string concat, regex, sed) seems to work on a fresh `symfony new` skeleton and fails the moment it meets a real project.
-- AST manipulation (`nikic/php-parser`) is correct but adds a runtime dependency that is heavy for a single command.
+Controller traits or Symfony `AbstractController` patterns that check "am I allowed?" before returning feel natural in controller code. Developers extract the maintenance check into a helper, call it from the controller, and the 503 fires after the constructor has already injected services and queries have started.
 
 **How to avoid:**
+The gate MUST be a `kernel.request` listener at priority 15. Nothing else. No controller-level checks as the primary gate. Document explicitly in the maintenance-mode feature: "if you add a controller-level guard as a convenience, it is defense-in-depth only, not the primary gate."
 
-1. **Detect-and-instruct, don't blindly mutate.**
-   - First action: parse `config/bundles.php` and check whether `TenancyBundle::class` is already present. If yes — print "already registered, skipping" and exit 0. **Idempotent on re-run is non-negotiable.**
-   - Second: if the file is *not* the standard Symfony Flex-generated shape (we can detect by checking: file exists, returns array literal, all keys are `::class` constants, no statements other than the return) — **refuse to mutate**, print the manual snippet, and exit 0 (NOT a failure). Tell the user "your `bundles.php` is non-standard; add this line manually: …".
-   - Third: if `bundles.php` does not exist (e.g., the project uses `registerBundles()` override): detect this by checking `Kernel.php` for `registerBundles()` override OR the absence of `MicroKernelTrait` use → print the manual snippet for `registerBundles()`, exit 0.
-   - Only in the fourth case — file exists, is standard shape, our entry is absent — do we mutate.
+**Warning signs:**
+- Integration test: set tenant to maintenance, dispatch request, assert 0 Doctrine queries were executed. If the assertion fails, the gate is too late.
+- Monolog shows "SELECT ... WHERE tenant_id = X" on the same request that returned 503.
 
-2. **Mutate via `nikic/php-parser`, not via regex.**
-   - `nikic/php-parser` is the de facto standard for safe PHP-AST mutation. It is already a transitive dependency of `symfony/maker-bundle`, which most users have. We can `require` it as a `require-dev` of the bundle and only load it in the `tenancy:install` code path (guarded by `class_exists`).
-   - Read file → parse to AST → find the `return` statement's array → check if our entry exists → if not, append an `ArrayItem` → print AST back to file via `Standard` pretty-printer.
-   - **Preserve formatting** by using the `cloneNodes: false` option to retain attributes; the pretty-printer respects original indentation reasonably well.
-
-3. **Always write atomically.**
-   - Write to `config/bundles.php.new`, fsync, then `rename()` to `config/bundles.php`. A SIGTERM mid-write must not leave a half-written `bundles.php`. Use `Filesystem::dumpFile()` from `symfony/filesystem` — it does the atomic rename for us.
-
-4. **Always create a backup.**
-   - `cp config/bundles.php config/bundles.php.bak.$(timestamp)` before mutating. Print the backup path in the command output so the user can roll back. Keep at most 3 backups (delete oldest).
-
-5. **Encoding and line-endings.**
-   - Detect BOM (UTF-8 BOM = `\xEF\xBB\xBF`) at file head — if present, preserve it.
-   - Detect line endings (`\r\n` vs `\n`) by sampling — write back in the same convention.
-   - `nikic/php-parser` Standard pretty-printer uses `\n` by default; we must post-process for `\r\n` files on Windows.
-
-6. **Permissions.**
-   - Don't `chmod` the file after writing. Whatever permissions the user had, preserve. `dumpFile()` does this correctly via `rename`.
-   - On Windows CI runners, file locks (e.g., from an editor open on the file) can cause rename to fail — catch `IOException`, restore from backup, print clear message.
-
-**Compile-time guard:** Not applicable (runtime command, not service wiring). Instead:
-
-**Runtime guards (the equivalent for a command):**
-- `tenancy:install --dry-run` mode that prints the diff but writes nothing. Test the dry-run output in CI against fixture `bundles.php` files for: fresh skeleton, project with comments, project with already-installed bundle, project with conditional load, DDD layout, missing file, syntactically invalid file.
-- After mutation, `php -l config/bundles.php` (syntax check) before declaring success. If syntax check fails, automatically restore the backup and exit with error message + backup path.
-
-**Warning signs (detection):**
-- Test corpus: a directory of `bundles.php` fixtures collected from real projects (Symfony skeleton, API Platform skeleton, Sulu, DDD example). Run `tenancy:install` against each in a temp dir; assert each produces a parseable, semantically-correct result OR refuses cleanly.
-- Property-based test: generate random valid `bundles.php` content via php-parser, run install, assert resulting file parses and contains our entry exactly once.
-- Re-run idempotency: `tenancy:install && tenancy:install && tenancy:install` produces the same final file.
-
-**Phase to address:** Phase DX-06 (`tenancy:install`). The "test corpus of fixture `bundles.php` files" is a phase quality gate — **must include at least 6 distinct fixture types** before phase is callable done. The dry-run mode is a separate testable surface and should be in the plan's scope explicitly, not added later.
+**Phase to address:** Phase 31 (OPS-01). Query-count assertion (`assertSame(0, $queryCount)` before the 503 is confirmed) is a quality gate.
 
 ---
 
-### Pitfall 3: Profiler data collector serializes a non-serializable `TenantContext` or its dependencies
+### Pitfall 3: Landlord, health-check, and public routes locked out by maintenance mode
+
+**[SECURITY-CRITICAL — operators locked out of their own system]**
 
 **What goes wrong:**
-The DX-02 profiler tab collects "active tenant, ID, connection, resolved-by" at request-end time. The naive implementation injects `TenantContext` into the collector and stores `$this->data = ['context' => $context]`. The profiler then attempts to serialize `$this->data` to the filesystem for later viewing (`/_profiler/<token>` URL). Two failure modes:
+The maintenance listener checks `$tenantContext->getTenant()`. When a tenant IS active, it checks the flag and may return 503. But the developer forgets the exemption list: landlord admin routes, `/health`, `/ready`, and unauthenticated public routes. Two disasters:
 
-1. **Non-serializable state in the graph.** `TenantContext` itself is a zero-dep value holder (good), but the `Tenant` entity it points to may be a Doctrine proxy with a closure-bound `EntityManager` — proxies are not always serializable, and even when they are, deserializing them on the profile-view request will fail (EM no longer present, lazy-load throws).
-2. **Cleared-context blank panel.** The bundle's design (CORE / Phase 01) clears `TenantContext` on `kernel.terminate`. Symfony profile serialization happens during `kernel.terminate`. **Order matters.** If our `TenantContextClearedListener` runs *before* the profiler's serialization (priority race), the collector serializes a null tenant and the panel shows empty even for a request that had a tenant active throughout.
-
-The combination produces a confusing first-impression bug: profile says "no tenant" on a request that was *clearly* tenant-scoped (the response body contains tenant data). The dev's first reaction is "the bundle is broken" — and the first impression is poisoned.
+1. The health probe URL `/health` returns 503 during tenant maintenance, causing the load balancer to mark the app server as dead, kill all traffic, and start a restart loop. A maintenance mode for one tenant takes the entire platform offline.
+2. The operator trying to END maintenance mode logs in via the landlord admin, which hits the maintenance-mode listener, gets a 503 because the admin URL resolves to a tenant (or because the listener has no exemption for admin at all), and is locked out of the control plane.
 
 **Why it happens:**
-- Devs implementing data collectors copy from Symfony docs that say "store data in `$this->data`" and don't realize `$this->data` is `serialize()`d.
-- The `LateDataCollectorInterface::lateCollect()` exists *exactly* for this case (per [Symfony docs](https://symfony.com/doc/current/profiler/data_collector.html)) but is easy to miss — the regular `collect()` runs on `kernel.response`, before our `kernel.terminate` clear runs, so a naive impl works in dev tests but breaks on stored profiles.
-- The clear-vs-collect priority race is silent and timing-dependent — sometimes panel shows data, sometimes blank, depending on listener registration order.
+- The orchestrator already handles this correctly: `ResolverChain::resolve()` returns `null` for health/public/landlord routes, and the orchestrator null-branches (skip bootstrappers, leave `TenantContext` empty). But the maintenance listener has to make the SAME exemption decision independently.
+- Developers assume "null tenant = no maintenance check needed" (correct) but forget that some routes DO resolve a tenant but MUST bypass maintenance (e.g., the landlord admin impersonating a tenant, health-check routes that carry a `X-Tenant-ID` header for per-tenant health, emergency bypass tokens).
 
 **How to avoid:**
+The maintenance listener's exemption logic must be explicit and tested:
+1. `$tenantContext->getTenant() === null` — pass through (landlord/health/public; orchestrator already null-branched these).
+2. Request matches a configurable `maintenance_bypass_routes` list (list of route names) — pass through.
+3. Request carries a signed bypass token (`X-Maintenance-Bypass: <hmac>`) — pass through (for operator CLI access to a tenant in maintenance).
+4. None of the above + tenant flag is set — return 503 with `Retry-After`.
 
-1. **Collect at `collect()` (kernel.response), not `lateCollect()`** — the tenant context is still active at `kernel.response`. `lateCollect()` runs during `kernel.terminate`, and our `TenantContextOrchestratorListener` is registered on `kernel.terminate`. To avoid the priority race entirely, collect early.
+The health-check endpoint must be on a route that resolvers return null for (no tenant identified), OR must be explicitly in the bypass list. The bundle should default the route name `tenancy_health` into the bypass list.
 
-2. **Store only scalar/array data, never objects.**
-   - Store: `['tenant_id' => string, 'tenant_slug' => string, 'resolved_by' => string, 'driver' => string, 'connection_name' => string|null, 'resolution_time_ms' => float|null]`.
-   - Never store: `Tenant` entity, `TenantResolution` object, `TenantContext` itself, anything that could carry a reference to `EntityManager`, `Connection`, or `Container`.
-   - Rule of thumb: if a value would not survive `json_encode → json_decode`, do not put it in `$this->data`.
+Compile-time guard: if `OPS-01` and `OPS-02` are both enabled, `MaintenanceModeContractPass` asserts the health-check route is in the bypass list (or the health resolver returns null). Fail compile if not.
 
-3. **Implement `reset()` correctly** — `DataCollectorInterface` extends `ResetInterface` in modern Symfony; resetting must clear `$this->data` to a known-empty shape, so a long-running test/dev server doesn't carry one request's data into the next collector instantiation.
+**Warning signs:**
+- Smoke test: set ALL tenants to maintenance mode, assert health endpoint returns 200, assert landlord admin returns 200.
+- The load balancer starts cycling instances — check if health probe is 503.
 
-4. **Render robustly** — the Twig template MUST handle the "no tenant" case (`tenant_id is null`). The WDT icon should:
-   - Show a small "T" icon with the tenant slug when present.
-   - Show a greyed icon with "no tenant" tooltip when the request resolved without one (public/landlord/health route — this is the legitimate "no tenant" case, post-FIX-02).
-   - **Never hide entirely** — the absence of the icon is indistinguishable from "the bundle is broken". Always present.
-
-5. **Production-mode compile-out.**
-   - Data collectors must register their service only in `dev` / `test` (`when@dev`, `when@test` in service config), or be guarded by `framework.profiler.enabled`. A production deployment must not pay any cost for the collector.
-   - The Twig template lives in `Resources/views/Collector/` and is auto-discovered by `WebProfilerBundle` — this only loads when `web_profiler.enabled = true`, which is dev-only by default. Good. Still, register the service conditionally to be defensive.
-
-6. **No queries in `collect()` or `lateCollect()`.** Collector code path runs on every dev request. Don't `$tenantProvider->findAll()` to render a count; don't `$em->createQuery(...)`. Snapshot what was already in memory.
-
-**Compile-time guard:**
-A `ProfilerCollectorContractPass` that, when `WebProfilerBundle` is registered, verifies our collector service is tagged `data_collector` correctly AND has the right template path. Less essential than the Mailer pass — failure here is just "no panel shows up", not data corruption. **Skip unless it's a 10-line check.**
-
-**Warning signs (detection):**
-- Test: dispatch a request with tenant, store the profile to disk, reload `/_profiler/<token>`, assert tenant info renders. **This catches the serialization bug.**
-- Test: dispatch a request without tenant (landlord route), assert panel renders "no tenant" not blank.
-- Test: dispatch a request, `assertCount(0, $em->getQueryLog()->getQueriesAfter($collectorCalled))` — collector adds zero queries.
-- Test: register a listener with priority `INT_MIN` on `kernel.terminate` that asserts `$tenantContext->getActiveTenant() === null`. This proves clear happened. If profile still shows tenant data, lateCollect was used (good) — if blank, collect() raced.
-
-**Phase to address:** Phase DX-02 (Profiler tab). The "panel must render in three states" (tenant resolved, no tenant resolved, error during resolution) is a quality gate.
+**Phase to address:** Phase 31 (OPS-01). The "health endpoint exempt from maintenance" test is a quality gate. Phase 32 (OPS-02) must verify the same invariant holds when health checks are introduced.
 
 ---
 
-### Pitfall 4: Demo app's "subdomain on localhost" works on the author's laptop and nowhere else
+### Pitfall 4: Maintenance flag stored in a location that leaks across tenants
+
+**[SECURITY-CRITICAL — zero-leak guarantee at risk]**
 
 **What goes wrong:**
-The DEMO-01 demo app demonstrates the `HostResolver` by routing `tenant1.localhost` and `tenant2.localhost` to two different tenants. The author tests it locally with `curl -H "Host: tenant1.localhost"` and it works. They push, ship the README "just run `docker compose up` and visit `http://tenant1.localhost:8080`."
+The per-tenant maintenance flag is stored in a shared cache pool (e.g., `cache.app`) without namespace isolation. Tenant-A's `maintenance_mode = true` flag is written as `tenant_maintenance_A`. Tenant-B's code reads `cache.app->get('tenant_maintenance_A')` by accident — a key-guess attack, or (worse) the maintenance implementation uses a fixed cache key `current_maintenance_mode` shared across all tenants because the developer forgot to prefix by slug.
 
-**It does not work on the user's machine** because:
-
-1. **Firefox**, until very recently, did **not** resolve `*.localhost` to 127.0.0.1 by default ([Mozilla bug 1741109](https://bugzilla.mozilla.org/show_bug.cgi?id=1741109), [bug 1686759](https://bugzilla.mozilla.org/show_bug.cgi?id=1686759), [bug 1433933](https://bugzilla.mozilla.org/show_bug.cgi?id=1433933)). Some Firefox versions resolve, some don't; behavior depends on `network.dns.offline-localhost` pref. Even in 2026, the user's specific Firefox configuration may not resolve.
-2. **Safari** has had long-standing issues with subdomains of `.localhost` ([WebKit bug 160504](https://bugs.webkit.org/show_bug.cgi?id=160504)).
-3. **Chrome** correctly resolves `*.localhost` per RFC 6761. This is what the author tested.
-4. **Linux distros** vary: glibc resolves `*.localhost` if `nss-myhostname` is enabled (default on Arch, Fedora), but some Debian/Ubuntu containers do not unless `/etc/hosts` has entries.
-5. **Docker Desktop on macOS / Windows** routes `*.localhost` from the host to Docker correctly, but DNS resolution inside containers (e.g., when the demo's tests run inside Docker hitting the demo app via subdomain) goes through container DNS, which often **does not** resolve `*.localhost`.
-6. **WSL2** has its own DNS quirks where `tenant1.localhost` from a WSL2 shell may not resolve to the Windows host's 127.0.0.1.
-
-The user opens Firefox, types `http://tenant1.localhost:8080`, gets a DNS error, files an issue: "Demo doesn't work." This is the first impression. The bundle's actual code is fine — the demo's *DNS assumption* is the bug, but the user can't tell.
-
-**This is the v0.3 equivalent of "it works on my machine, not on theirs."** And because the demo is the bundle's onboarding ramp, this defect is high-leverage in the wrong direction.
+Parallel scenario: the flag is stored in the PHP process's static property or a singleton service (`MaintenanceRegistry::$flags`) that persists across requests in a long-running server (FrankenPHP, ReactPHP). Tenant-A's maintenance flag bleeds into tenant-B's request in the same worker process.
 
 **Why it happens:**
-- The author uses Chrome, tests on Chrome, calls it done.
-- Cross-browser/cross-OS testing of demo apps is not part of the bundle's CI surface.
-- RFC 6761 *requires* implementations to treat `localhost` as a special name, but the subdomain-resolution interpretation is ambiguous and browsers/OSes differ on whether `*.localhost` is implied.
+- `cache.app` is namespaced per tenant via the `TenantAwareCacheAdapter` (Phase 05), but only when `TenantContext` is active. If the maintenance flag is written from a CLI command (where `TenantContext` may not be bootstrapped via the same adapter), it writes to the landlord-namespace pool, then the HTTP request reads from the tenant-namespace pool — cache miss, maintenance never activates.
+- Static properties or services with `shared: true` in DI config survive across requests in async PHP runtimes. Any per-tenant flag held in PHP memory must be keyed by slug and reset on `TenantContextCleared`.
 
 **How to avoid:**
+Store the maintenance flag in the **tenant database row** (an `is_maintenance_mode` column on the `Tenant` entity). The flag is authoritative at the DB layer, completely isolated per tenant by definition, and readable by any process without cache-namespace concerns. Cache the result per-request in a `MaintenanceModeChecker` service that is `shared: true` and caches only for the duration of the request (cleared on `TenantContextCleared`).
 
-1. **Default to host-header path, not real DNS.**
-   - The demo's curl/HTTPie snippets should be `curl -H "Host: tenant1.localhost" http://localhost:8080` — works on every machine, every browser-independent. Browser snippets are *additional*, with explicit caveats.
+Alternatively, use the tenant-namespaced cache adapter — but only via the same bootstrapper path that the HTTP request uses. CLI-triggered maintenance flag changes MUST go through the tenant bootstrapper chain or write directly to the DB.
 
-2. **Document the three-step fallback ladder** in the demo README:
-   - **Step 1 (works everywhere):** Use the `Host:` header via curl/HTTPie or use a browser extension like "ModHeader" to inject `Host:` on a request to `http://localhost:8080`.
-   - **Step 2 (works on macOS/Linux):** Add to `/etc/hosts`: `127.0.0.1 tenant1.localhost tenant2.localhost`. Same on Windows in `C:\Windows\System32\drivers\etc\hosts`.
-   - **Step 3 (browser-native, Chrome only by default):** Use `http://tenant1.localhost:8080` directly. **Explicitly note Firefox/Safari may not resolve and the workaround.**
+Never use a static property or process-global state for the flag.
 
-3. **Provide a smoke script** in `examples/`: `bin/smoke.sh` runs the four resolver scenarios via curl with `Host:` header injection and exits non-zero if any tenant route fails to be routed correctly. This is what runs in CI. The smoke script is the *real* "does the demo work" test, not a browser visit.
+**Warning signs:**
+- Integration test: set tenant-A to maintenance, dispatch a request for tenant-B, assert tenant-B is NOT in maintenance. If this fails, cross-tenant flag contamination is present.
+- Async runtime test: handle two requests in the same worker process (tenant-A in maintenance, tenant-B not), assert tenant-B's second request passes. If it fails, a static/shared flag is leaking.
 
-4. **CI gate the demo.**
-   - GitHub Actions job: `docker compose up -d`, wait for health, run `bin/smoke.sh`, assert both tenants resolve correctly. If this job fails, the bundle does not release. This converts "demo works" from a manual claim to a CI-enforced invariant.
-
-5. **Demo path repo composer cache** — when the demo's `composer.json` references the bundle via `repositories: [{ type: path, url: "../" }]`, composer creates a symlink to the bundle source. **By default `--prefer-source` is symlinked, BUT** if the user runs `composer install --prefer-dist`, composer **copies** the bundle into `vendor/` and the demo no longer reflects local bundle changes. README and the docker-compose file's startup command must default to `--prefer-source` AND document the gotcha. Add a smoke-script assertion: after `composer install`, `readlink vendor/danplaton4/tenancy-bundle` exists.
-
-6. **Docker volume permission hazards.**
-   - SQLite/MySQL data volumes: do not mount onto a host path — use named volumes only. Host-path mounts on Linux create files owned by container UID (often 999), which break on user's `rm -rf`. Named volumes are managed by Docker, no host permission concerns.
-   - Don't ship a docker-compose that mounts `./var:/var/www/var` — every user with a different host UID will hit permission errors. Use named volumes.
-
-7. **First-run footguns.**
-   - Port conflict: README explicit that ports 8080, 3306 must be free; provide `.env` override.
-   - MySQL init delay: use `condition: service_healthy` in compose `depends_on`, with a `healthcheck` on the DB. Never rely on `sleep`.
-   - No wait-for-it scripts: use Docker Compose v2's native `condition: service_healthy`.
-
-**Compile-time guard:** Not applicable (demo is separate from bundle). **Workflow guard:**
-- The `examples/` demo path is added to the bundle's CI matrix. The job is named `demo-smoke` and is **required** for merge to `master`. Without this gate, the demo silently rots over time. This is the "demo CI gate" from the quality criteria.
-
-**Warning signs (detection):**
-- User issues with title containing "demo", "localhost", "doesn't resolve" — track and route to demo README fix
-- CI smoke job failure on any tenant route — block release
-- README walkthrough goes stale: add a CI job that lints the README's curl commands against the actual route definitions
-
-**Phase to address:** Phase DEMO-01. Smoke script + CI gate are quality gates, not optional. README must include the three-step fallback ladder before phase is callable done.
+**Phase to address:** Phase 31 (OPS-01). Cross-tenant isolation test is a quality gate. The storage choice (DB column vs. namespaced cache) must be decided and documented before plan execution.
 
 ---
 
-### Pitfall 5: OriginHeaderResolver trusts a browser-controlled header for tenant identification
+### Pitfall 5: Bad HTTP status code or missing `Retry-After` breaks SEO and monitoring
 
 **What goes wrong:**
-The RESV-06 `OriginHeaderResolver` lets SPAs identify their tenant via the `Origin` header, which is the natural identifier when frontend and backend are on different domains. The naive implementation reads `$request->headers->get('Origin')` and looks up a tenant whose configured origin matches.
+The maintenance mode 503 response lacks a `Retry-After` header. Search engine crawlers (Googlebot) treat a 503 without `Retry-After` as a temporary error and progressively de-index the tenant's content. After maintenance ends, re-indexing takes days to weeks. A monitoring probe that expects a specific status code (e.g., 200) starts firing P1 alerts for a scheduled maintenance window because nobody added the probe exemption or documented the expected status.
 
-This is correct for SPA UX but introduces two security-shaped failure modes:
-
-1. **Spoofable from non-browser clients.** The `Origin` header is set by the browser per spec, and a browser cannot lie about it cross-origin (that's the point of the same-origin policy). But **server-to-server requests, curl, Postman, mobile apps, malicious clients** can set any `Origin` they want. If our resolver trusts `Origin: https://tenant-a.example.com` from any client, and tenant-A's data is gated only by tenant resolution + authentication, an attacker who has a tenant-B user credential can authenticate as tenant-B, set `Origin: https://tenant-a.example.com`, and access tenant-A's API. The CORS policy doesn't help — CORS protects browser-originated requests, not server-originated ones.
-
-2. **CORS preflight (`OPTIONS`) requests** are unauthenticated by design (no `Authorization` header allowed in preflight). They carry an `Origin`. If our resolver fires on preflight, it needs to either (a) resolve a tenant and proceed (preflight is safe — it returns CORS headers, no data), or (b) skip resolution for preflight. Failing to handle preflight breaks the SPA's CORS flow entirely — the actual request never fires because preflight returned 401.
-
-There's a third, more subtle:
-
-3. **Resolver order ambiguity.** Both `OriginHeaderResolver` and the existing `HeaderResolver` (`X-Tenant-ID`) can fire on the same request. If a request carries both `Origin: https://tenant-a.example.com` AND `X-Tenant-ID: tenant-b`, which wins? Without a documented contract, the answer depends on resolver priority, which depends on user config. A misconfiguration leads to the wrong tenant being resolved and the user blaming the bundle.
+Secondary failure: developer returns 200 with an HTML "maintenance" body instead of 503, because "it feels nicer." Googlebot now thinks the maintenance page IS the content and indexes it — every URL for the tenant starts ranking for "this site is under maintenance."
 
 **Why it happens:**
-- Devs implementing SPA-friendly resolvers see `Origin` documented as "set by the browser" and assume it's trustworthy. The spec is "set by the browser **in browser-originated requests**" — server-originated requests have no such guarantee.
-- CORS preflight is invisible during ordinary development (browsers cache preflight responses 24h) and only becomes a problem on first deploy or first new SPA build.
-- Resolver-chain order is documented but easy to misconfigure, and the symptom (wrong tenant for some routes) is hard to attribute to resolver order vs. cache vs. session.
+- HTTP semantic correctness is easy to get wrong under time pressure.
+- `Retry-After` is rarely tested because testing time-related headers requires deliberate effort.
+- Monitoring probes are written once and rarely revisited.
 
 **How to avoid:**
+The maintenance 503 response MUST include:
+- Status code 503 (NOT 200, NOT 302).
+- `Retry-After: <estimated_seconds>` header (configurable per tenant, default 3600).
+- `Content-Type: application/json` for API routes (detected by `$request->getPreferredFormat()`); `text/html` for browser routes.
+- `Cache-Control: no-store` (prevent CDNs from caching the 503).
 
-1. **Document the trust model explicitly.**
-   - The Origin header IS trustworthy *for browser-originated requests where the same-origin policy is enforced*. It is NOT trustworthy in general.
-   - **Recommend:** `OriginHeaderResolver` should be combined with authentication. Tenant resolution by Origin + auth by JWT/session bound to the user → security comes from the cross-check (user must belong to tenant). Resolver alone is not access control.
-   - **Document anti-pattern:** Using OriginHeaderResolver without any authentication layer ("anonymous tenant API"). Refuse to enable without a warning log.
+The `RetryAfter` value must come from the maintenance configuration (estimated end time to seconds-until), not be hardcoded. If the estimated end time is not set, use a config default.
 
-2. **Configurable allow-list of origins.**
-   - The resolver MUST take a configured allow-list of `origin → tenant slug` mappings. It MUST NOT do a substring/wildcard match by default. `https://attacker.com.tenant-a.example.com` must not match `https://tenant-a.example.com` — use exact equality with URL parsing, not string `endsWith`.
-   - For wildcard support (multi-region tenants), use a parsed-URL match: scheme + host + port must all match, host can have ONE configured wildcard at the left-most label position (`*.tenant.app`). Do not allow `*` in the middle.
+A dedicated `MaintenanceResponse` value object (not a generic `Response`) ensures all of the above are always present and testable. Test: instantiate `MaintenanceResponse`, assert all four header invariants.
 
-3. **Handle CORS preflight explicitly.**
-   - On `OPTIONS` method requests with `Access-Control-Request-Method` header present (the preflight signature), resolve the tenant *if possible* but do NOT fail if no tenant — preflight responses don't need tenant context, just CORS headers. The orchestrator's null-resolution path (post-FIX-02) already handles this gracefully; the resolver just needs to not throw for preflight.
-   - Better: register a `kernel.request` listener at higher priority than tenant resolution that early-responds to CORS preflight without consulting the tenant chain. Symfony's `NelmioCorsBundle` or `nginx`-level CORS handling already does this — document the recommended pattern.
+**Warning signs:**
+- `curl -I https://tenant.example.com` during maintenance returns 503 but no `Retry-After` header.
+- Google Search Console shows "crawl errors" spiking post-maintenance.
+- Uptime monitor fires P1 during a scheduled maintenance window.
 
-4. **Resolver chain order — explicit and documented.**
-   - Default priority: `OriginHeaderResolver` priority 10, lower than `HostResolver` (priority 30) and `HeaderResolver` (priority 20). Reasoning: `Host` is the most authoritative (DNS-bound to the tenant), `X-Tenant-ID` is explicit-by-the-client (suggests deliberate API client), `Origin` is the SPA convenience case. Document this ordering in the resolver's docblock and in `tenancy.yaml` defaults.
-   - When both `Origin` and `X-Tenant-ID` are present and resolve to *different* tenants, log a warning (not error — could be legit testing flow) and use the higher-priority resolver's result. **Add an explicit `strict_origin_match: true` config option that raises an exception in this case** for security-sensitive deployments.
-
-5. **`Origin: null` handling.**
-   - `Origin` can be `null` for `file://`, sandboxed iframes, redirected requests, some privacy-mode browsers. Fail-safe: when `Origin: null`, the resolver returns `null` (no resolution) — chain proceeds to other resolvers. Do NOT match `null` against any tenant.
-
-**Compile-time guard:**
-A `OriginHeaderResolverConfigPass` that, if the resolver is enabled, requires the allow-list config to be non-empty AND validates each entry is a parseable absolute URL (no `*` mid-string, no missing scheme). Fail container compile with the offending entry. Same pattern as the cache-decorator pass — push the failure earlier.
-
-**Warning signs (detection):**
-- Security test: dispatch a curl request with `Origin: https://tenant-a.example.com` from outside any browser context, attempt to access tenant-A data, assert the tenant-A user's auth context is NOT granted automatically. The auth layer should reject. If it doesn't, the bundle's docs MUST scream about it.
-- Test: dispatch `OPTIONS /api/...` with `Access-Control-Request-Method: POST`, assert it returns a CORS-headers response without going through tenant lookup.
-- Test: dispatch request with both `Origin` and `X-Tenant-ID` pointing at different tenants, assert documented winner is used AND a warning is logged.
-- Test: configured allow-list `["https://tenant-a.example.com"]`, dispatch `Origin: https://attacker.com.tenant-a.example.com`, assert no resolution.
-
-**Phase to address:** Phase RESV-06. The security model documentation is a quality gate — phase is not done until the README has a "When to use OriginHeaderResolver" section that explicitly states the trust model and the auth-layer-required pattern.
+**Phase to address:** Phase 31 (OPS-01). `MaintenanceResponse` invariant test (`assertSame(503, $response->getStatusCode())`, `assertNotNull($response->headers->get('Retry-After'))`) is a quality gate.
 
 ---
 
-### Pitfall 6: Plan↔summary drift returns; `human_needed` items quietly accumulate
+### Pitfall 6: Maintenance bypass allow-list is spoofable
 
 **What goes wrong:**
-The v0.2 retrospective ([RETROSPECTIVE.md](.planning/RETROSPECTIVE.md)) called out two recurrent governance failures:
-1. Four plans (09-03, 09-04, 11-04, 11-05) shipped artifacts but never had `SUMMARY.md` written; caught only at milestone close.
-2. Three phases (09, 10, 12) shipped with `human_needed` VERIFICATION items that were never followed up on. Days latent: 7–42.
+The maintenance bypass mechanism uses a header like `X-Maintenance-Bypass: supersecret` where `supersecret` is a static string in the bundle's YAML config. Any HTTP client that discovers or guesses the value can bypass maintenance mode for any tenant.
 
-These are not coding pitfalls — they are workflow defects in our own process. v0.3, with its tight scope and adoption focus, has even less margin: a `human_needed` item that doesn't resolve before tag is **an unverified claim shipping to users**.
-
-In v0.3 these defects compound, because the very features being shipped (demo, install command, profiler) are themselves the verification surface. If `tenancy:install` has `human_needed: "needs verification in fresh project"`, and that verification doesn't happen before tag, the failure mode is **the demo doesn't work for users**.
+Secondary: the bypass token is sent as a query parameter (`?bypass=supersecret`) and ends up in server logs, Sentry traces, CDN request logs, and referrer headers to third-party assets.
 
 **Why it happens:**
-- `audit-open` checks phase UAT / debug / quick tasks but not plan↔summary parity (per RETROSPECTIVE.md).
-- `human_needed` has no TTL — it persists silently.
-- The orchestrator doesn't enforce "every plan must have a SUMMARY before the next plan starts."
+- "Simple bypass" tokens are the natural first implementation: easy to generate, easy to test, but no time-bounded or tenant-scoped security.
+- Query parameter bypass is common in older maintenance-mode patterns.
 
 **How to avoid:**
+Use an HMAC-signed bypass token: `HMAC-SHA256(tenant_slug + timestamp_floor_to_5min, secret_key)`. The token is:
+- **Tenant-scoped** (a token for tenant-A cannot bypass tenant-B).
+- **Time-bounded** (floor to 5-minute windows — token valid for at most 10 minutes, window-overlap included).
+- **Secret-keyed** (uses `APP_SECRET` or a dedicated `TENANCY_BYPASS_SECRET` env var).
+- Validated in constant time (`hash_equals`).
 
-1. **Carry forward the v0.2 retrospective action items as v0.3 quality gates (not future intentions):**
-   - Plan↔summary parity check added to `audit-open` tooling **in Phase 1 of v0.3** (before any v0.3 feature plans run). Treat it as the prerequisite-phase work.
-   - `human_needed` VERIFICATION status auto-converts to a Known Gap entry after 72 hours OR blocks milestone close, whichever first.
+Header only, never query parameter. Document the token generation command in the ops docs (`tenancy:maintenance:bypass-token <slug>`).
 
-2. **Pre-tag checklist as a hard gate** — before tagging v0.3.0:
-   - `audit-open` returns zero findings
-   - Every plan has a SUMMARY (parity check)
-   - Every `human_needed` is resolved or escalated
-   - Demo CI smoke job is green on the merge commit
-   - At least one of (`tenancy:install` dry-run tested on 6 fixture types) is documented as completed
-   - The retrospective carry-forward items from v0.2 are themselves verified done
+**Warning signs:**
+- The bypass value is a static string in `tenancy.yaml` committed to git.
+- Bypass token appears in Nginx/Apache access logs.
+- A bypass token for tenant-A successfully bypasses tenant-B.
 
-3. **Pessimistic verification**: for v0.3 features that touch user files (`tenancy:install`), the verification step is "run against a corpus of real user projects" — not "verify on author's machine." This is the v0.3 equivalent of the v0.2 lesson "test it on someone else's setup."
-
-**Compile-time guard:** Not applicable — this is a process pitfall. Workflow guards apply:
-- `gsd-sdk` exit-code-1 on missing summaries
-- `audit-open` enforced as a release-gate command (not advisory)
-
-**Warning signs (detection):**
-- `audit-open` returns findings on the merge commit for a release tag
-- Any `human_needed` VERIFICATION older than 72 hours
-- Any plan that has phase verification but no SUMMARY.md
-- Any milestone-close planning artifact with retroactive backfill date stamps
-
-**Phase to address:** Phase 0 / kickoff (process work, before feature work). The retrospective carry-forward items are NOT a v0.3 feature — they are v0.3's *foundation* and should run first. If they slip to mid-milestone, the same failures recur.
+**Phase to address:** Phase 31 (OPS-01). The bypass-token test (wrong tenant denied, expired window denied, correct token passes, constant-time comparison) is a quality gate.
 
 ---
 
-## Moderate Pitfalls
-
-### Pitfall 7: Mailer DSN with credentials leaked via exception trace or log
+### Pitfall 7: Cache staleness keeps a tenant down after maintenance ends
 
 **What goes wrong:**
-When a per-tenant SMTP transport fails (auth error, network timeout, DNS), the exception thrown by `symfony/mailer` includes the DSN — including username and password — in the message. This propagates to Sentry, Symfony's monolog handler, the browser (in dev), and any error tracking surface. A user's SMTP credentials are now in our error stream.
+The maintenance flag is cached per-request (correct), but the cache warm-up or a secondary cache layer (APCu, OPcache, CDN) holds the 503 or the flag value for longer than the maintenance window. Maintenance ends, operator sets flag to false, but the CDN continues serving cached 503 responses for 10 minutes. The tenant calls support. Support checks the DB — flag is false. Everything looks fine on the server. The CDN is the culprit.
+
+Internal variant: the per-request `MaintenanceModeChecker` caches the flag for the request but the flag is refreshed from a backing store (Redis/Memcached) with a 60-second TTL. The operator sets maintenance off, but in-flight requests in the same 60-second window still see the flag as true.
+
+**Why it happens:**
+- `Cache-Control: no-store` on the 503 should prevent CDN caching, but many CDNs override this for 5xx responses (e.g., Cloudflare always caches 503 for 30s by default).
+- Per-request caches and external caches have different TTLs; the operational expectation is "maintenance ends NOW" but the technical reality is "maintenance ends within one TTL window."
 
 **How to avoid:**
-- Wrap any Mailer-bootstrapper-originating exceptions in a sanitizing exception class that scrubs DSN-shaped strings (`smtp://user:pass@host:port` → `smtp://[REDACTED]@host:port`).
-- Ensure the resolved transport object's `__toString()` doesn't echo credentials.
-- Test: trigger an auth failure on a tenant's SMTP, capture the exception, assert no password substring in the message or trace.
+- The 503 response MUST include `Cache-Control: no-store, no-cache, must-revalidate` and `Pragma: no-cache`. Document known CDN overrides (Cloudflare, Fastly) in ops docs with the CDN-side config to disable 5xx caching.
+- The backing flag store (DB or cache) must have a max TTL of 5 seconds for the "in maintenance" state (checked every request at negligible cost — single DB read or cache lookup). When the flag is false (normal operation), longer TTL is acceptable.
+- Provide a `tenancy:maintenance:flush-cache <slug>` command that purges the cached flag for a specific tenant, callable from the landlord admin after setting maintenance off.
 
-**Phase to address:** Phase BOOT-04.
+**Warning signs:**
+- After setting maintenance off, CDN/monitoring still reports 503 for more than 30 seconds.
+- `curl` directly to origin returns 200 but `curl` via CDN returns 503.
+- Response headers show `Age: 45` on a 503 (CDN cached it).
+
+**Phase to address:** Phase 31 (OPS-01). Docs must include the CDN 5xx caching warning.
 
 ---
 
-### Pitfall 8: Mailer's `Transports` internal cache leaks transports across tenants
+### Pitfall 8: Health-check endpoint triggers full tenant bootstrapping and leaks context into next request
+
+**[SECURITY-CRITICAL — zero-leak guarantee at risk]**
 
 **What goes wrong:**
-`Symfony\Component\Mailer\Transport\Transports` (the multi-transport selector) holds an array of named transports built at compile time. If we install a dynamic per-tenant transport via decoration, and the decorator caches transports keyed by tenant slug, the cache must be **strictly bounded** (LRU) and **must clear** on `TenantContextCleared` to release SMTP sockets. A long-running worker handling 1000 tenants in rotation will OOM if every SMTP connection is held open indefinitely.
+The health endpoint (`/health` or `/ready`) is registered as a route that the resolver chain CAN resolve to a tenant — for example, it carries `X-Tenant-ID: tenant-A` in the load balancer's probe configuration, or the host-based resolver matches `health.tenant-a.example.com`. The orchestrator then runs the full bootstrapper chain (DB connection switched, Doctrine EM cleared, cache namespaced). The health check completes, returns 200.
+
+But the health endpoint fires on `kernel.terminate`, not after a long HTTP connection — it terminates quickly. If the server is async (FrankenPHP, Swoole) and `kernel.terminate` runs in the SAME fiber context that immediately accepts the next request, there is a window where `TenantContext` is not yet cleared when the next request's resolver runs.
+
+Even without async: if the health endpoint throws during the check (DB unreachable), the exception propagates before `onKernelTerminate` runs. `BootstrapperChain::clear()` is never called. `TenantContext` is never cleared. The NEXT request runs with the previous health check's tenant context still set.
+
+**Why it happens:**
+The `TenantContextOrchestrator::onKernelTerminate` is the cleanup path (see source: it calls `bootstrapperChain->clear()` then `tenantContext->clear()`). But `onKernelTerminate` only fires when the kernel terminates cleanly. An exception in the request lifecycle can short-circuit `kernel.terminate`.
+
+In Symfony's standard HTTP stack this is mostly safe (each request/response cycle is isolated in a fresh process or PHP-FPM request), but in long-running runtimes (FrankenPHP, Swoole, RoadRunner) a single PHP process handles thousands of requests — a leaked `TenantContext` from one request WILL contaminate the next.
 
 **How to avoid:**
-- LRU cache with max-entries config (default 8 — covers most worker patterns).
-- Explicit `clear()` method on the decorator called from `TenantContextCleared` listener.
-- Test: process 50 different-tenant messages in a worker, assert memory footprint is bounded.
+The health-check route MUST be configured so ALL resolvers return null for it. The `HostResolver` and `HeaderResolver` should have the health-check path in their bypass list, OR the health check URL must not match any tenant's domain/header pattern. Document this as a required configuration item in the ops docs.
 
-**Phase to address:** Phase BOOT-04.
+Implement health-check checks in a separate `HealthChecker` service that receives explicit `TenantInterface` arguments (NOT via `TenantContext`) and never calls `BootstrapperChain::boot()`. The health check should do read-only probes (ping the tenant DB connection, check bootstrapper state) without mutating any shared state.
+
+For the teardown-safety concern: add a `try/finally` wrapper in the health handler that guarantees `TenantContext::clear()` is called even if the probe throws. This is defense-in-depth over `kernel.terminate`.
+
+**Warning signs:**
+- Health endpoint returns tenant-specific data (e.g., tenant slug in response body).
+- The request immediately AFTER a health-check request behaves as if it's scoped to the health-check tenant.
+- `TenantContext::hasTenant()` returns true at the START of a request that should have been landlord-scoped.
+
+**Phase to address:** Phase 32 (OPS-02). The "health endpoint does NOT populate TenantContext" test and the "leaked context after health check exception" test are quality gates.
 
 ---
 
-### Pitfall 9: `tenancy:install` runs in a `composer post-install-cmd` script and races
+### Pitfall 9: Health probes hammer every tenant DB — thundering herd on load-balancer poll
 
 **What goes wrong:**
-Users add `tenancy:install` to their composer scripts (`post-install-cmd`, `post-update-cmd`) expecting auto-setup. Composer runs scripts in parallel for plugin-aware packages; the bundle's autoload may not be fully wired when our command tries to run. Worse, if the user's `composer.json` has multiple `post-install-cmd` entries, the order is not guaranteed in older Composer 2.x versions.
+The OPS-02 health check iterates over all tenants (`TenantProviderInterface::findAll()`) and pings each tenant's DB connection on every probe request. The load balancer polls the health endpoint every 5 seconds. With 200 tenants, that is 200 DB connections opened, pinged, and closed every 5 seconds per app instance. With 3 app instances, that is 600 DB operations every 5 seconds — from health checks alone, before any real traffic.
 
-We don't have a Flex recipe (good — explicit non-goal), but we should also not implicitly become a composer plugin.
+At 1000 tenants (realistic SaaS scale), this is connection exhaustion. MySQL's default `max_connections = 151` is exceeded by the health probe alone.
+
+**Why it happens:**
+- "Check that everything works" is the natural health-check specification. "Everything" gets interpreted as "all tenants."
+- Health checks are written for 5 tenants in dev, never load-tested at 200+ tenants.
 
 **How to avoid:**
-- README explicitly states: `tenancy:install` is a **one-time setup** command. Do not add it to `composer scripts`. Run it once after `composer require`.
-- If a user *does* add it to scripts, the command must be idempotent (already required from Pitfall 2) and must detect "already installed" cleanly (exit 0, message "already configured").
-- Don't ship a composer plugin. The Symfony way is `tenancy:install`, called manually.
+Distinguish between two health check modes:
 
-**Phase to address:** Phase DX-06 (documentation + idempotency tests).
+1. **Liveness probe** (every 5s, called by load balancer): checks that the PHP process is alive and the landlord DB is reachable. NO per-tenant probes. Returns 200/503 based on a single connection ping to the landlord schema.
+
+2. **Readiness probe** (every 30s, human-triggered or scheduled): samples a configurable N tenants (default: 5, random selection), checks their DB connections and bootstrapper health. Does NOT check all tenants. Returns a summary with OK/WARN/FAIL per sampled tenant.
+
+3. **Full audit** (on-demand, CLI only: `tenancy:health:check --all`): checks all tenants. Not exposed via HTTP. Rate-limited by caller (operator runs it at their discretion).
+
+This mirrors the liveness/readiness distinction in Kubernetes and prevents the thundering herd.
+
+**Warning signs:**
+- DB `SHOW PROCESSLIST` shows a spike in connections every 5 seconds.
+- `max_connections_exceeded` errors in MySQL/PostgreSQL logs correlated with health-check timing.
+- App performance degrades in proportion to the number of tenants (not traffic).
+
+**Phase to address:** Phase 32 (OPS-02). The readiness probe's "max N tenants per poll" is a hard constraint, not a default. Liveness probe MUST NOT iterate tenants — enforced by test asserting zero calls to `TenantProviderInterface::findAll()` in the liveness path.
 
 ---
 
-### Pitfall 10: Profiler tab adds a `tenancy.collector` to public service IDs accidentally
+### Pitfall 10: Health endpoint exposes DSNs, tenant list, or secrets on unauthenticated route
+
+**[SECURITY-CRITICAL]**
 
 **What goes wrong:**
-The collector service must be private. If it's exposed as public (because of a missed `public: false`), the user's `dump($container->get('tenancy.collector'))` works in dev and breaks in prod (private services are removed from the production container after compile). This is the v0.2 issue #1 in spirit — config keys declared but with wrong scope/lifecycle.
+The health response body includes diagnostic information to help operators debug failures: connection DSNs, tenant slugs, bootstrapper configuration. This response is on a public, unauthenticated `/health` endpoint (it must be unauthenticated so the load balancer can poll it without session management). A malicious actor (or a misconfigured search engine crawler) accesses `/health` and learns the DB DSNs, tenant slugs, and internal service topology.
+
+This is the v0.5 restatement of the v0.3 profiler pitfall (Pitfall 3 in the v0.3 PITFALLS.md): "Collector stores connection DSN with password in panel."
+
+**Why it happens:**
+- Developers copy the exception message directly into the health response ("Connection failed: mysql://user:password@db:3306/tenant_a").
+- Tenant slugs seem non-sensitive but are enough to enumerate all tenants for a targeted attack.
+- The health endpoint is tested on localhost and never audited for information leakage.
 
 **How to avoid:**
-- All collector services have `public: false` in service config.
-- Compiler pass assertion: every service in the `Tenancy\` namespace tagged `data_collector` is private.
-- Test: `bin/console debug:container --show-hidden tenancy.collector` finds it; `bin/console debug:container tenancy.collector` (without flag) does not find it.
+Apply the same DSN-sanitization rule as the v0.3 profiler pitfall: health check responses MUST NOT contain:
+- Any DSN-shaped string (sanitize the same way as the Mailer bootstrapper).
+- Tenant slugs (use opaque IDs or counts: "3 of 5 tenants healthy").
+- Stack traces or exception messages.
+- Internal service identifiers.
 
-**Phase to address:** Phase DX-02.
+The UNAUTHENTICATED liveness response should be `{"status": "ok"}` or `{"status": "degraded"}` with a 200/503 status code and nothing else.
+
+The AUTHENTICATED (operator-only, protected by security firewall) readiness response can include per-tenant status summaries with slugs and failure reasons (redacted of credentials).
+
+Provide a `HealthResponseSanitizer` that strips DSN-shaped strings from any string value before it enters the response. Test: inject a DB-unreachable error containing the DSN, assert the health response does not contain the DSN.
+
+**Warning signs:**
+- `curl https://app.example.com/health | jq .` shows any value containing `://` or `@`.
+- Tenant slugs visible in unauthenticated health JSON.
+- `/health` endpoint returns stack traces on DB failure.
+
+**Phase to address:** Phase 32 (OPS-02). `HealthResponseSanitizer` test (DSN-in → DSN-out-redacted) is a quality gate.
 
 ---
 
-### Pitfall 11: Demo app re-publishes the bundle's test fixtures
+### Pitfall 11: Readiness vs. liveness confusion causes load-balancer restart loops
 
 **What goes wrong:**
-The demo (`examples/demo-app/`) needs fixture data — two tenants, sample entities. If the demo imports fixtures from the bundle's `tests/Fixtures/` directory (via path autoloading), the bundle is shipping test fixtures as public API by accident. The first user who tries to "follow the demo's pattern" will copy `use Tenancy\Tests\Fixtures\Tenant` and lock themselves to a test-internal class.
+Kubernetes (or any load balancer using health checks) uses two distinct probe types:
+
+- **Liveness:** "Is this container alive? If not, restart it." Should NEVER fail for transient reasons (DB hiccup, one tenant down).
+- **Readiness:** "Is this container ready to receive traffic? If not, remove from rotation." CAN fail for transient reasons.
+
+The bundle ships one `/health` endpoint that the user wires as BOTH liveness and readiness. The liveness probe fails because one tenant's DB is unreachable. Kubernetes kills the container. The new container starts, the DB is still unreachable (it's a DB issue, not a code issue). Kubernetes kills it again. Restart loop — the entire app server is down because ONE tenant's DB is slow.
+
+**Why it happens:**
+- Single health endpoint is the path of least resistance.
+- Kubernetes-specific health probe semantics are not part of bundle documentation.
 
 **How to avoid:**
-- Demo has its own fixtures in `examples/demo-app/src/Entity/`. Zero imports from `Tenancy\Tests\*`.
-- README explicit: demo entities are demo-specific; users define their own `Tenant` entity implementing `TenantInterface`.
-- Add lint: grep `examples/` for `use Tenancy\Tests\` and fail CI.
+The bundle MUST ship two separate routes with documented semantics:
 
-**Phase to address:** Phase DEMO-01.
+- `/health/live` (liveness): checks the PHP process and landlord DB only. NEVER fails due to tenant DB issues. Suitable for `livenessProbe`.
+- `/health/ready` (readiness): checks landlord DB + sampled tenant DBs + bootstrapper state. Can fail transiently. Suitable for `readinessProbe`.
+
+The ops docs MUST include a Kubernetes probe configuration example showing both probes with appropriate `periodSeconds` (10s liveness, 30s readiness) and `failureThreshold` values.
+
+**Warning signs:**
+- Kubernetes pod restart loop correlated with a single tenant DB outage.
+- `kubectl describe pod` shows "Liveness probe failed" on a pod that was serving traffic fine.
+- One tenant having DB issues causes 0% availability for ALL tenants on that pod.
+
+**Phase to address:** Phase 32 (OPS-02). Two routes MUST be separate — not one route with a query parameter. This is a hard design requirement.
 
 ---
 
-### Pitfall 12: Profiler tab queries the tenant provider on every dev request
+### Pitfall 12: Health check passes when a bootstrapper silently degraded
 
 **What goes wrong:**
-The collector wants to show "active tenant: tenant-A (of 12 tenants)" — including total tenant count. Implementer calls `$tenantProvider->findAll()` in `collect()`. Every dev request now does a full `SELECT * FROM tenants`. On a project with 1000 tenants, dev becomes slow; on a project with sensitive tenant metadata, the dev profiler exposes data the dev shouldn't be reading.
+The health check pings the DB connection (TCP reachable, auth succeeds) and returns "healthy." But the `MailerBootstrapper` encountered an SMTP timeout during `boot()` and swallowed the exception (returning a degraded-but-not-failing state). The health check has no visibility into bootstrapper state — it only checks infrastructure reachability, not bootstrapper health.
+
+From the user's perspective: the tenant's DB is healthy, but emails are silently failing. The health check says green. Operators don't investigate. The issue festers for hours.
+
+**Why it happens:**
+- `BootstrapperChain::boot()` currently has no return value and no per-bootstrapper health-state API (see source: `boot()` is `void`, errors propagate as exceptions). A bootstrapper that catches its own exception (to "degrade gracefully") has no channel to report degraded state.
+- Health checks test infrastructure (DB, cache ping) not service state (did boot succeed?).
 
 **How to avoid:**
-- Collector reads ONLY what's already in memory: the active tenant's slug/ID, the resolution metadata. No queries.
-- If "total tenants" is wanted, expose it as a separate, lazily-rendered profile page (not in WDT or collect time) that explicitly hits the provider when the user clicks "Tenant Statistics."
+Extend `TenantBootstrapperInterface` with an optional `health(): BootstrapperHealthState` method (via a separate `HealthReportingBootstrapperInterface` to avoid BC break). Bootstrappers that can degrade gracefully implement this interface and return `HEALTHY`, `DEGRADED`, or `FAILED` with a reason message.
 
-**Phase to address:** Phase DX-02.
+The health checker iterates bootstrappers that implement `HealthReportingBootstrapperInterface` and includes their state in the readiness response. A `DEGRADED` state does not cause readiness to fail (it's a warning), but a `FAILED` state does.
+
+The existing `TenantBootstrapperInterface` is unchanged — BC preserved. Only bootstrappers that opt in need to implement the health interface.
+
+**Warning signs:**
+- Mailer bootstrapper swallows SMTP timeouts, health says green, emails not delivered.
+- Flysystem bootstrapper's per-tenant-adapter fails to initialize but does not propagate the failure.
+- No health event fires that distinguishes "boot succeeded but degraded" from "boot succeeded cleanly."
+
+**Phase to address:** Phase 32 (OPS-02). `HealthReportingBootstrapperInterface` is the zero-BC-break extension point; the `BootstrapperHealthState` value object carries `status` + `message` + optional `bootstrapper_class`. At minimum, the `DatabaseSwitchBootstrapper` and `MailerBootstrapper` should implement this interface.
+
+---
+
+### Pitfall 13: Parallel migration with unbounded concurrency exhausts DB connections
+
+**What goes wrong:**
+ISOL-07 replaces the sequential loop in `TenantMigrateCommand` with parallel `symfony/process` workers. Naively, the implementation spawns one subprocess per tenant simultaneously. With 500 tenants, 500 processes are created, each opening a DB connection to run migrations. MySQL/PostgreSQL default max connections (151/100 respectively) is exceeded immediately. All processes fail with "too many connections." The migration command exits with partial failure, no clear report.
+
+Connection exhaustion also affects the application — live traffic connections are starved during migration.
+
+**Why it happens:**
+- "Parallel" is interpreted as "all at once" instead of "max N at a time."
+- `symfony/process` makes it easy to spawn processes but provides no built-in rate limiting.
+- The existing sequential command (see source: `TenantMigrateCommand`) has no concurrency, so there's no prior implementation to model rate limiting from.
+
+**How to avoid:**
+Implement a bounded process pool: `--max-parallel` option (default: 4, configurable). Never spawn more than `--max-parallel` processes simultaneously. Use `symfony/process`'s non-blocking `start()` + polling loop pattern:
+
+```php
+// bounded-pool pseudo-code
+$running = [];
+foreach ($tenants as $tenant) {
+    while (count($running) >= $maxParallel) {
+        foreach ($running as $key => $process) {
+            if (!$process->isRunning()) {
+                $this->collect($process, $tenant);
+                unset($running[$key]);
+            }
+        }
+        usleep(100_000); // 100ms poll
+    }
+    $running[] = $this->startMigrationProcess($tenant);
+}
+// drain remaining processes
+```
+
+Document the `--max-parallel` default rationale: 4 was chosen as "safe for a MySQL default of 151 connections, leaving headroom for application traffic."
+
+**Warning signs:**
+- `SHOW PROCESSLIST` on DB during migration shows connection count spiking to `max_connections`.
+- Migration command fails with "SQLSTATE[HY000] [1040] Too many connections" across all tenants.
+- Migration works with 10 tenants, fails with 100+ tenants.
+
+**Phase to address:** Phase 33 (ISOL-07). The `--max-parallel` option with a default of 4 is required. A test asserting that no more than N processes run simultaneously (via a `Process` mock with a counting factory) is a quality gate.
+
+---
+
+### Pitfall 14: Per-tenant output interleaved in parallel migration — garbled and untrackable
+
+**What goes wrong:**
+Each subprocess writes its migration output to stdout/stderr. In a naive implementation using `$process->run(fn($type, $buffer) => $output->write($buffer))`, concurrent processes write to the same output stream simultaneously. The result is garbled:
+
+```
+[tenant-a] Running migration 20240101000001  [tenant-c] Running migration
+Done. [tenant-b] ERROR: Table already exists [tenant-a] Done.
+```
+
+No operator can parse this. Failures are invisible in the noise.
+
+**Why it happens:**
+The `TenantRunCommand` uses the same `$process->run(fn($type, $buffer) => $output->write($buffer))` callback pattern (see source). That works for sequential processes. For parallel processes, interleaved writes to the same output stream produce garbled output.
+
+**How to avoid:**
+Buffer each subprocess's output in memory, print it atomically only after the process completes. The output structure should be:
+
+```
+[tenant-a] STARTED
+[tenant-b] STARTED
+[tenant-c] STARTED
+[tenant-a] Done (2 migrations applied).
+[tenant-b] FAILED: Table 'tenant_b.xyz' already exists
+[tenant-c] Done (0 migrations applied).
+```
+
+Each block is printed atomically after the process exits. Use `$process->getOutput()` and `$process->getErrorOutput()` post-exit, not streaming callbacks. Use a `SymfonyStyle` table or section separator between tenants.
+
+**Warning signs:**
+- Manual test: run parallel migration with 5 tenants, check output — if any two tenant's lines are interleaved, buffering is broken.
+- Error messages from failed tenants are truncated or missing.
+
+**Phase to address:** Phase 33 (ISOL-07). Output-atomicity test (assert no interleaving in buffered output) is a quality gate.
+
+---
+
+### Pitfall 15: Failed tenant's exit code lost — parallel migration falsely reports success
+
+**What goes wrong:**
+Subprocess exit codes are not collected or are incorrectly aggregated. One tenant's migration subprocess exits with code 1 (failure), but the parent process:
+- Only checks `$process->isSuccessful()` after all processes are done, by which time the unsuccessful process was already garbage-collected.
+- Treats any non-zero exit code as "process terminated" rather than "process failed."
+- Uses `$process->getExitCode() ?? 0` (the same `?? 0` pattern from `TenantRunCommand` — see source line 89) and silently maps a null exit code (process timed out or was killed) to success.
+
+The migration command exits 0. The CI pipeline goes green. Tenant-B's schema is not migrated.
+
+**Why it happens:**
+- `Process::getExitCode()` returns `null` if the process was never started, was terminated by signal, or timed out. The `?? 0` fallback from `TenantRunCommand` was appropriate for a pass-through command but is wrong for an aggregation command where null means unknown/failure.
+- Exit code collection must happen AFTER `$process->wait()` or `$process->isRunning() === false`, which is easy to miss in a polling loop.
+
+**How to avoid:**
+- Collect exit code from each process only after `$process->isRunning() === false`.
+- Treat `null` exit code as `FAILURE` (process killed/timed out), not success.
+- Aggregate: if any process exit code is non-zero or null, the migration command exits 1. Record failed tenant slugs for the summary report.
+- Print a final summary table: "N tenants succeeded, M failed" with slugs of failures. This is consistent with the existing sequential `TenantMigrateCommand` behavior (see source lines 109-119).
+
+**Warning signs:**
+- Test: create a subprocess that exits 1. Assert the migration command exits 1. Assert the failure summary lists that tenant.
+- A process that is `kill -9`ed reports as success.
+- The `--tenant=<slug>` filter path exits 0 even when that tenant's migration fails.
+
+**Phase to address:** Phase 33 (ISOL-07). The null-exit-code-as-failure rule is a hard requirement. The exit-code aggregation test is a quality gate.
+
+---
+
+### Pitfall 16: Parallel migration on shared-db driver runs the same migration N times
+
+**[SECURITY-CRITICAL — data corruption risk]**
+
+**What goes wrong:**
+The ISOL-07 parallel migration feature is implemented for `database_per_tenant` mode — each tenant has its own DB, so running migrations in parallel is safe by design. But the guard that prevents shared-db consumers from running `tenancy:migrate` is at the sequential command level (see source: `TenantMigrateCommand` line 57: `if ('shared_db' === $this->driver) { ... return FAILURE; }`).
+
+If the parallel implementation is built in a way that bypasses this guard (e.g., a separate `TenantMigrateParallelCommand` that forgets to copy the guard, or a refactored shared `MigrateCommandTrait` that doesn't inherit the guard), shared-db consumers can run the parallel command. Each tenant subprocess runs `doctrine:migrations:migrate` on THE SAME physical database, simultaneously. The migrations table gets corrupted, migrations run multiple times, data is inconsistent.
+
+**Why it happens:**
+- The guard is in the sequential command, but the parallel command is new code that may not carry it forward.
+- The `database_per_tenant` assumption is implicit in the parallel design — "parallel is safe because DBs are separate" — but is not enforced at the parallel command level.
+
+**How to avoid:**
+The parallel migration command MUST have the same `shared_db` guard as the sequential command. The guard must be in the shared base/trait, not duplicated. A `DriverContractPass` should assert: if any `tenancy:migrate*` command service is registered AND `driver === shared_db`, fail compile with a clear message. This prevents the class of bug at compile time, not at runtime.
+
+Integration test: register the bundle with `driver: shared_db`, assert that the parallel migrate command is not registered in the container (just as the sequential command is not). This test must pass before ISOL-07 ships.
+
+**Warning signs:**
+- Running `bin/console tenancy:migrate --parallel` on a shared-db setup succeeds.
+- `SELECT COUNT(*) FROM migration_versions` returns N times the expected number.
+- Symfony container defines `TenantMigrateParallelCommand` but not `TenantMigrateCommand` (shared-db guard was in sequential command only).
+
+**Phase to address:** Phase 33 (ISOL-07). The "parallel migrate NOT registered for shared_db" test is a quality gate.
+
+---
+
+### Pitfall 17: `symfony/process` output buffer deadlock on large migration output
+
+**What goes wrong:**
+`Process::getOutput()` buffers stdout internally. When migration output is large (e.g., 1000 migration steps, verbose output), the buffer fills, the subprocess blocks waiting for the parent to read it, the parent is waiting for the subprocess to exit — classic deadlock.
+
+This is documented in the `symfony/process` docs: if the output is not consumed, the process may deadlock. The existing `TenantRunCommand` avoids this by using a streaming callback (`$process->run(fn($type, $buffer) => ...)`) which reads the buffer continuously. But in the parallel implementation where we buffer output (to avoid interleaving — Pitfall 14), we switch to `$process->getOutput()` post-exit, which re-introduces the deadlock.
+
+**Why it happens:**
+- The fix for Pitfall 14 (buffer and print atomically) uses `getOutput()` post-exit.
+- `getOutput()` is only safe if the output is not so large it fills the OS pipe buffer (typically 64KB on Linux).
+
+**How to avoid:**
+Use a custom incremental buffer per process:
+
+```php
+$buffer = '';
+$process->start(function(string $type, string $chunk) use (&$buffer): void {
+    $buffer .= $chunk; // accumulate in PHP memory, not OS pipe buffer
+});
+$process->wait(); // blocks until exit while draining stdout/stderr via callback
+// Now $buffer contains complete output — print atomically
+```
+
+This approach reads the pipe continuously (no deadlock), accumulates in PHP memory (not in the OS pipe buffer), and prints atomically after completion (no interleaving). `wait()` blocks until the process exits while continuously draining stdout/stderr via the callback — the documented safe pattern for `symfony/process` with large output.
+
+**Warning signs:**
+- Migration hangs indefinitely with verbose output (`-vvv`).
+- Subprocess shows in `ps aux` as running but making no progress.
+- Deadlock is intermittent (small tenants: OK; tenants with 50+ migrations: hangs).
+
+**Phase to address:** Phase 33 (ISOL-07). The large-output test (subprocess generating 100KB of output does not deadlock) is a quality gate.
+
+---
+
+### Pitfall 18: Zombie/orphaned migration subprocesses after SIGTERM
+
+**What goes wrong:**
+During a long-running parallel migration, the operator sends SIGTERM to the parent process (Ctrl+C, deploy restart, `kill $(pgrep tenancy:migrate)`). The parent receives the signal and exits. The spawned subprocess processes continue running — they are now orphaned, still holding DB connections, still running migrations. When the operator relaunches the command, they run into "another migration is already running" mutex locks, or worse, two migration processes run simultaneously on the same tenant DB.
+
+**Why it happens:**
+PHP's `Process` class does not automatically send SIGTERM to child processes on parent exit. `pcntl_signal` handlers that forward SIGTERM to children must be set up explicitly.
+
+**How to avoid:**
+Register a SIGTERM/SIGINT signal handler in the parallel migration command:
+
+```php
+if (extension_loaded('pcntl')) {
+    pcntl_async_signals(true);
+    pcntl_signal(SIGTERM, function() use (&$runningProcesses): void {
+        foreach ($runningProcesses as $process) {
+            $process->stop(0);
+        }
+        exit(1);
+    });
+}
+```
+
+Call `$process->stop()` on all running processes before exiting. `Process::stop()` sends SIGTERM then SIGKILL after a timeout.
+
+For deployments without `pcntl` (Windows, some containers): document that SIGTERM forwarding is not available and operators should use `--max-parallel=1` in those environments.
+
+**Warning signs:**
+- `ps aux | grep 'tenancy:migrate'` shows child processes after the parent was killed.
+- DB connections not released after migration cancellation.
+- Re-running migration fails with "Migration lock held by another process."
+
+**Phase to address:** Phase 33 (ISOL-07). SIGTERM handler is a hard requirement for Linux/macOS deployments. `pcntl` availability check is required.
+
+---
+
+### Pitfall 19: Partial-failure state — some tenants migrated, others not, no actionable report
+
+**What goes wrong:**
+Parallel migration fails for 30 out of 200 tenants. The command exits 1 (correctly). But the error report does not list WHICH tenants failed and which succeeded, does not distinguish "failed before migration started" (DB unreachable) from "failed mid-migration" (schema conflict after applying 3 of 10 migrations), and does not provide a re-run command to migrate only the failed tenants.
+
+The operator must manually cross-reference which tenants are at which migration version — potentially querying each tenant's DB individually.
+
+**Why it happens:**
+The sequential command has a `$failures` array and prints it (see source lines 113-119). The parallel implementation must preserve this behavior and add "which tenants succeeded" to the output so the operator can construct a `--tenant=` filter re-run.
+
+**How to avoid:**
+Emit a final structured summary after all processes complete:
+
+```
+Parallel migration complete: 170 succeeded, 30 failed
+
+Failed tenants:
+  - tenant-b: SQLSTATE[42S01] Table already exists (applied 3/10 migrations)
+  - tenant-f: Connection refused (applied 0/10 migrations)
+  ...
+
+To re-run failed tenants:
+  bin/console tenancy:migrate --tenant=tenant-b --tenant=tenant-f ...
+```
+
+Each block is printed atomically after the process exits. The exit code must be 1 if any tenant failed, 0 only if all succeeded. The "re-run command" line should be machine-readable enough to paste directly into a shell.
+
+**Warning signs:**
+- Migration exits 1 with no output indicating WHICH tenant failed.
+- Operator has to query each tenant DB to determine migration status.
+- No `--tenant=` filter re-run hint in output.
+
+**Phase to address:** Phase 33 (ISOL-07). The structured summary output test (assert presence of failed-tenant list and re-run hint) is a quality gate.
+
+---
+
+## General Lifecycle and Integration Pitfalls
+
+### Pitfall 20: New kernel.request listener breaks the existing orchestrator priority-20 ordering
+
+**What goes wrong:**
+OPS-01 and OPS-02 each introduce new `kernel.request` listeners. If any of these is accidentally registered at priority > 20, it fires before the orchestrator. `TenantContext` is empty. The listener cannot read the current tenant, falls back to a no-op or throws.
+
+If registered at priority < 8 (after Symfony's security firewall), authentication has already run — the security firewall may have rejected the request, but the maintenance mode listener still fires (harmless, but wasteful and potentially confusing in logs).
+
+**How to avoid:**
+Document the canonical priority ladder for this bundle's listeners:
+- Priority > 20: FORBIDDEN for any new OPS listener (fires before orchestrator).
+- Priority = 20: orchestrator (`TenantContextOrchestrator::PRIORITY`).
+- Priority 15: maintenance mode listener (after orchestrator, before security).
+- Priority 8: Symfony security firewall.
+- Priority < 8: all other OPS listeners (health is NOT a kernel.request listener — it is a controller).
+
+All new `kernel.request` listeners MUST have their priority documented and tested. A `KernelListenerPriorityPass` should assert no tenancy listener (except the orchestrator) is registered at priority >= 20.
+
+**Warning signs:**
+- New listener registers itself with `priority: 25` or `priority: 30`.
+- Maintenance check fails to block tenant routes because `$tenantContext->getTenant()` is null inside the listener.
+
+**Phase to address:** Phase 31, 32. Priority-ladder assertion test is a quality gate for both phases.
+
+---
+
+### Pitfall 21: OPS-01/OPS-02 features force Doctrine or a health library on consumers — breaks optional-dependency contract
+
+**What goes wrong:**
+The maintenance mode implementation uses `$em->find(Tenant::class, $id)` directly (hard-importing `EntityManagerInterface`). The health check uses `monolog/monolog` or a specific `HealthBundle` package not listed as optional. Consumers who don't use Doctrine or don't have that health library installed get a fatal error at container compile time, even if they don't use OPS-01/OPS-02.
+
+This violates the bundle's core contract: "Doctrine ORM/DBAL is an optional dependency — always guard with `class_exists`/`interface_exists`, never hard-import."
+
+**Why it happens:**
+The existing pattern is established for Doctrine (see source: `DoctrineBootstrapper::__construct` takes `?EntityManagerInterface $em` and null-guards all usage). New phases under time pressure sometimes forget to apply the same pattern to new dependencies.
+
+**How to avoid:**
+For every new service introduced in OPS-01 and OPS-02:
+1. External library dependencies (MonitorBundle, health check lib) must be guarded with `interface_exists` or `class_exists` and registered conditionally in the DI config.
+2. If the feature requires Doctrine, use the existing nullable constructor injection pattern (`?EntityManagerInterface $em`).
+3. `TenantInterface` must not gain new required methods — use a separate `MaintenanceTenantInterface` or configure the flag via a dedicated DB column (see Pitfall 22).
+
+The CI no-doctrine lane (introduced in Phase 28) must remain green after every OPS phase. This is the canary that catches optional-dependency regressions.
+
+**Warning signs:**
+- No-doctrine CI lane fails after OPS-01 or OPS-02 ships.
+- `class_exists` / `interface_exists` is not present in newly introduced bootstrapper or listener constructors.
+- `composer require danplaton4/tenancy-bundle` on a project without `doctrine/orm` now triggers a fatal error.
+
+**Phase to address:** Phase 31, 32, 33. The no-doctrine CI lane passing is a quality gate for every phase.
+
+---
+
+### Pitfall 22: `TenantInterface` BC break — new method required for maintenance or health
+
+**What goes wrong:**
+OPS-01 needs per-tenant maintenance state. The simplest implementation adds `isInMaintenance(): bool` to `TenantInterface`. Every user who has a custom `Tenant` entity implementing `TenantInterface` now gets a PHP fatal error (`Class X does not implement interface method`). This is a BC break on a published package.
+
+`TenantInterface` currently has 7 methods (see source: `TenantInterface.php`). Adding an 8th is a BC break for every consumer.
+
+**Why it happens:**
+Interface extension is the natural OOP solution for "add a capability to a shared type." The BC cost is easy to forget when you're implementing and can test against your own fixtures.
+
+**How to avoid:**
+Three approaches, in order of preference:
+
+1. **Config-driven, no interface change.** Store the maintenance flag in a dedicated DB table/column that is NOT part of `TenantInterface`. The `MaintenanceModeRepository` (landlord-side) looks up the flag by tenant slug. Zero BC impact.
+
+2. **Optional interface.** Introduce `MaintenanceTenantInterface extends TenantInterface` with `isInMaintenance(): bool`. Only tenants that implement this interface get per-tenant maintenance checks. Tenants without it are treated as "never in maintenance." The `MaintenanceModeChecker` does an `instanceof` check.
+
+3. **Trait with default implementation.** Introduce `TenantMaintenanceTrait` that provides a default `isInMaintenance(): bool { return false; }` that consumers opt into. Similar to the existing `TenantMailerConfigTrait` pattern (noted in PROJECT.md).
+
+Never add a required method to `TenantInterface` without a major version bump.
+
+**Warning signs:**
+- `TenantInterface` diff in the PR adds a new method without a default implementation in a trait.
+- `bin/console debug:container` on a user project with custom `Tenant` entity fails with "does not implement method."
+- No UPGRADE.md entry for the change.
+
+**Phase to address:** Phase 31 (OPS-01). Interface design is a pre-plan decision — determine storage approach before writing any code. The "existing custom Tenant entity still works" test is a quality gate.
 
 ---
 
@@ -440,16 +694,16 @@ The collector wants to show "active tenant: tenant-A (of 12 tenants)" — includ
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| `tenancy:install` mutates `bundles.php` with regex instead of php-parser | No `nikic/php-parser` dependency | Breaks on every non-standard bundles.php layout; user-file corruption incidents | **Never** — file mutation must be AST-based |
-| Mailer bootstrapper overrides transport at `TenantResolved` and calls `send()` work fine in sync mode | Sync mailer tests pass | Async transport silently delivers from wrong tenant; tag-retraction event | **Never** — async test is non-optional |
-| Profiler collector stores Tenant entity objects directly in `$this->data` | One-liner implementation | Profile pages broken on reload; serialization errors in logs | **Never** — store scalars only |
-| Demo app uses Chrome-only `*.localhost` resolution without `/etc/hosts` fallback | Looks clean in demo URL | Firefox/Safari users hit DNS error on first run; demo "doesn't work" issues | **Never** — always provide `Host:` header fallback |
-| OriginHeaderResolver does `str_contains($origin, $tenantOrigin)` | Slightly more permissive matching | Subdomain spoof: `attacker.tenant.example.com` matches `tenant.example.com` | **Never** — exact-equality or parsed-URL match only |
-| Skip plan-summary parity check because "I'll write the summaries at close" | Faster phase execution | Retroactive summary authoring at milestone close (v0.2: 4 instances, ~15min each) | **Never after v0.2** — carry-forward item is mandatory |
-| Demo app omits CI smoke job because "manual testing is enough" | One less CI job to maintain | Demo silently rots; users hit broken demo as first impression | **Never** — demo smoke is release-gate |
-| `human_needed` VERIFICATION items left open past phase close | Phase can be marked done without external testing | Items accumulate across phases (v0.2: 3 unresolved at milestone close, 7-42 days latent) | **Never** — 72-hour TTL is the carry-forward rule |
-| Mailer DSN logged as-is in exception traces | One less line of sanitization code | Credentials in error tracker, customer security incident | **Never** — DSN sanitization is mandatory |
-| Hardcode `~/.composer-cache` mount in demo docker-compose | Faster composer install in demo | Per-user permission failures; "works on my Mac, not on Windows" | Only with named volume + documented opt-in |
+| Single `/health` endpoint for both liveness and readiness | One route to document | Restart loops: one tenant DB down → liveness fails → all traffic killed | **Never** — two endpoints, two semantics |
+| Maintenance flag in shared cache pool without tenant-namespace | Fast flag writes | Cross-tenant flag contamination (zero-leak violation) | **Never** |
+| Adding `isInMaintenance()` to `TenantInterface` directly | Clean OOP design | BC break for every consumer with a custom Tenant entity | **Never without major version bump** |
+| Unbounded parallelism in migration (spawn all at once) | Maximum parallelism | DB connection exhaustion at 100+ tenants | **Never** — `--max-parallel` is required |
+| Streaming subprocess output directly (no buffering) | Real-time feedback | Interleaved/garbled output from concurrent subprocesses | **Never for parallel mode** |
+| `getExitCode() ?? 0` in aggregation command | One line | Silent migration failures reported as success | **Never** — `null` must be treated as failure |
+| Health endpoint returns raw exception messages (DSN with creds) | Easier debugging | Credentials exposed on unauthenticated URL | **Never** |
+| Static property for maintenance flag (fast, no DB read) | Zero latency | Leaks across requests in async runtimes (FrankenPHP/Swoole) | **Never in long-running process runtime** |
+| Skip SIGTERM forwarding to child migration processes | Simpler code | Orphaned processes, DB lock collisions on re-run | **Only on single-tenant or development usage** |
+| Maintenance check as a controller-level guard | Familiar MVC pattern | Work runs before gate fires (queries, expensive operations) | **Never as the primary gate** |
 
 ---
 
@@ -457,16 +711,16 @@ The collector wants to show "active tenant: tenant-A (of 12 tenants)" — includ
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `symfony/mailer` + `symfony/messenger` async | Override transport at `TenantResolved` event in HTTP request → wrong transport used at send-time in worker | Use `X-Transport` header at dispatch OR decorate `Transports` selector with `TenantContext`-reading service (Pitfall 1, Approach 1 or 2) |
-| `symfony/mailer` + `MessageEvent` | Mutate transport via `MessageEvent::getEnvelope()` and expect it to change which transport sends | `MessageEvent` cannot change the transport — only the envelope's sender/recipients. Use `X-Transport` header for transport selection |
-| `WebProfilerBundle` + custom collector | Inject `EntityManager` and run queries in `collect()` | Snapshot scalar data from `TenantContext` only. No queries. No services that aren't already constructed |
-| `nikic/php-parser` for `bundles.php` | Re-print AST and overwrite without checking for syntax errors | After re-print, `php -l` the result; on parse failure, restore from `.bak` |
-| Docker Compose v2 + healthcheck dependencies | `depends_on:` without `condition: service_healthy` | Always pair `depends_on` with `condition: service_healthy` for DB-dependent services |
-| Composer path repository + bundle development | Demo's `composer install --prefer-dist` copies bundle into vendor/, masking local changes | Default to `--prefer-source` in demo `composer install` command; document the gotcha |
-| `*.localhost` browser resolution | Assume all browsers resolve subdomain of `.localhost` | Provide `Host:` header fallback; document Firefox/Safari behavior; CI smoke uses `Host:` not DNS |
-| `OPTIONS` preflight + tenant resolution | Resolver throws on preflight because no tenant context | Resolver returns `null` on preflight; orchestrator's null-path (post-FIX-02) handles it |
-| Symfony Messenger `TenantStamp` + Mailer's `SendEmailMessage` | Assume the existing Phase 06 middleware handles Mailer-dispatched messages | It does — but verify with a canary test specifically for `SendEmailMessage`, since it's dispatched through a different bus path than user messages |
-| `WebProfilerBundle` template auto-discovery | Place template in wrong directory, no panel shows | Template must be at `src/Resources/views/Collector/tenancy.html.twig` (bundle root, not in subfolder) |
+| Symfony `kernel.request` priority ladder | New OPS listener at priority > 20 (fires before orchestrator) | All OPS listeners at priority < 20; orchestrator at exactly 20 |
+| Maintenance mode + health endpoint | Health route resolves a tenant, triggers bootstrapper, may 503 | Health route must resolve null (all resolvers return null for health URLs) |
+| `symfony/process` parallel + large output | `getOutput()` post-exit on large subprocess output (deadlock) | Streaming callback (`$process->start(fn...)`) accumulating to local var + `wait()` |
+| `symfony/process` + SIGTERM | Parent exits, children orphaned, DB locks held | `pcntl_signal(SIGTERM, ...)` handler stops all children before exit |
+| Parallel migration + shared_db driver | New parallel command forgets to copy shared_db guard | Guard in shared base/trait; compile-time pass asserts shared_db implies no migrate commands |
+| Maintenance mode + FrankenPHP/Swoole | Static flag property leaks across requests | Flag stored in DB, read per-request, cleared on `TenantContextCleared` |
+| Health check + Doctrine optional dependency | `HealthController` hard-imports `EntityManagerInterface` | Guard with `interface_exists`; all health check services conditionally registered |
+| Liveness probe + per-tenant DB check | Liveness iterates all tenant DBs on every poll | Liveness: landlord DB only. Readiness: sampled N tenants. Full check: CLI only |
+| Maintenance bypass token + CDN logs | Bypass token in query parameter appears in CDN/server logs | Header only (`X-Maintenance-Bypass`); HMAC-signed, time-bounded, tenant-scoped |
+| Health response + DSN sanitization | Exception message with `user:pass@host` in health JSON | `HealthResponseSanitizer` strips all DSN-shaped strings before response |
 
 ---
 
@@ -474,11 +728,11 @@ The collector wants to show "active tenant: tenant-A (of 12 tenants)" — includ
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Per-tenant SMTP transport rebuilt on every email send | Slow email sends (full TCP+TLS handshake per email); SMTP connection exhaustion on receiving server | LRU cache of transports in decorator; clear on tenant change | At 10+ emails/second per tenant |
-| Profiler collector iterates over all tenants to display count | Dev page slow; tenant table read on every request | Collector reads only active-tenant snapshot; no provider queries | At 100+ tenants in dev environment |
-| `tenancy:install` re-parses `bundles.php` on every dry-run | Fast enough — not a real trap | (No action needed — command is one-shot) | N/A |
-| Demo app docker-compose without resource limits | Demo eats all of laptop's RAM; user blames bundle | `mem_limit:` and `cpus:` in docker-compose for each service | First-run laptop with 8GB RAM |
-| OriginHeaderResolver linear scan over allow-list | Slow on requests with 1000-tenant config | Index allow-list by hostname at build time; O(1) lookup | At 1000+ origins configured |
+| Health probe iterates all tenants on every load-balancer poll | DB connection spike every 5s; `max_connections` exceeded | Liveness: no tenant iteration. Readiness: max N sampled tenants. | At 50+ tenants with 5s probe interval |
+| Maintenance flag DB read on every request with no per-request cache | Extra query per request per tenant | Cache flag in `MaintenanceModeChecker` for request duration (cleared on `TenantContextCleared`) | At 1000+ requests/second |
+| Parallel migration spawns all tenants simultaneously | Connection exhaustion during migration | `--max-parallel` option (default 4); bounded process pool | At 20+ tenants without the limit |
+| Per-process bootstrapper chain in migration subprocess boots all bootstrappers | Migration subprocess boots Flysystem, Mailer, etc. not needed for DB migration | Migration subprocess should only boot `DatabaseSwitchBootstrapper`; other bootstrappers add latency and failure surface | At 100+ tenants with slow bootstrappers |
+| Maintenance check reads Tenant entity from DB on every request (no cache) | Extra query per request under load | Cache result per-request in `MaintenanceModeChecker` service (short-lived, cleared on request end) | At 500+ requests/second |
 
 ---
 
@@ -486,188 +740,83 @@ The collector wants to show "active tenant: tenant-A (of 12 tenants)" — includ
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Trust `Origin` header for tenant identification without authentication layer | Server-to-server attacker resolves any tenant by setting the header from non-browser client | Document the trust model; require auth-layer cross-check; explicit warning in resolver docs |
-| Substring match in OriginHeaderResolver allow-list (`endsWith` / `contains`) | Subdomain spoof: `attacker.tenant.example.com` matches `tenant.example.com` allow-list entry | Exact equality on parsed URL components (scheme + host + port); single left-most wildcard label only |
-| Mailer DSN with credentials leaked in exception trace | Tenant SMTP credentials exposed to error tracker (Sentry, monolog, browser in dev) | Sanitize all DSN-shaped strings in exception messages; test with explicit auth-failure case |
-| `tenancy:install` writes file without backup; corruption is unrecoverable | User's `bundles.php` destroyed by botched mutation; no rollback path | Always backup before mutation; restore on `php -l` failure; print backup path in command output |
-| Profiler tab exposes tenant connection DSN (with password) in panel | Credentials in dev console; if profile is stored, in profile JSON; if shared, in screenshots | Collector stores connection *name* only, never DSN; sanitize all stored data |
-| Demo app ships hardcoded weak passwords in docker-compose | Users deploy demo without changing creds → "I deployed the demo to a public IP and now my DB is exfiltrated" | docker-compose uses `MYSQL_RANDOM_ROOT_PASSWORD: yes` or required `.env` with no defaults; README screams about not deploying to public IPs |
-| OriginHeaderResolver fires on CORS preflight without tenant; orchestrator throws | Preflight returns 500 instead of CORS headers; SPA's actual request never fires; perceived as auth bug | Preflight handling explicit: resolver returns null; orchestrator's null-path proceeds; CORS middleware (Nelmio or nginx) responds normally |
-| `tenancy:install` overwrites `bundles.php` with our version (full file replace) | User's other registered bundles disappear; immediate breakage of any non-trivial project | Mutate via AST surgery, not file replace; only insert our one entry; preserve all other entries verbatim |
-
----
-
-## UX Pitfalls
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| WDT icon hidden when no tenant resolved | User can't tell if bundle is installed correctly or if request was just landlord-routed | Always show icon; grey + tooltip "no tenant" for null-resolution case |
-| `tenancy:install` fails silently when `bundles.php` is non-standard | User runs install, sees success message, but bundle isn't registered | Detect non-standard layout; print manual snippet; exit 0 with clear "manual step required" message |
-| Demo README assumes Chrome | Firefox/Safari users hit "site not found"; first impression is broken | Three-step fallback ladder in README (curl with Host:, /etc/hosts, browser-native) |
-| Profiler panel shows JSON-dumped tenant entity (raw) | Developer sees noisy data dump, can't find the key info (which tenant?) | Render with clear labels: "Active Tenant: <slug>", "Resolved by: HostResolver", "Connection: <name>" |
-| Error message "Origin not allowed" without listing allowed origins (in dev) | Developer doesn't know how to fix the config | In dev profile only, list allowed origins; in prod, generic message |
-| `tenancy:install` doesn't print "what next" | User runs command, sees "done", doesn't know to also run `tenancy:init` and edit config | Always print next steps: run `tenancy:init`, edit `config/packages/tenancy.yaml`, test with `tenancy:run` |
-| Demo's two tenants have similar names (`tenant1`, `tenant2`) | User can't tell which tenant they're viewing in browser; demo confuses rather than illustrates | Distinct names with distinct content/branding: "Acme Corp" (blue theme) and "Globex Inc" (green theme) |
+| Maintenance flag stored in shared cache without tenant namespace | Cross-tenant maintenance state contamination (zero-leak violation) | DB column or per-tenant namespaced cache; cross-tenant isolation test |
+| Health endpoint returns DB DSN / tenant list unauthenticated | Infrastructure topology exposed to public | `HealthResponseSanitizer`; liveness returns `{"status":"ok/degraded"}` only; detailed readiness behind auth |
+| Maintenance bypass token is a static string in config | Any client that learns the token bypasses maintenance for any tenant | HMAC-signed, tenant-scoped, time-bounded (5-minute window); `hash_equals` comparison |
+| Health check endpoint resolves a tenant (bootstrapper runs, context may leak) | TenantContext leaked into next request (zero-leak violation) | Health route must return null from ALL resolvers; health checks must not call `BootstrapperChain::boot()` |
+| Parallel migration shared_db guard missing in new command | N migration processes run on same physical DB simultaneously — corruption | Compile-time pass; shared_db + parallel migrate not both registerable |
+| New OPS feature hard-imports Doctrine/Monolog without optional guard | All consumers must install optional dependencies | `interface_exists` / `class_exists` guards; no-doctrine CI lane is a release gate |
+| Bypass header sent as query parameter | Token in server access logs, CDN logs, referrer headers | Header only, never query param; document this in ops docs |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-### Mailer Bootstrapper (BOOT-04)
-- [ ] **Sync path works:** transport overridden on `TenantResolved`, email sent in same request — **verify async path also works** by routing `SendEmailMessage` to Messenger transport in test and asserting worker sends from correct transport
-- [ ] **Transport selection:** `X-Transport` header strategy implemented — **verify the header survives the Messenger transport's serialization** (JSON/AMQP/Doctrine), not just in-memory test
-- [ ] **DSN sanitization:** exception messages don't include credentials — **verify with an explicit auth-failure test**, not just code review
-- [ ] **Worker cleanup:** decorator cache cleared on `TenantContextCleared` — **verify SMTP socket count is bounded** in a 50-message worker stress test
-- [ ] **Compile guard:** `MailerTransportContractPass` rejects mailer-enabled + no-strategy config — **verify with a negative test** (broken config → container compile fails with clear message)
+### OPS-01 Maintenance Mode (Phase 31)
+- [ ] **Listener timing:** maintenance listener is at priority 15 — **verify with a test asserting orchestrator runs first** (tenant resolved before maintenance checked)
+- [ ] **Null-tenant pass-through:** health/landlord routes pass through even during tenant maintenance — **verify with smoke test: all tenants in maintenance → health endpoint returns 200**
+- [ ] **Cross-tenant isolation:** setting tenant-A to maintenance does NOT affect tenant-B — **verify with explicit cross-tenant test**
+- [ ] **HTTP correctness:** 503 with `Retry-After` and `Cache-Control: no-store` — **verify all three header invariants with `MaintenanceResponse` assertion test**
+- [ ] **Bypass security:** HMAC token is tenant-scoped, time-bounded, constant-time compared — **verify with wrong-tenant and expired-token tests**
+- [ ] **BC safety:** `TenantInterface` unchanged — **verify no new methods added; existing custom entity still compiles**
+- [ ] **No-doctrine CI lane:** passes green after OPS-01 ships — **verify in CI matrix**
 
-### `tenancy:install` Command (DX-06)
-- [ ] **Standard skeleton:** mutates `bundles.php` correctly — **verify on 6+ fixture types** (skeleton, API Platform, Sulu, DDD, project-with-comments, project-with-conditional-loads)
-- [ ] **Idempotent:** running twice produces same result — **verify with a 3-run test** asserting file content identical after runs 2 and 3
-- [ ] **Backup:** prints backup path — **verify backup file exists and is restorable** with a corruption-injection test
-- [ ] **Atomic write:** uses `Filesystem::dumpFile()` — **verify via test that SIGTERM mid-write doesn't leave half-file**
-- [ ] **Encoding preservation:** UTF-8 BOM, line endings — **verify with fixtures containing BOM and CRLF**
-- [ ] **Non-standard refusal:** prints manual instructions, exit 0 — **verify on `Kernel::registerBundles()` override fixture**
-- [ ] **Next-steps output:** command prints what to do next — **verify by string-matching the expected post-install snippet in output**
+### OPS-02 Health Checks (Phase 32)
+- [ ] **No TenantContext mutation:** health check does not call `BootstrapperChain::boot()` — **verify `TenantContext::hasTenant()` is false after health probe**
+- [ ] **Two routes:** `/health/live` and `/health/ready` are separate routes with separate semantics — **verify liveness does not iterate tenants; readiness samples max N**
+- [ ] **DSN sanitization:** health response body contains no `://` with credentials — **verify with `HealthResponseSanitizer` injection test**
+- [ ] **Degraded bootstrapper reporting:** `HealthReportingBootstrapperInterface` correctly surfaces DEGRADED state — **verify `MailerBootstrapper` returns DEGRADED when SMTP unreachable, not silently OK**
+- [ ] **Unauthenticated surface:** liveness is safe to expose publicly — **verify liveness response contains only `status` key, nothing else**
+- [ ] **No-doctrine CI lane:** passes green after OPS-02 ships
 
-### Demo App (DEMO-01)
-- [ ] **`docker compose up` works:** services start — **verify with CI smoke job hitting both tenant routes via `Host:` header**
-- [ ] **Cross-browser:** README has Firefox/Safari fallback — **verify by reading README, not by testing every browser**
-- [ ] **Path repo symlink:** local bundle changes reflect in demo — **verify by `readlink vendor/danplaton4/tenancy-bundle` in CI**
-- [ ] **No test-fixture leakage:** demo doesn't import from `Tenancy\Tests\` — **verify with CI grep lint**
-- [ ] **Distinct tenants:** visually different — **verify by snapshot test of `/` rendered for each tenant**
-- [ ] **No hardcoded prod-unsafe creds:** weak passwords flagged — **verify README has "do not deploy this demo to public IP" warning**
-
-### Profiler Tab (DX-02)
-- [ ] **Panel renders with tenant:** active panel shows correct data — **verify with WebTestCase asserting `tenant_id` text on `/_profiler/<token>`**
-- [ ] **Panel renders without tenant:** null-resolution case — **verify with separate WebTestCase on a landlord route**
-- [ ] **Stored profile renders:** reload `/_profiler/<token>` after request — **verify the panel shows same data, not blank** (this is the serialization canary)
-- [ ] **No queries in collect:** profiler doesn't add DB load — **verify with `assertCount(0, ...)` on query log delta during collect**
-- [ ] **No DSN exposure:** connection name only, not password — **verify by inspecting collector's `$this->data` for credentials substrings**
-- [ ] **Production compile-out:** collector service not in prod container — **verify with `bin/console debug:container --env=prod`**
-- [ ] **Reset works:** `$collector->reset()` clears state — **verify long-running dev server doesn't leak data across requests**
-
-### OriginHeaderResolver (RESV-06)
-- [ ] **Exact origin match:** no substring matching — **verify with `attacker.tenant.example.com` against `tenant.example.com` allow-list** (must NOT match)
-- [ ] **Preflight handling:** OPTIONS doesn't throw — **verify with an OPTIONS request test asserting CORS headers returned**
-- [ ] **Null origin handling:** `Origin: null` doesn't match — **verify with explicit null-origin request test**
-- [ ] **Resolver priority documented:** order vs Host/Header resolver clear — **verify in resolver docblock and `tenancy.yaml` defaults**
-- [ ] **Conflict warning:** Origin and X-Tenant-ID disagreeing logs warning — **verify with WebTestCase capturing log output**
-- [ ] **Security docs:** trust model section exists — **verify README has "When NOT to use OriginHeaderResolver" section**
-- [ ] **Compile-time allow-list validation:** empty allow-list with resolver enabled fails compile — **verify with negative test on container build**
-
-### Process / Governance (Carry-Forward from v0.2)
-- [ ] **Plan-summary parity:** every plan has a SUMMARY.md — **verify with `audit-open` enforcement (not advisory)**
-- [ ] **`human_needed` TTL:** no item older than 72h at any time — **verify with daily check, not just at milestone close**
-- [ ] **Demo CI gate:** smoke job required for merge — **verify by attempting a merge with a broken demo and confirming it's blocked**
-- [ ] **Release checklist:** pre-tag checklist exists and is enforced — **verify v0.3.0 tag is preceded by a documented checklist run**
-
----
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Mailer async sends from wrong tenant in production | CRITICAL (customer-visible incident, possible DKIM/SPF reputation impact) | (1) Immediately disable async mailer routing globally — fallback to sync; (2) audit sent-mail logs for cross-tenant From: vs tenant slug mismatches; (3) notify affected tenants if any; (4) ship `X-Transport` header strategy patch; (5) post-mortem |
-| `tenancy:install` corrupts user `bundles.php` | HIGH (user adoption loss, support burden) | (1) User restores from `.bak.<timestamp>` (printed in command output); (2) we ship a hotfix improving fixture coverage; (3) blog post + CHANGELOG with explicit "if you saw this, here's how" instructions |
-| Demo CI smoke job is red on release commit | MEDIUM (would have shipped broken demo) | (1) Block release tag; (2) reproduce locally; (3) fix demo or document the regression; (4) re-tag only after green |
-| Profiler tab shows blank for resolved tenants | LOW (no functional impact, dev confusion only) | (1) Verify with stored-profile reload test (the canary); (2) if reproducible, move from `lateCollect` to `collect` or fix priority; (3) ship patch |
-| OriginHeaderResolver allows substring spoof in production | CRITICAL (cross-tenant access bypass) | (1) Treat as security incident; (2) audit access logs for unexpected Origin patterns matching tenants; (3) rotate affected tenant credentials if any auth-cross-check was missing; (4) ship strict-equality patch; (5) security advisory |
-| `human_needed` items accumulate, milestone closes with unverified claims | MEDIUM (risk-shifting to users, retraction risk if defect found post-tag) | (1) Audit all open VERIFICATION items; (2) treat as Known Gaps in CHANGELOG; (3) escalate to 72h TTL going forward; (4) post-mortem in retrospective |
-| Plan-summary drift caught at milestone close | LOW (governance debt, ~15min/plan to backfill) | (1) Retroactive SUMMARY with `retroactive: true` frontmatter; (2) add `audit-open` parity check before next milestone |
+### ISOL-07 Parallel Migration (Phase 33)
+- [ ] **Bounded concurrency:** `--max-parallel` default enforced — **verify with mock process factory asserting at-most-N concurrent processes**
+- [ ] **Output atomicity:** no interleaving in buffered output — **verify with concurrent output test**
+- [ ] **Exit code aggregation:** null exit code treated as failure — **verify process killed mid-run reports as failure**
+- [ ] **Shared-db guard:** parallel command not registered when `driver: shared_db` — **verify container has no parallel migrate command in shared-db mode**
+- [ ] **SIGTERM handler:** children stopped on parent SIGTERM — **verify child processes do not linger after parent exit** (requires `pcntl`)
+- [ ] **Large output:** 100KB subprocess output does not deadlock — **verify with a subprocess generating large stdout**
+- [ ] **Failure summary:** exit 1 + list of failed tenants + re-run hint — **verify output contains failed-tenant slugs and `--tenant=` re-run snippet**
 
 ---
 
 ## Pitfall-to-Phase Mapping
 
-| Pitfall | Prevention Phase | Compile/Lint Guard | Test Verification |
-|---------|------------------|-------------------|--------------------|
-| 1. Mailer async wrong transport | BOOT-04 | `MailerTransportContractPass` (compile-time) | Canary: dispatch in tenant A async, assert worker SMTP matches tenant A |
-| 2. `tenancy:install` corrupts user file | DX-06 | `php -l` post-mutation (runtime guard) | 6+ fixture corpus test; 3-run idempotency test |
-| 3. Profiler serialization / cleared-context blank | DX-02 | (Optional) `ProfilerCollectorContractPass` | Stored-profile reload test; null-resolution panel test |
-| 4. Demo "works on my machine" | DEMO-01 | CI smoke job (workflow guard) | `bin/smoke.sh` running on Linux runner with curl `Host:` header |
-| 5. OriginHeaderResolver security | RESV-06 | `OriginHeaderResolverConfigPass` (compile-time) | Substring-spoof test; preflight test; conflict-warning test |
-| 6. Plan-summary drift / `human_needed` accumulation | Phase 0 (kickoff) | `audit-open` enforcement; 72h TTL | Retrospective carry-forward items closed |
-| 7. Mailer DSN credential leak | BOOT-04 | (None) | Auth-failure exception test asserts no credentials in message |
-| 8. Mailer transport cache OOM | BOOT-04 | (None) | 50-message worker stress test, memory bounded |
-| 9. `tenancy:install` composer-script race | DX-06 (docs + tests) | (None) | Idempotency test (already covered for Pitfall 2) |
-| 10. Profiler collector public service ID | DX-02 | Service-config `public: false` + container debug check | `bin/console debug:container tenancy.collector` is hidden |
-| 11. Demo imports test fixtures | DEMO-01 | CI grep lint `examples/` → no `Tenancy\Tests\` | Lint job in `demo-smoke` CI |
-| 12. Profiler queries on collect | DX-02 | (None) | Query-count delta = 0 during collect |
-
----
-
-## Compile-Time Guards Proposed for v0.3 (Issue #5 Lesson Codified)
-
-Three new compiler passes, following the `CacheDecoratorContractPass` pattern from v0.2 Phase 15:
-
-### 1. `MailerTransportContractPass` (NEW — for BOOT-04)
-- **Location:** `src/DependencyInjection/Compiler/MailerTransportContractPass.php`
-- **Invariant:** If `tenancy.mailer.enabled = true` AND `interface_exists(\Symfony\Component\Mailer\MailerInterface::class)`, then **either** a service `tenancy.mailer.transport_provider` implementing `TenantTransportProviderInterface` is registered, **OR** the user has configured a `tenancy.mailer.transport_header_strategy: x_transport` option AND has at least one `framework.mailer.transports.tenant_*` entry.
-- **Failure message:** "Mailer bootstrapper is enabled but no transport-resolution strategy is configured. Either implement `TenantTransportProviderInterface` for dynamic DSN resolution, OR define per-tenant transports in `framework.mailer.transports` and enable `x_transport` strategy. See https://...docs/mailer.md"
-- **Async detection:** if `messenger.routing` contains `Symfony\Component\Mailer\Messenger\SendEmailMessage`, additionally require the `x_transport` strategy (the only async-safe option) or fail compile with explicit async-incompatibility message.
-
-### 2. `OriginHeaderResolverConfigPass` (NEW — for RESV-06)
-- **Location:** `src/DependencyInjection/Compiler/OriginHeaderResolverConfigPass.php`
-- **Invariant:** If `OriginHeaderResolver` is registered, then `tenancy.resolvers.origin_header.allow_list` is non-empty AND every entry parses as an absolute URL with valid scheme (`http`/`https`) and (optionally) one left-most wildcard label.
-- **Failure message:** Per-entry: "`tenancy.resolvers.origin_header.allow_list[<index>]` is invalid: `<value>`. Must be an absolute URL like `https://tenant-a.example.com` or `https://*.example.com`."
-
-### 3. `ProfilerCollectorContractPass` (OPTIONAL — for DX-02)
-- **Location:** `src/DependencyInjection/Compiler/ProfilerCollectorContractPass.php`
-- **Invariant:** If `WebProfilerBundle` is registered, the `tenancy.profiler.collector` service has the `data_collector` tag with the expected template path AND is `public: false`.
-- **Skip if:** Adding this pass costs more than 10 lines — the failure mode (no panel) is benign, not security-shaped. Listed for completeness; the team should weigh value vs maintenance.
-
-Pattern reminder, from `CacheDecoratorContractPass`: each pass converts a class of "silent at boot, explodes at consumption" bug into a deterministic container-compile error with a descriptive message linking to docs. The v0.2 retro called this out as the **single highest-leverage prevention pattern** the bundle has — apply it everywhere a downstream-only failure mode is statically detectable.
-
----
-
-## Adoption-Specific Risk Register (v0.3-Only)
-
-These risks aren't pitfalls per se — they're milestone-level risks specific to "first users will see this":
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| First user's `tenancy:install` corrupts their `bundles.php` | MEDIUM if mutation is via regex; LOW if via php-parser + backup + dry-run | HIGH (tag-retraction equivalent) | Pitfall 2 mitigations; fixture corpus test; dry-run mode; backup; refuse-on-nonstandard |
-| First user opens demo in Firefox, sees DNS error, gives up | HIGH on Firefox/Safari users | MEDIUM (one-time adoption loss; recoverable if they file an issue) | Pitfall 4 mitigations; three-step fallback ladder in README; CI smoke catches the bundle-side breakages |
-| First user's profiler panel is blank, assumes bundle is broken | MEDIUM | MEDIUM (perceived defect; possible bug report) | Pitfall 3 mitigations; always-show icon; stored-profile reload test |
-| First user's tenant-A email goes from landlord SMTP | HIGH on async-routed projects | CRITICAL (customer-visible) | Pitfall 1 mitigations; compile-time guard; async canary test; recommend `X-Transport` |
-| First user trusts `Origin` header for an unauthenticated API | MEDIUM | HIGH (cross-tenant leak) | Pitfall 5 mitigations; docs explicitly state trust model; warn at boot when allow-list is empty |
-| v0.3 ships with `human_needed` items unresolved (v0.2 pattern recurs) | MEDIUM (without mitigation), LOW (with carry-forward 72h TTL enforced) | MEDIUM (governance debt; risk that "verification" item is actually a defect) | Pitfall 6 mitigations; Phase 0 process work; release-gate checklist |
-| Demo CI rot — works at release, breaks 3 months later | HIGH without CI gate, LOW with | MEDIUM (re-establishes "doesn't work on my machine" as default perception) | CI smoke job is required for `master` merge, not just for releases |
-| `tenancy:install` adopted in composer scripts, races | LOW | LOW (idempotency makes it safe even if it races) | README explicit "one-time only"; idempotency tests |
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Maintenance check fires before tenant resolution | Phase 31 (OPS-01) | Listener-priority test: orchestrator runs before maintenance listener |
+| Maintenance check fires too late (post-controller) | Phase 31 (OPS-01) | Query-count assertion: 0 queries before 503 |
+| Landlord/health/public routes locked out | Phase 31 (OPS-01) | Smoke test: all tenants in maintenance → health returns 200 |
+| Maintenance flag cross-tenant leak | Phase 31 (OPS-01) | Cross-tenant isolation test (tenant-A in maintenance does not affect tenant-B) |
+| Bad HTTP status / missing Retry-After | Phase 31 (OPS-01) | `MaintenanceResponse` header invariant test |
+| Bypass token spoofable | Phase 31 (OPS-01) | Wrong-tenant + expired-window bypass tests |
+| Cache staleness after maintenance ends | Phase 31 (OPS-01) | Docs + CDN-override warning; flush-cache command |
+| Health endpoint bootstraps tenant and context leaks | Phase 32 (OPS-02) | `TenantContext::hasTenant() === false` post-health-probe |
+| Thundering herd on health probe | Phase 32 (OPS-02) | Liveness: assert 0 calls to `findAll()` |
+| Sensitive data on unauthenticated health route | Phase 32 (OPS-02) | `HealthResponseSanitizer` DSN-injection test |
+| Readiness/liveness confusion causes restart loops | Phase 32 (OPS-02) | Two routes exist; Kubernetes probe YAML in docs |
+| Silent degraded bootstrapper | Phase 32 (OPS-02) | `HealthReportingBootstrapperInterface` degraded-state test |
+| Unbounded parallel connection exhaustion | Phase 33 (ISOL-07) | At-most-N concurrency mock test |
+| Interleaved output | Phase 33 (ISOL-07) | Output-atomicity test |
+| Exit code lost — false success | Phase 33 (ISOL-07) | Killed-process reported-as-failure test |
+| Parallel on shared_db — double migration | Phase 33 (ISOL-07) | Container has no parallel migrate command in shared-db mode |
+| Subprocess output deadlock | Phase 33 (ISOL-07) | 100KB output no-deadlock test |
+| Orphaned child processes on SIGTERM | Phase 33 (ISOL-07) | pcntl SIGTERM handler; child-linger test |
+| Partial failure with no actionable report | Phase 33 (ISOL-07) | Output contains failed-tenant list + re-run snippet |
+| New listener breaks priority-20 ordering | Phase 31, 32 | `KernelListenerPriorityPass` assertion |
+| Optional-dependency contract broken | Phase 31, 32, 33 | No-doctrine CI lane green after each phase |
+| `TenantInterface` BC break | Phase 31 (OPS-01) | Existing `Tenant` fixture compiles unchanged after OPS-01 ships |
 
 ---
 
 ## Sources
 
-### Verified (HIGH confidence)
-- [Symfony Profiler — Custom Data Collectors](https://symfony.com/doc/current/profiler/data_collector.html) — official, `LateDataCollectorInterface` + serialization semantics
-- [Symfony Mailer Docs](https://symfony.com/doc/current/mailer.html) — official, transport selection + async dispatch model
-- [Symfony Messenger Docs](https://symfony.com/doc/current/messenger.html) — official, worker semantics
-- [Symfony Mailer — Multiple Transports Discussion](https://github.com/symfony/symfony/discussions/46372) — `X-Transport` header selection mechanism
-- [`symfony/symfony` issue #34972 — Redundant MessageEvent dispatch](https://github.com/symfony/symfony/issues/34972) — `RawMessage` clone semantics on `MessageEvent`
-- [`symfony/symfony` issue #37588 — Allow setting Transport from MessageEvent](https://github.com/symfony/symfony/issues/37588) — confirms transport cannot be changed from `MessageEvent`
-- [Symfony 6.2 More Extensible Mailer](https://symfony.com/blog/new-in-symfony-6-2-more-extensible-mailer) — `X-Bus-Transport` and bus selection
-- [Symfony Bundle Best Practices](https://symfony.com/doc/current/bundles/best_practices.html) — official, service-naming and config conventions
-- [Mozilla bug 1741109 — Firefox `*.localhost`](https://bugzilla.mozilla.org/show_bug.cgi?id=1741109) — Firefox subdomain-of-localhost handling
-- [Mozilla bug 1686759 — Firefox `*.localhost` regression](https://bugzilla.mozilla.org/show_bug.cgi?id=1686759) — Firefox vs Chrome divergence
-- [WebKit bug 160504 — Safari `*.localhost`](https://bugs.webkit.org/show_bug.cgi?id=160504) — Safari subdomain handling
-- [OWASP — Testing CORS](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/07-Testing_Cross_Origin_Resource_Sharing) — Origin trust model
-- [PortSwigger — CORS Misconfigurations](https://portswigger.net/web-security/cors/access-control-allow-origin) — substring-match attack vectors
-
-### Project-internal (HIGH confidence)
-- `.planning/PROJECT.md` — v0.3 scope and key decisions
-- `.planning/RETROSPECTIVE.md` — v0.2 governance lessons (plan-summary drift, `human_needed` TTL)
-- `.planning/milestones/v0.2-research/PITFALLS.md` — pre-existing pitfalls still in force
-- `.planning/v1.0-MILESTONE-AUDIT.md` — gap categories established in v1.0 audit
-- `src/DependencyInjection/Compiler/CacheDecoratorContractPass.php` — compile-time guard pattern to replicate
-
-### Community / Background (MEDIUM confidence)
-- [GitHub discussion #61506 — Mailer DSN from database at runtime](https://github.com/symfony/symfony/discussions/61506) — community patterns for dynamic-DSN mailer
-- [HackTricks — CORS Misconfigurations & Bypass](https://book.hacktricks.xyz/pentesting-web/cors-bypass) — Origin spoof from non-browser clients
-- [Vercel Labs portless](https://github.com/vercel-labs/portless) — local subdomain routing precedent
+- Codebase source readings (live, 2026-06-25): `TenantContextOrchestrator.php` (priority 20 constant, null-branch design, `onKernelTerminate` cleanup path), `BootstrapperChain.php` (reverse clear ordering, `boot()` is void), `TenantMigrateCommand.php` (sequential loop, shared_db guard at line 57, failure aggregation at lines 109-119), `TenantContext.php` (value holder, `clear()` semantics), `TenantInterface.php` (current 7-method surface), `TenantRunCommand.php` (`getExitCode() ?? 0` pattern at line 89), `ResolverChain.php` (null-resolution contract for public/health routes)
+- `.planning/RETROSPECTIVE.md`: v0.2 lesson "compile-time guards over runtime assertions"; v0.4 lesson "three-way invariant for data-leak bug classes"; both directly inform the compile-time-pass recommendations throughout
+- `.planning/PROJECT.md` Key Decisions: "Strict mode ON by default — a data leak is worse than a 500"; optional-dependency contract; `ResolverChain::resolve()` returns nullable; `TenantMailerConfigTrait` BC-mitigation precedent
+- `.planning/research/PITFALLS.md` (v0.3 version): Pitfall 3 (profiler serialization/DSN leak), Pitfall 7 (DSN in exception), Pitfall 8 (transport cache leak) — v0.5 health-check pitfalls are analogues of these established patterns
+- `symfony/process` documentation: buffered vs. streaming output, deadlock warning for large output, SIGTERM behavior, `start()` + callback + `wait()` as the safe concurrent pattern
 
 ---
-
-*Pitfalls research for: Symfony tenancy bundle v0.3 Adoption Surface (new-feature failure modes)*
-*Researched: 2026-05-15*
-*Scope: ONLY v0.3 features and adoption-milestone risks; v0.2 pitfalls remain authoritative for shipped features*
+*Pitfalls research for: Symfony multi-tenancy bundle v0.5 — OPS-01 maintenance mode, OPS-02 health checks, ISOL-07 parallel migrations*
+*Researched: 2026-06-25*

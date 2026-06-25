@@ -1,21 +1,19 @@
-# v0.3 Adoption Surface — Research Summary
+# Project Research Summary
 
-**Project:** `danplaton4/tenancy-bundle` v0.3 (Adoption Surface milestone)
-**Domain:** Symfony reusable bundle — adoption-funnel features layered on a published v0.2 engine
-**Researched:** 2026-05-15
-**Confidence:** HIGH overall (single MEDIUM call-out on cross-OS demo DNS behavior, verified via vendor bug trackers rather than empirical reproduction)
-
-Downstream readers (REQUIREMENTS.md author, gsd-roadmapper) — this file is self-sufficient. The four dimension files (`STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`) contain the long-form rationale; everything load-bearing for requirements and phase planning is here.
+**Project:** `danplaton4/tenancy-bundle` — v0.5 Operations & Scale
+**Domain:** Symfony reusable bundle — production-operations additions to an event-driven multi-tenant kernel
+**Researched:** 2026-06-25
+**Confidence:** HIGH (all four research dimensions grounded in live source reads of v0.4.1 codebase + Packagist-verified dependency decisions)
 
 ---
 
 ## Executive Summary
 
-v0.3 is **scope-locked to six features plus one governance carry-forward**. The engine shipped in v0.2 (resolvers, bootstrappers, MessengerStamp, drivers, CLI, test trait) is unchanged contractually — v0.3 is additive on existing seams. Net new production dependencies: **zero**. Three additions to `require-dev` only: `symfony/mailer`, `symfony/twig-bundle`, `symfony/web-profiler-bundle`. The adoption thesis is "v0.2 works for people who already know they want it; v0.3 closes the install funnel so people who *should* want it can find out in five minutes."
+v0.5 adds three self-contained operational features to a v0.4.1 baseline that is already green on CI and published on Packagist: per-tenant maintenance mode (OPS-01), health check infrastructure with optional LiipMonitorBundle integration (OPS-02), and parallel `tenancy:migrate` via a bounded subprocess worker pool (ISOL-07). All three features are implementable with **zero new production dependencies** — every required component (`symfony/cache`, `symfony/process`, `symfony/http-foundation`) is already in `require`. The only additive entry to `composer.json` is `liip/monitor-bundle ^2.25` in `require-dev` + `suggest` as an opt-in integration point for OPS-02.
 
-The single highest-risk decision is the **Mailer bootstrapper extension point**. Three plausible Symfony hooks exist (`MailerInterface` decoration, `MessageEvent` listener, custom `TransportFactoryInterface`); only the `X-Transport` header strategy paired with multi-transport mailer config is safe under async Messenger dispatch — every other approach has a worker-process race that silently sends tenant emails from the landlord SMTP. The second-highest-risk decision is **`bundles.php` mutation**: the file is user-owned, often modified, and a corruption incident is a v1.0.0-retraction-class event. The Pitfalls and Architecture dimensions disagreed on technique; the recommended synthesis is "detect via `nikic/php-parser`, write via Flex string-template, abort with a manual snippet on any non-standard shape" — gated by a fixture corpus of at least six real-project `bundles.php` shapes.
+The recommended build order, reconciled from the four research dimensions, is: **Phase 31 (ISOL-07)** first because it touches zero public interfaces and uses the established `symfony/process` subprocess pattern from `TenantRunCommand`; **Phase 32 (OPS-01)** second because it introduces the one BC-sensitive change (`TenantInterface::isInMaintenance()` mitigated by `TenantMaintenanceConfigTrait`) and establishes the allow-list config that Phase 33 must reference; **Phase 33 (OPS-02)** third because it depends on Phase 32's health-route allow-list, introduces the most novel surface area (`HealthCheckBootstrapperInterface`, `TenantHealthChecker`, two HTTP routes), and benefits from both prior phases being verified; **Phase 34 (DOC-21)** last as a documentation-only close-out. Features suggested OPS-01 → ISOL-07 → OPS-02; Architecture suggested ISOL-07 → OPS-01 → OPS-02. The reconciled order is **ISOL-07 → OPS-01 → OPS-02**, matching Architecture's recommendation, because ISOL-07 has strictly no interface dependencies while OPS-01's allow-list config is a genuine input to OPS-02.
 
-The governance carry-forward from the v0.2 retrospective (plan↔summary parity check, `human_needed` TTL) is **not bundle code** but **prerequisite phase work**. v0.2 close uncovered four retroactively-authored summaries and three unresolved `human_needed` items (7–42 days latent). v0.3 features are the user-facing surface; shipping them with the same process defects would compound the risk. Phase 0 (governance) must land before any v0.3 feature phase opens. Build order: **GOV → RESV-06 → DX-06 → DX-02 → BOOT-04 → DEMO-01 → DOC-19**.
+The three dominant security risks across all features share the same root cause: operating on shared state before it is properly bounded to the current tenant. Maintenance mode must fire after the resolver runs (priority < 20), never before. Health probes must set `TenantContext` manually and clear it in a `finally` block — they must never call `BootstrapperChain::boot()`. Parallel migrations must spawn out-of-process subprocesses (each with their own `TenantContext` and DBAL connection), never parallelize in-process. Each of these rules has a corresponding quality-gate test that must pass before the phase closes.
 
 ---
 
@@ -23,160 +21,187 @@ The governance carry-forward from the v0.2 retrospective (plan↔summary parity 
 
 ### Recommended Stack
 
-Zero changes to v0.2 `require`. Three additions to `require-dev` plus two `suggest` entries. No AST parser ships in `require`. No Docker library in bundle composer.json. No Symfony Flex recipe (explicit non-goal per PROJECT.md).
+All v0.5 features are built on the existing v0.4.1 stack. `lexik/maintenance-bundle` is confirmed abandoned (v2.1.5, February 2018, Symfony ^4.0 only — Packagist verified). Maintained forks (`toshy/maintenance-bundle`, `prolix/maintenance-bundle`) add a production dependency for a feature that takes ~3 classes to build natively, and neither supports per-tenant semantics. The decision is to build maintenance mode entirely in-bundle using `symfony/cache` (already required) as the per-request memoization layer over a DB column flag.
 
-**Diff against v0.2 `composer.json`:**
+For OPS-02, `liip/monitor-bundle ^2.25` (9M Packagist installs, active as of 2026-03-23, Symfony ^6.4||^7.0||^8.0) is the integration target. It is added to `require-dev` + `suggest` only — never `require`. A `HealthCheckIntegrationPass` registers bundle-provided checks as `liip_monitor.check` services only when `class_exists(\LiipMonitorBundle\LiipMonitorBundle::class)`. A self-contained `TenantHealthController` at `/_tenancy/health` (opt-in, default disabled) provides the zero-dependency fallback path. For ISOL-07, `symfony/process` is already in `require` and is sufficient — no third-party process-pool library is warranted.
 
-```diff
- "require-dev": {
-+    "symfony/mailer": "^7.4||^8.0",
-+    "symfony/twig-bundle": "^7.4||^8.0",
-+    "symfony/web-profiler-bundle": "^7.4||^8.0"
- },
- "suggest": {
-+    "symfony/mailer": "Required for per-tenant SMTP transport and From-header bootstrapping",
-+    "symfony/web-profiler-bundle": "Required for the Tenancy WDT panel (dev-only)"
- }
-```
+**Core technologies (additive to v0.4.1):**
 
-**Why this composition (not its alternatives):**
+- `symfony/cache` (`CacheInterface`): per-request memoization of the maintenance flag — already required; distributed-safe via Redis/Memcached backends; testable with `ArrayAdapter`
+- `symfony/process` (`Process::start()` + poll loop): bounded subprocess worker pool for ISOL-07 — already in `require` since Phase 07
+- `liip/monitor-bundle ^2.25`: optional OPS-02 integration — `require-dev` + `suggest` only; 9M installs, verified Symfony 7.4/8.x compatible
+- `laminas/laminas-diagnostics ^1.27`: transitive dependency of liip; provides `CheckInterface` for `TenantConnectivityCheck` / `BootstrapperHealthCheck`
 
-| Choice | Rejected alternative | Why |
-|---|---|---|
-| String-template write for `bundles.php` (Flex `BundlesConfigurator` pattern) | `symfony/var-exporter` | Can't emit `::class` constants |
-| `nikic/php-parser` for *detection only*, not for write | `nikic/php-parser` end-to-end | Heavy dep for write-path that Flex already proved with strings |
-| `symfony/mailer` as `require-dev` + `suggest` (optional) | Hard `require` | Mailer is not required to run the bundle; same guard pattern as `symfony/messenger` in v0.2 |
-| `symfony/twig-bundle` in `require-dev` only | In `require` | Apps without the profiler shouldn't pay for Twig in prod |
-| FrankenPHP + Caddy in demo | PHP-FPM + nginx; Symfony CLI; Bitnami | One service, native `*.localhost` TLS, official Symfony skeleton |
-| MariaDB in demo | Postgres | DBAL 4 supports both; MariaDB image ~120MB vs ~400MB, faster cold start, more typical of Symfony app `.env` examples |
-| Demo as separate Composer root (path repository) | Demo under `src/` | Bundle and demo are different autoloader scopes; path-repo symlink reflects working tree changes |
+**Authoritative what-not-to-add:**
 
-**Version matrix:** All v0.3 additions are compatible with the existing `^7.4||^8.0` Symfony constraint and `^8.2` PHP floor. CI matrix unchanged (PHP 8.2/8.3/8.4 × Symfony 7.4/8.0).
-
-### v0.3 Feature Set (Locked)
-
-The six bundle features below are user-conversation-locked; do not re-debate scope.
-
-| ID | Feature | Adoption lever | Complexity |
-|----|---------|---------------|------------|
-| **DX-06** | `tenancy:install` setup command | Removes "edit `config/bundles.php` by hand" step | S-M |
-| **DEMO-01** | Demo app in `examples/` | One-command reference (`docker compose up`) doubles as CI smoke test | M |
-| **DX-02** | Symfony Profiler "Tenancy" tab | Closes debuggability gap; competitive whitespace | S-M |
-| **BOOT-04** | Mailer bootstrapper (per-tenant SMTP) | Closes #1 SaaS use case (transactional email) | M-L |
-| **RESV-06** | `OriginHeaderResolver` | Closes SPA + cross-origin API gap; parity with stancl/tenancy v4 | S |
-| **DOC-19** | Docs refresh + public `ROADMAP.md` | Necessary to advertise everything above | M |
-
-Plus one **governance carry-forward** (not bundle code):
-
-- **GOV** — plan↔summary parity check added to `audit-open` GSD tooling; `human_needed` 72-hour TTL.
-
-**Out of scope for v0.3 (deferred to v0.4+):** Filesystem bootstrapper (BOOT-03), PHPStan extension (DX-03), demo's Mailpit container by default, APM integration, Symfony Flex recipe.
-
-### Architecture Approach
-
-v0.3 adds new code at five well-trodden Symfony extension points; no new compiler-pass classes are required for service wiring beyond three optional **contract-enforcement passes** described under "Compile-Time Guards" below. The existing `BootstrapperChainPass`, `ResolverChainPass`, and `MessengerMiddlewarePass` pick up the new tagged services automatically.
-
-**Component responsibilities:**
-
-| Component | Where it lives | Tag |
-|-----------|---------------|-----|
-| `TenancyInstallCommand` | `src/Command/` | `console.command` |
-| `OriginHeaderResolver` | `src/Resolver/` | `tenancy.resolver`, priority **25** (between Host 30 and Header 20) |
-| `TenantDataCollector` (+ Twig template) | `src/Profiler/`, `src/Resources/views/Collector/` | `data_collector`, **dev-only via `kernel.debug` guard** |
-| `MailerBootstrapper` + `TenantMessageDecorator` listener | `src/Mailer/` | `tenancy.bootstrapper` priority -20; `kernel.event_listener` on `MessageEvent` |
-| `examples/saas/` demo app | Repo root, NOT under `src/` | Path-repo Composer reference back to bundle |
-
-**Lifecycle correctness — critical timing notes:**
-
-- **Profiler `collect()` runs on `kernel.response`**, before `kernel.terminate`. At this point `TenantContext` is still populated. Do NOT use `lateCollect()` — that fires during `kernel.terminate` and races the orchestrator's clear, producing blank-panel-on-resolved-tenant bugs. Subscribe to `TenantResolved` to stash `resolvedBy` early (per **DEC-PROF-01**); read scalars from `TenantContext` in `collect()`.
-- **Mailer transport selection happens at `send()` time on the worker**, not at HTTP-request `TenantResolved` time. This is what makes the async path treacherous.
-- **Bootstrapper `clear()` runs in reverse boot order** (unchanged from v0.2). The mailer bootstrapper's per-tenant transport cache MUST clear on `TenantContextCleared` to avoid SMTP socket leaks in long-running workers.
-
-### Critical Pitfalls (Top 5)
-
-1. **Mailer transport overridden at dispatch instead of send → async emails go to wrong tenant.** Naive "override transport on TenantResolved" passes sync tests, ships, sends tenant-A welcome emails from the landlord SMTP. Customer-visible incident; DKIM/SPF reputation damage. **Prevention:** `X-Transport: tenant_<slug>` header stamped at dispatch (survives serialization) + multi-transport mailer config. Compile-time guard: **`MailerTransportContractPass`**. Async canary test (dispatch in tenant A, run worker, assert SMTP DSN matches tenant A) is a phase quality gate.
-
-2. **`tenancy:install` corrupts a user's `config/bundles.php`.** A first user whose `bundles.php` is corrupted will `composer remove` and never come back — irrecoverable adoption loss. **Prevention:** detect-via-`nikic/php-parser` (read-only inspection), write-via-string-template (Flex pattern), **abort with a clean manual snippet on any non-standard shape** (`--dry-run` mode, atomic write, `.bak`, `php -l` post-mutation). Phase quality gate: fixture corpus of **at least six** distinct `bundles.php` shapes; 3-run idempotency test.
-
-3. **Profiler tab serializes non-serializable state or shows blank for resolved tenants.** **Prevention:** subscribe to `TenantResolved` to stash `resolvedBy` early; `collect()` (NOT `lateCollect()`) reads scalars only; store only scalar/array data. Stored-profile reload test is the canary. Production compile-out via `kernel.debug` guard.
-
-4. **Demo's `*.localhost` subdomain routing works in Chrome and nowhere else.** Firefox historically does not resolve `*.localhost`; Safari has long-standing subdomain-of-localhost issues. **Prevention:** README provides a **three-step fallback ladder** — (1) curl/HTTPie with `Host:` header, (2) `/etc/hosts` line, (3) browser-native `*.localhost`. CI smoke job uses `Host:` header, not real DNS. Demo CI smoke is a **release-gate** for `master` merges.
-
-5. **`OriginHeaderResolver` trusts a header settable from any non-browser client.** `Origin` is browser-protected for cross-origin XHR/fetch but **trivially spoofable from curl/Postman/mobile**. **Prevention:** parsed-URL exact-equality matching; compile-time guard `OriginHeaderResolverConfigPass`; explicit "trust model" docs section; preflight returns `null` to fall through chain.
-
-### Compile-Time Guards to Ship in v0.3
-
-| Pass | Scope | Mandatory? |
-|------|-------|------------|
-| **`MailerTransportContractPass`** | If Mailer bootstrapper is enabled, require transport strategy. If Mailer routed async via Messenger, require `x_transport` (only async-safe). | YES |
-| **`OriginHeaderResolverConfigPass`** | If `OriginHeaderResolver` is registered, require non-empty allow-list of parseable absolute URLs; reject mid-string wildcards. | YES |
-| **`ProfilerCollectorContractPass`** | If `WebProfilerBundle` is registered, verify collector has `data_collector` tag and is `public: false`. | OPTIONAL |
+| Reject | Reason |
+|--------|--------|
+| `lexik/maintenance-bundle` (any version) | Abandoned 2018; Symfony ^4.0 only |
+| `toshy/maintenance-bundle` / `prolix/maintenance-bundle` | No per-tenant semantics; adds dep for 3 classes |
+| `liip/monitor-bundle` in `require` (hard) | Optional integration, not core tenancy |
+| `spatie/async`, `graze/parallel-process`, `amphp/parallel` | Wrong abstraction or event-loop runtime; `Process::start()` poll is 20 lines |
+| `symfony/lock` for migration concurrency | Overkill — pool is local to one invocation; "run one `tenancy:migrate` at a time" covers it |
 
 ---
 
-## Decisions Requiring Owner Sign-Off
+### Expected Features
 
-| ID | Decision | Recommendation |
-|----|----------|----------------|
-| **DEC-MAIL-01** | Mailer extension point | `X-Transport` header strategy + tiny `MessageEvent` listener for `From`/`Reply-To` |
-| **DEC-MAIL-02** | Where per-tenant SMTP config lives | New `mailerDsn` column on `Tenant` (requires migration) — OR defer per-tenant DSN to v0.4 |
-| **DEC-MAIL-03** | Add `getMailerDsn(): ?string` to `TenantInterface` (BC break) | Yes, with `TenantMailerConfigTrait` to ease upgraders (cost at floor: ~0 external installs) |
-| **DEC-RESV-01** | `OriginHeaderResolver` priority | 25 (above `HeaderResolver` 20) — OR 10 if owner prefers fail-safe-conservative |
-| **DEC-PROF-01** | "Resolved-by" plumbing | Collector subscribes to `TenantResolved` event |
-| **DEC-INST-01** | `tenancy:install` invokes `tenancy:init` programmatically vs. instructing user to run it | Invokes programmatically; forwards `--force` flag |
-| **DEC-INST-02** | Behavior when `bundles.php` is non-standard | Detect via `nikic/php-parser`, refuse to mutate, print manual snippet, exit 0 |
-| **DEC-DEMO-01** | Subdomain routing scheme in demo | Caddy + `*.tenancy.localhost` + internal CA, with three-step fallback ladder |
+**Must have (table stakes):**
+
+- OPS-01a/b/c — Per-tenant maintenance toggle (DB column on `AbstractTenant`); HTTP 503 + `Retry-After` + `Cache-Control: no-store`; CLI commands `tenancy:maintenance:enable <slug>` and `tenancy:maintenance:disable <slug>`
+- OPS-01d — Landlord and health-check routes bypass maintenance unconditionally; failure to exempt health routes causes load-balancer restart loops
+- OPS-02a/b — Per-tenant health endpoint returning IETF `application/health+json`; HTTP 200/503 based on aggregate (not 200-with-fail-body, which is invisible to infrastructure tooling)
+- OPS-02c — `HealthCheckBootstrapperInterface` as a sibling (BC-safe) interface; bootstrappers opt in to expose read-only probes
+- ISOL-07a/b/c — `--parallel` flag on `tenancy:migrate` with bounded concurrency (default 4); per-tenant atomic status output; continue-on-failure semantics preserved
+
+**Should have (competitive differentiators, v0.5 scope):**
+
+- OPS-01e/f/g/h — IP allowlist bypass; custom Twig 503 template override; `TenantMaintenanceEnabled/Disabled` events; `tenancy:maintenance:status` fleet listing
+- OPS-02d/e/f — Aggregate fleet health endpoint (dashboards only, not k8s probes); liveness (`/health/live`) vs. readiness (`/health/ready/{slug}`) distinct routes; profiler WDT tab integration
+- ISOL-07d/e/f — `--dry-run` flag; `--tenant=<slug>` filter preserved; `--format=json` machine-readable output
+
+**Defer (v2+):**
+
+- Global (all-tenants) maintenance mode — use web server layer; not a tenancy-bundle concern
+- File-based maintenance flag — unsafe in multi-pod deployments
+- Migration checkpoint/resume — Doctrine Migrations idempotency makes re-run the correct recovery; document this explicitly
+- Health check application-level authentication — use network-level ACL; app auth breaks load-balancer probes
+- Automatic rollback on parallel migration failure — Doctrine Migrations does not support cross-database rollback; continue-on-failure + re-run is the industry standard
+
+---
+
+### Architecture Approach
+
+All three features are strictly additive to the v0.4.1 component graph. `TenantContextOrchestrator` (priority 20) and `BootstrapperChain::boot()`/`clear()` are unchanged. OPS-01 inserts a new `kernel.request` listener at priority 16. OPS-02 introduces `TenantHealthChecker`, which sets `TenantContext` manually and calls a new additive `BootstrapperChain::healthCheck()` — bypassing the full boot cycle. ISOL-07 extracts `ParallelMigrationRunner` from `TenantMigrateCommand` and delegates to out-of-process subprocesses that each run the existing single-tenant path.
+
+**Major new/modified components:**
+
+| Component | File | Role | NEW / MODIFIED |
+|-----------|------|------|----------------|
+| `TenantMaintenanceModeListener` | `src/EventListener/` | `kernel.request` prio=16; 503 after tenant resolved | NEW |
+| `TenantMaintenanceConfigTrait` | `src/Maintenance/` | BC-safe trait for `AbstractTenant` maintenance column | NEW |
+| `MaintenanceModePass` | `src/DependencyInjection/Compiler/` | Validates listener priority; wires driver | NEW |
+| `HealthCheckBootstrapperInterface` | `src/Health/` | Sibling to `TenantBootstrapperInterface`; `check(TenantInterface): BootstrapperHealthResult` | NEW |
+| `TenantHealthChecker` | `src/Health/` | Core: setTenant → healthCheck() → clear() — no boot() called | NEW |
+| `TenantHealthCommand` | `src/Command/` | `tenancy:health` CLI surface | NEW |
+| `TenantHealthController` | `src/Controller/` | `/_tenancy/health` HTTP surface; opt-in, default disabled | NEW |
+| `HealthCheckIntegrationPass` | `src/DependencyInjection/Compiler/` | Registers liip_monitor.check services when LiipMonitorBundle present | NEW |
+| `ParallelMigrationRunner` | `src/Command/Migration/` | Bounded subprocess worker pool; sliding-window with poll loop | NEW |
+| `BootstrapperChain` | `src/Bootstrapper/` | Add `healthCheck()` method (additive, no BC break) | MODIFIED |
+| `TenantMigrateCommand` | `src/Command/` | Add `--parallel` + `--concurrency`; shared_db guard preserved | MODIFIED |
+| `AbstractTenant` | `src/Entity/` | Add `$isInMaintenance` bool column (or via trait) | MODIFIED |
+| `TenantInterface` | `src/TenantInterface.php` | Add `isInMaintenance(): bool` — BC break mitigated by `TenantMaintenanceConfigTrait` | MODIFIED |
+
+**Critical invariants preserved:**
+
+- `TenantContext` remains zero-dependency
+- `TenantBootstrapperInterface` is unchanged (`boot()` / `clear()` only)
+- Optional-dependency posture: every new Doctrine/Liip integration guarded by `class_exists` / `interface_exists`
+- Compiler passes handle all wiring — no user DI config required
+- No-doctrine CI lane must remain green after every OPS phase
+
+---
+
+### Critical Pitfalls
+
+The full pitfall catalogue (22 entries) is in `.planning/research/PITFALLS.md`. The five most phase-critical:
+
+1. **Maintenance listener priority >= 20 (Pitfalls 1, 20)** — If the listener fires before `TenantContextOrchestrator` (prio=20), `TenantContext` is empty and maintenance mode silently does nothing. Register at priority 16. Add a `MaintenanceModeContractPass` that fails compile if any tenancy listener is registered at prio >= 20. Quality gate: assert orchestrator runs before maintenance listener.
+
+2. **Health probes calling `BootstrapperChain::boot()` (Pitfall 8)** — `boot()` has side effects (DB switch, EM clear, cache namespace change) and can leak `TenantContext` into the next request in async runtimes (FrankenPHP, Swoole). `TenantHealthChecker` must call `setTenant()` + `healthCheck()` + `clear()` in a `try/finally`, never `boot()`. Quality gate: `TenantContext::hasTenant() === false` after health probe.
+
+3. **Parallel migration without bounded concurrency (Pitfall 13)** — Each subprocess opens a DBAL connection. Unbounded spawning exhausts `max_connections` (MySQL default: 151) at ~20 tenants. Default `--concurrency=4` required. Hard cap at 32. Use sliding-window pool pattern (`start()` + `isRunning()` poll), not batch-and-wait. Quality gate: mock process factory asserting at-most-N concurrent.
+
+4. **Parallel migration on shared_db driver (Pitfall 16)** — Multiple subprocesses would migrate the same physical DB simultaneously, corrupting the migrations table. The `TenantMigrateCommand` shared_db guard must be in a shared base or enforced by a compiler pass, not silently omitted from the parallel path. Quality gate: `driver: shared_db` → parallel migrate command not registered in container.
+
+5. **Unauthenticated health endpoint exposing DSNs (Pitfall 10)** — Exception messages often contain `mysql://user:pass@host`. A `HealthResponseSanitizer` must strip DSN-shaped strings from any value entering the response body. Liveness endpoint returns only `{"status":"ok|degraded"}`. Quality gate: DSN-injection test (DSN-in → DSN-out-redacted).
+
+**Additional non-negotiable constraints:**
+- Landlord/health routes must always bypass maintenance (Pitfall 3) — null-branch on `!$tenantContext->hasTenant()`
+- `TenantInterface` BC break mitigated by `TenantMaintenanceConfigTrait` with `return false` default (Pitfall 22)
+- Subprocess output accumulated via streaming callback, not `getOutput()` post-exit — prevents 64KB pipe deadlock (Pitfall 17)
+- Null exit code from killed/timed-out subprocess treated as failure, never success (Pitfall 15)
 
 ---
 
 ## Implications for Roadmap
 
-### Suggested phase structure (build order)
+### Phase 31: ISOL-07 — Parallel `tenancy:migrate`
 
-Final ordering: **GOV → RESV-06 → DX-06 → DX-02 → BOOT-04 → DEMO-01 → DOC-19**.
+**Rationale:** Zero public interface changes, zero schema changes, zero BC breaks. `symfony/process` already in `require`. Subprocess model reuses existing `tenancy:migrate --tenant=<slug>` single-tenant path — no new migration logic. Easiest to verify against existing SQLite integration test fixtures. Maximum risk-free early win before higher-risk phases land.
 
-#### Phase 0 — GOV (governance carry-forward)
-Retro carry-forward items: plan↔summary parity check in `audit-open` GSD tooling; `human_needed` 72-hour TTL convention. Not bundle code. Single small phase.
+**Delivers:** `--parallel` / `--concurrency=N` flags; `ParallelMigrationRunner` (sliding-window pool); atomic per-tenant output; exit-code aggregation (null = failure); SIGTERM forwarding; shared_db guard.
 
-#### Phase 1 — RESV-06 `OriginHeaderResolver`
-Smallest, lowest-risk, no schema impact, no BC break. Validates v0.3 cadence. **Delivers:** `OriginHeaderResolver` + `OriginHeaderResolverConfigPass` + allow-list config schema + trust-model docs. **Lock during planning:** DEC-RESV-01 priority value.
+**Addresses:** ISOL-07a, ISOL-07b, ISOL-07c, ISOL-07d (dry-run), ISOL-07e (--tenant filter), ISOL-07f (--format=json)
 
-#### Phase 2 — DX-06 `tenancy:install`
-Unlocks the demo. **Delivers:** `TenancyInstallCommand` + `--dry-run` + fixture corpus tests (≥6 shapes) + atomic write + `.bak` + `nikic/php-parser` detection. **Lock during planning:** DEC-INST-01, DEC-INST-02.
+**Avoids:** Pitfalls 13 (unbounded concurrency), 14 (interleaved output), 15 (lost exit code), 16 (shared_db double-migration), 17 (deadlock), 18 (orphaned processes), 19 (no actionable failure report)
 
-#### Phase 3 — DX-02 Profiler tab
-Depends only on `TenantContext` + `TenantResolved`. **Delivers:** `TenantDataCollector` + Twig template + (optional) `ProfilerCollectorContractPass` + dev-only via `kernel.debug` guard. **Lock during planning:** DEC-PROF-01.
+**Research flag:** None — fully specified. No deeper research needed before planning.
 
-#### Phase 4 — BOOT-04 Mailer bootstrapper
-Largest feature; only BC break in v0.3; async canary mandatory. **Delivers:** `MailerBootstrapper` + `TenantMessageDecorator` + `X-Transport` strategy + `MailerTransportContractPass` + `mailerDsn` column on `Tenant` + `getMailerDsn()` on `TenantInterface` + `TenantMailerConfigTrait` + DSN sanitization wrapper. **Lock during planning:** DEC-MAIL-01, DEC-MAIL-02, DEC-MAIL-03.
+---
 
-#### Phase 5 — DEMO-01 Demo app
-Last because it consumes the prior four. Doubles as v0.3 release-gate smoke. **Delivers:** `examples/saas/` skeleton + `docker-compose.yml` + Caddy config + MariaDB init + fixtures + `bin/smoke.sh` + demo CI workflow + README with three-step fallback ladder. **Lock during planning:** DEC-DEMO-01.
+### Phase 32: OPS-01 — Tenant Maintenance Mode
 
-#### Phase 6 — DOC-19 Docs refresh + public ROADMAP.md
-Last so docs match what shipped. **Delivers:** Updated install page; new pages for OriginHeaderResolver, Profiler tab, Mailer bootstrapper; demo walkthrough; public `ROADMAP.md` page on docs site.
+**Rationale:** Introduces the one BC-sensitive change (`TenantInterface::isInMaintenance()`) and establishes the allow-list configuration block (`tenancy.maintenance.allow_ips`, `allow_routes`, `allow_paths`) that Phase 33 must reference to exempt health-check routes. Independently shippable and directly valuable. Lower risk than OPS-02 (no new HTTP routes, no external integration).
 
-### Phase ordering rationale
+**Delivers:** `TenantMaintenanceModeListener` at prio=16; `TenantMaintenanceConfigTrait` on `AbstractTenant`; `isInMaintenance(): bool` on `TenantInterface` (mitigated by trait); `tenancy:maintenance:enable/disable/status` commands; `TenantMaintenanceEnabled/Disabled` events; IP allowlist bypass; configurable Twig 503 template override; `Retry-After` + `Cache-Control: no-store`; `MaintenanceModeContractPass`.
 
-- **Governance first** — process defects compound; fix the GSD tooling before user-facing features layer onto the same workflow.
-- **Smallest-risk feature second (RESV-06)** — proves the v0.3 cadence is real and ships SPA value even if later phases slip.
-- **Install funnel before demo** — demo's README cannot have a "now edit `bundles.php`" step.
-- **Profiler before mailer** — Profiler is mostly read-only; mailer has the only BC break in v0.3.
-- **Mailer before demo** — demo screenshots showing per-tenant `From` headers are a stronger demo than "two tenants share a DB."
-- **Demo last among features** — consolidates everything; doubles as release-gate smoke.
-- **Docs absolutely last** — write docs against what shipped, not against what was planned.
+**Addresses:** OPS-01a through OPS-01h
 
-### Research flags
+**Avoids:** Pitfalls 1, 2, 3, 4, 5, 6, 7, 20, 21, 22
 
-| Phase | Needs deeper research during planning? | Why |
-|-------|---------------------------------------|-----|
-| Phase 0 (GOV) | **No** — process work | Carry-forward from documented retrospective items |
-| Phase 1 (RESV-06) | **No** — pure addition | Trivial implementation; security model in this SUMMARY |
-| Phase 2 (DX-06) | **YES — limited** | Test corpus assembly; `nikic/php-parser` patterns for non-standard layouts |
-| Phase 3 (DX-02) | **No** — `AbstractDataCollector` is documented and stable | Implementation patterns well-established |
-| Phase 4 (BOOT-04) | **YES — substantial** | `X-Transport` survival across all Messenger transports; `TenantTransportProviderInterface` fallback design; LRU cache calibration; DSN sanitization; landlord migration recipe |
-| Phase 5 (DEMO-01) | **YES — limited** | Caddy `caddy trust` UX; per-tenant fixtures pattern; cross-OS smoke test details |
-| Phase 6 (DOC-19) | **No** — content work | Docs follow code |
+**Research flag:** Storage decision resolved in this summary — **DB column** (`AbstractTenant::$isInMaintenance` bool) is authoritative; cache is for per-request memoization only (5s max TTL for "in maintenance"). STACK.md explored cache-as-primary-store; ARCHITECTURE.md and PITFALLS.md both recommend DB column. No further research needed.
+
+---
+
+### Phase 33: OPS-02 — Health Checks / MonitorBundle Integration
+
+**Rationale:** Depends on Phase 32's allow-list config (health routes must be in the maintenance bypass list). Most novel phase: new public sibling interface, new core service, two distinct HTTP routes, optional external bundle integration. Benefits from Phases 31 and 32 being stabilized.
+
+**Delivers:** `HealthCheckBootstrapperInterface` + `BootstrapperHealthResult` + `TenantHealthReport`; `TenantHealthChecker` (set→probe→clear, no `boot()`); `BootstrapperChain::healthCheck()` (additive); `/health/live` (liveness, no tenant iteration) + `/health/ready/{slug}` (readiness, sampled probes); `tenancy:health` command; `HealthCheckIntegrationPass` (liip guard); `HealthResponseSanitizer`; `DatabaseSwitchBootstrapper` + `SharedDriver` implementing `HealthCheckBootstrapperInterface`.
+
+**Addresses:** OPS-02a through OPS-02f
+
+**Avoids:** Pitfalls 8, 9, 10, 11, 12, 21
+
+**Research flag:** Two MEDIUM-confidence items need pre-plan validation:
+- Verify `/_tenancy/health` route prefix does not conflict with any existing route in v0.4.1 before finalizing path.
+- Validate `DatabaseSwitchBootstrapper::check()` probe safety via an integration test: `close()` + lightweight connect + `SELECT 1` under manual `TenantContext::setTenant()` must not mutate global service state.
+
+---
+
+### Phase 34: DOC-21 — Ops Documentation + v0.4 Carry-Forward
+
+**Rationale:** Documents what shipped in Phases 31–33. Also closes v0.4 carry-forward: `examples/saas` PHP-version drift fix, Nyquist `VALIDATION.md` enforcement decision, and the 2 `human_needed` UAT items.
+
+**Delivers:** `docs/ops/maintenance-mode.md` (incl. CDN 5xx caching warning), `docs/ops/health-checks.md` (incl. Kubernetes probe YAML with correct liveness/readiness `periodSeconds` + `failureThreshold`), `docs/ops/parallel-migrations.md` (incl. re-run-on-failure instructions); UPGRADE 0.4→0.5; `docs-lint.sh` extension; `examples/saas` Dockerfile fix; Nyquist enforcement decision; UAT item closure.
+
+**Research flag:** None — documentation-only. No deeper research needed.
+
+---
+
+### Phase Ordering Rationale
+
+**Reconciled order: ISOL-07 (31) → OPS-01 (32) → OPS-02 (33) → DOC-21 (34)**
+
+- FEATURES.md suggested OPS-01 → ISOL-07 → OPS-02 (OPS-01 smallest, validates event dispatch).
+- ARCHITECTURE.md suggested ISOL-07 → OPS-01 → OPS-02 (ISOL-07 zero interface impact; OPS-01 establishes allow-list config OPS-02 depends on).
+- The architecture ordering is recommended because: (1) ISOL-07 has strictly no dependencies on any v0.5 work and is the highest-certainty phase; (2) OPS-01's allow-list config is a concrete runtime dependency of OPS-02's health route registration — a real sequencing constraint, not a preference; (3) keeping the BC-sensitive `TenantInterface` change in an isolated phase makes it easier to audit.
+- The roadmapper should treat this as a recommendation — the phases are sufficiently independent that OPS-01 before ISOL-07 is viable if operator urgency dictates it.
+
+---
+
+### Research Flags
+
+**Phases needing deeper research during planning:**
+
+- **Phase 33 (OPS-02):** Two MEDIUM-confidence items before coding begins — route prefix conflict check and `DatabaseSwitchBootstrapper::check()` probe safety validation. Neither blocks planning, but both need resolution before execution.
+
+**Phases with standard patterns (skip research-phase):**
+
+- **Phase 31 (ISOL-07):** Fully specified. Established pattern. Plan immediately.
+- **Phase 32 (OPS-01):** Fully specified. Storage decision resolved. `TenantMaintenanceConfigTrait` mirrors established trait pattern. Plan immediately.
+- **Phase 34 (DOC-21):** Documentation-only. Plan after Phases 31–33 verified.
 
 ---
 
@@ -184,47 +209,45 @@ Last so docs match what shipped. **Delivers:** Updated install page; new pages f
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | All deps verified against Packagist + official docs; Flex source read directly |
-| Features | **HIGH** | Set locked from user conversation; competitor analysis confirms gap closure |
-| Architecture | **HIGH** | Every integration point is a documented Symfony extension surface |
-| Pitfalls | **HIGH** for technical findings; **MEDIUM** for cross-OS demo failure modes |
+| Stack | HIGH | Packagist-verified (2026-06-25). `lexik` abandonment confirmed. `liip/monitor-bundle` compat confirmed. `symfony/process` sufficiency confirmed via Symfony docs + GitHub issue #8454. |
+| Features | HIGH (table stakes) / MEDIUM (differentiators) | Table stakes grounded in IETF RFC 7231, IETF draft-inadarei-api-health-check-06, stancl/tenancy v3 source, Symfony Process docs. |
+| Architecture | HIGH | All design decisions grounded in live v0.4.1 source reads. Two MEDIUM-confidence areas called out (route prefix, DB health probe path) with mitigation steps. |
+| Pitfalls | HIGH | 22 pitfalls catalogued; security-critical ones grounded in live source reads and established bundle patterns from prior milestones (v0.3 profiler DSN leak analogue directly applies to OPS-02). |
 
-**Overall confidence: HIGH.**
+**Overall confidence:** HIGH
 
-### Gaps to Address During Planning
+### Gaps to Address
 
-- **DEC-MAIL-02 scope:** schema migration adds work to Phase 4. Owner may prefer to ship only the `From`-header half in v0.3 and defer per-tenant SMTP DSN to v0.4.
-- **DEC-RESV-01 priority:** 25 (Architecture/Stack) vs 10 (Pitfalls conservatism). Owner picks.
-- **Fixture corpus for DX-06:** need ≥6 real `bundles.php` shapes (API Platform, Sulu, EasyAdmin, DDD-skeleton, with-comments, with-conditionals). Phase 2 research.
-- **`MailerTransportContractPass` async-detection:** validate `messenger.routing` config is accessible from the pass during Phase 4 research.
-- **`human_needed` 72-hour TTL enforcement mechanism:** Phase 0 must specify the exact GSD tooling check.
+- **Maintenance flag storage:** Resolved here. DB column (`AbstractTenant::$isInMaintenance`) authoritative; cache is per-request memoization only with 5s max TTL.
+- **OPS-02 route prefix:** `/_tenancy/health` assumed — verify against v0.4.1 routing before Phase 33 planning.
+- **Nyquist VALIDATION.md enforcement:** Phase 34 governance call — needs a decision by the project owner.
+- **2 human_needed UAT items:** Phase 34 scope. Both need either a code-level testability seam or a documented manual-exercise protocol.
 
 ---
 
 ## Sources
 
-### Primary
-- [Symfony Profiler — Custom Data Collectors](https://symfony.com/doc/current/profiler/data_collector.html)
-- [Symfony Mailer Docs](https://symfony.com/doc/current/mailer.html); [Symfony Messenger Docs](https://symfony.com/doc/current/messenger.html)
-- [Symfony discussion #46372 — `X-Transport` selection](https://github.com/symfony/symfony/discussions/46372)
-- [Symfony issue #34972 — `RawMessage` clone on `MessageEvent`](https://github.com/symfony/symfony/issues/34972); [issue #37588](https://github.com/symfony/symfony/issues/37588); [discussion #61506](https://github.com/symfony/symfony/discussions/61506)
-- [symfony/flex `BundlesConfigurator` (2.x)](https://github.com/symfony/flex/blob/2.x/src/Configurator/BundlesConfigurator.php)
-- [dunglas/symfony-docker](https://github.com/dunglas/symfony-docker); [RFC 6761](https://datatracker.ietf.org/doc/html/rfc6761)
-- [Mozilla bug 1741109](https://bugzilla.mozilla.org/show_bug.cgi?id=1741109); [WebKit bug 160504](https://bugs.webkit.org/show_bug.cgi?id=160504)
-- [stancl/tenancy v4 Origin Header Resolver PR #621](https://github.com/archtechx/tenancy/pull/621)
+### Primary (HIGH confidence)
 
-### Project-internal
-- `.planning/PROJECT.md`; `.planning/RETROSPECTIVE.md`; `.planning/v1.0-MILESTONE-AUDIT.md`
-- `src/Resolver/HeaderResolver.php`; `src/Bootstrapper/BootstrapperChain.php`; `src/DependencyInjection/Compiler/CacheDecoratorContractPass.php`
+- Live source reads (2026-06-25): `TenantContextOrchestrator.php` (prio=20 confirmed), `BootstrapperChain.php` (boot/clear loop, no healthCheck), `TenantMigrateCommand.php` (sequential loop, shared_db guard), `TenantRunCommand.php` (subprocess pattern, exit code handling), `TenantInterface.php` (7-method surface), `AbstractTenant.php` (bool column + trait pattern), `TenantContext.php` (value holder), `config/services.php` (class_exists guard pattern)
+- lexik/maintenance-bundle on Packagist — abandoned confirmed
+- liip/monitor-bundle on Packagist — v2.25.0 (2026-03-23), compat verified
+- Symfony Process Component docs — start/isRunning/wait; streaming callback; deadlock warning
+- symfony/symfony Issue #8454 — no native process pool; open since 2013
+- IETF draft-inadarei-api-health-check-06 — pass/fail/warn; application/health+json
 
-### Detailed dimension files
-- `.planning/research/STACK.md` — dependency analysis, version matrix
-- `.planning/research/FEATURES.md` — per-feature deep dive, user contracts
-- `.planning/research/ARCHITECTURE.md` — per-feature integration map, full DEC table
-- `.planning/research/PITFALLS.md` — 12 pitfalls (5 critical + 7 moderate), recovery
+### Secondary (MEDIUM confidence)
+
+- stancl/tenancy v3 — Tenant Maintenance Mode (DB flag storage model)
+- LiipMonitorBundle README (2.x) — liip_monitor.check tag; CheckInterface
+- macpaw/symfony-health-check-bundle — alternative verified at interface level
+- Health-check design references — liveness vs. readiness route structure
+
+### Tertiary (LOW confidence)
+
+- `HealthCheckBootstrapperInterface` probe API shape and naming — original to this bundle; naming may adjust during Phase 33 planning
 
 ---
 
-*Research completed: 2026-05-15*
-*Ready for requirements + roadmap: yes*
-*Commit handling: orchestrator (commit_docs=false at project level)*
+*Research completed: 2026-06-25*
+*Ready for roadmap: yes*

@@ -1,299 +1,271 @@
-# Stack Research — v0.3 Adoption Surface
+# Stack Research — v0.5 Operations & Scale
 
-**Domain:** Symfony reusable bundle — adoption-surface features for `danplaton4/tenancy-bundle`
-**Researched:** 2026-05-15
-**Confidence:** HIGH (canonical sources for every new dep; one MEDIUM call-out on FrankenPHP vs symfony-cli)
-**Scope:** Additive only. v0.2 stack (PHP ^8.2, Symfony ^7.4||^8.0, DBAL 4, ORM 3, PHPUnit 11, PHPStan 2, php-cs-fixer 3) is unchanged. This document covers *what's new for v0.3 features*.
+**Domain:** Symfony reusable bundle — production-operations features for `danplaton4/tenancy-bundle`
+**Researched:** 2026-06-25
+**Confidence:** HIGH (all recommendations verified against official sources or Packagist; one MEDIUM call-out on self-contained health check approach)
+**Scope:** Additive only. The existing v0.4.1 stack (PHP ^8.2, Symfony ^7.4||^8.0||^8.1, Doctrine ORM/DBAL 4, Flysystem, Messenger, `symfony/process`, `nikic/php-parser`) is fixed. This document covers *what is new or changed for OPS-01 / OPS-02 / ISOL-07*.
 
 ---
 
 ## Executive Summary
 
-**Net new production dependencies: ZERO.** Every v0.3 feature can be built against components already in `require` or `require-dev`, plus `symfony/mailer` and `symfony/twig-bundle` added as **optional/dev**. No AST parser, no docker base image baked into the bundle, no new Composer package surface for the consumer.
+**Net new production dependencies: ZERO.**
 
-The single biggest decision: `tenancy:install` uses **string-templated PHP-array generation** (the Symfony Flex `BundlesConfigurator` pattern), NOT `nikic/php-parser`. The demo app (`examples/`) uses **Symfony Docker (FrankenPHP + Caddy)** because it ships subdomain TLS, file watching, and one-command setup with no extra services. The Profiler tab extends `AbstractDataCollector`, requiring `symfony/twig-bundle` as `require-dev`. The Mailer bootstrapper uses a `MessageEvent` listener (not transport decoration) for envelope+headers, with `Transport::fromDsn()` runtime construction only when per-tenant SMTP DSNs are configured.
+All three v0.5 features can be built using components already in `require` or `require-dev`, plus one optional integration hook for LiipMonitorBundle (OPS-02). No new packages enter the bundle's hard `require` list.
 
----
-
-## Recommended Stack Additions
-
-### Core (no changes)
-
-The v0.2 `require` block is sufficient for `tenancy:install`, `OriginHeaderResolver`, and most of the Profiler collector. Nothing moves into `require`.
-
-| Already in require | Used by v0.3 feature |
-|---|---|
-| `symfony/console` ^7.4\|\|^8.0 | `tenancy:install` command |
-| `symfony/http-foundation` ^7.4\|\|^8.0 | `OriginHeaderResolver` (reads `Origin` header from `Request`) |
-| `symfony/dependency-injection` ^7.4\|\|^8.0 | Profiler `DataCollector` service tagging |
-| `symfony/event-dispatcher` ^7.4\|\|^8.0 | Mailer bootstrapper `MessageEvent` listener |
-
-### New Dev / Optional Dependencies
-
-| Package | Constraint | Where | Why |
-|---|---|---|---|
-| `symfony/mailer` | `^7.4\|\|^8.0` | `require-dev` + `suggest` | Mailer bootstrapper (BOOT-04). Optional dep — guarded by `class_exists(Mailer::class)` and `class_exists(MessageEvent::class)`. Same pattern as the existing `symfony/messenger` guard. |
-| `symfony/twig-bundle` | `^7.4\|\|^8.0` | `require-dev` only | Profiler tab template rendering. Already transitively pulled by `web-profiler-bundle`, but declared explicitly so PHPStan/CI know. **Do NOT put in `require`** — apps using the bundle without the Profiler shouldn't pay this cost. |
-| `symfony/web-profiler-bundle` | `^7.4\|\|^8.0` | `require-dev` only | Profiler tab integration testing. Already optional at runtime; the `DataCollector` class is in `symfony/http-kernel` (already required). |
-
-That's it. Three additions, all dev/optional. No AST parser, no docker library, no recipe library.
-
-### What stays out of `composer.json` entirely
-
-These are referenced by the demo or docs but live **in the demo project's own `composer.json` or as docs-only tooling** — never in the bundle's manifest:
-
-| Tool | Where it lives | Why it's not in bundle composer.json |
-|---|---|---|
-| `dunglas/symfony-docker` (FrankenPHP/Caddy image) | `examples/Dockerfile` + `docker-compose.yml` | Docker image, not a Composer package |
-| Demo app's own deps (`symfony/framework-bundle`, `twig/twig`, `doctrine/orm`) | `examples/composer.json` | Demo is a separate Composer root |
-| MkDocs Material, plugins | `requirements.txt` for docs CI | Python tooling, not PHP |
+Key calls:
+- **OPS-01 (maintenance mode):** Build in-bundle. `lexik/maintenance-bundle` is abandoned (last release 2018, Packagist confirms). The only maintained forks target Symfony ≤7.0. Use Symfony's own `CacheInterface` (already `require`d via `symfony/cache`) as the storage backend for per-tenant flags — it is distributed-safe, testable, and already namespaced per-tenant by the bundle's `CacheBootstrapper`. A `kernel.request` listener at priority 19 (one tick below the existing orchestrator at 20) intercepts post-resolution requests and returns `503 JsonResponse` for tenants in maintenance. Storage abstraction with a swappable driver (`CacheMaintenanceDriver`, `ArrayMaintenanceDriver` for tests) keeps the design extensible.
+- **OPS-02 (health checks):** The integration target is `liip/monitor-bundle` ^2.25 as an **optional** dependency, integrated via a compiler pass that registers bundle-provided checks only when `LiipMonitorBundle` is present (`class_exists` guard). The alternative — `macpaw/symfony-health-check-bundle` v2.1.0 — is smaller but exposes a weaker check model (returns a `Response`, not a `CheckResult`). LiipMonitor's tag-autoconfiguration + `laminas/laminas-diagnostics` `CheckInterface` is the de-facto Symfony monitoring standard (9M installs). Self-contained health endpoint is a viable fallback pattern that adds ~40 lines and zero deps, documented as the "no-monitor-bundle" path.
+- **ISOL-07 (parallel migrations):** `symfony/process` (already in `require`) is sufficient. No additional library is warranted. The bounded-pool pattern — a work queue + `$process->start()` / `$process->isRunning()` poll loop with configurable `--workers` cap — is pure PHP and well-documented. The key constraint is DB connection limits: each worker opens a new DBAL connection, so the default pool cap should be conservative (4 workers). The existing `TenantMigrateCommand` becomes the model for a `ParallelTenantMigrateCommand`, or the existing command gets a `--workers` flag.
 
 ---
 
 ## Feature-by-Feature Stack
 
-### 1. `tenancy:install` Command (DX-06)
+---
 
-**Approach:** String-templated PHP-array generation, idempotent via read-merge-write.
+### OPS-01: Tenant-Level Maintenance Mode
 
-**Reference implementation:** [`symfony/flex` `BundlesConfigurator`](https://github.com/symfony/flex/blob/2.x/src/Configurator/BundlesConfigurator.php) — the canonical Symfony pattern for modifying `config/bundles.php`. It uses pure string concatenation, NOT an AST parser:
+#### Decision: Build in-bundle, no external library
+
+**`lexik/maintenance-bundle`** — Packagist confirms **abandoned** (v2.1.5, February 2018). Only targets Symfony ~2.7/~3.0/^4.0. No Symfony 7/8 support. Do not use.
+
+Maintained forks found:
+- `toshy/maintenance-bundle` v3.1.0 (Jan 2026) — supports Symfony 6/7/8. *However:* designed as a global-site maintenance toggle, not per-tenant. Adding per-tenant semantics would require monkey-patching its driver or event listener. More complexity than building natively.
+- `prolix/maintenance-bundle` — Symfony 6/7 only; no Symfony 8 tag.
+
+**Verdict:** Neither fork supports per-tenant toggle natively. The feature is small enough (~3 classes) that building it in-bundle is the right call.
+
+#### Storage backend: `symfony/cache` (already required)
+
+The bundle already requires `symfony/cache` and has `TenantAwareCacheAdapter` for per-tenant cache namespacing. Maintenance flags are a natural fit:
 
 ```php
-$contents = "<?php\n\nreturn [\n";
-foreach ($bundles as $class => $envs) {
-    $contents .= "    $class::class => [";
-    // ...
-}
-file_put_contents($file, $contents);
-opcache_invalidate($file);  // critical for in-request reload
+// Key: "tenancy_maintenance_{slug}" stored in the landlord cache pool (NOT the
+// per-tenant namespaced pool — the flag must be readable BEFORE tenant boot).
+// Use cache.app (the system/landlord pool); TenantAwareCacheAdapter's
+// withSubNamespace() is NOT used here by design.
+$item = $this->cache->getItem("tenancy_maintenance_{$slug}");
+$isUnderMaintenance = $item->isHit() && true === $item->get();
 ```
 
-**Idempotency strategy (proven by Flex):**
-1. `require $file` to load existing array (PHP itself becomes the parser)
-2. If `$bundles[TenancyBundle::class]` already present → no-op, exit 0
-3. Otherwise merge in `[TenancyBundle::class => ['all' => true]]`
-4. Re-serialize entire array via string template, atomic-write, `opcache_invalidate()`
+Why cache over file-system or DB:
+- **File:** Fails in distributed/horizontal-scale deployments (requires shared filesystem or replication). The article at camillehdl.dev explicitly lists this as a drawback. Not acceptable for a "operations & scale" feature.
+- **DB:** Requires Doctrine, which is an optional dep. Can't be the default driver.
+- **Cache:** Already required. Supports Redis/Memcached (distributed) transparently via the user's `cache.app` configuration. Per-item TTL possible. Testable with `ArrayAdapter`.
 
-**Libraries used:**
-- `symfony/console` (already required) — Command class
-- `symfony/filesystem` (transitive via http-kernel) — atomic file writes via `dumpFile()`
-- PHP native `require` + `var_export` — no parsing library needed
+**Driver abstraction** (recommended pattern):
 
-**What NOT to use:**
+```php
+interface MaintenanceDriverInterface {
+    public function isUnderMaintenance(string $slug): bool;
+    public function enable(string $slug): void;
+    public function disable(string $slug): void;
+}
 
-| Avoid | Why |
-|---|---|
-| `nikic/php-parser` | Adds ~600KB and a transitive dep just to write one array. `bundles.php` has a strictly enforced shape — Flex itself doesn't parse, it regenerates. Using an AST parser is over-engineering. |
-| `humbug/php-scoper` | Wrong tool — it rewrites namespaces for prefixing, not for config files. |
-| `symfony/var-exporter` | Closer fit (`VarExporter::export()` produces PHP code) BUT the `bundles.php` format uses `::class` constants which `var_export` can't emit. String templating is simpler and matches Flex. |
-| Regex append (`file_put_contents($f, "...", FILE_APPEND)`) | Not idempotent across re-installs; corrupts file if user has manually reformatted it. Read-merge-rewrite is the only safe pattern. |
-| `symfony/maker-bundle` as a dep | MakerBundle does NOT expose `bundles.php` registration as public API. Its internal `Generator` and `FileManager` are `@internal`. Pulling it in for `tenancy:install` would couple us to undocumented surface. |
+final class CacheMaintenanceDriver implements MaintenanceDriverInterface { ... }
+final class ArrayMaintenanceDriver implements MaintenanceDriverInterface { ... }  // tests
+```
 
-**Confidence:** HIGH — Flex `BundlesConfigurator` source verified directly.
+The `CacheMaintenanceDriver` uses `CacheInterface` from `symfony/cache` (already in `require`). This keeps the storage swappable if users want DB-backed flags in future.
+
+#### Request interception: `kernel.request` listener at priority 19
+
+The existing `TenantContextOrchestratorListener` runs at **priority 20**. The maintenance listener must run at **priority 19** (lower = later) so:
+1. Orchestrator resolves tenant at priority 20 — `TenantContext` is populated.
+2. `MaintenanceModeListener` at priority 19 reads the resolved tenant slug, checks the flag, returns `JsonResponse(['status' => 'maintenance'], 503)`.
+
+The 503 response must set `Retry-After` header per RFC 7231. IP allow-listing for landlord/health routes is handled by checking `TenantContext::getTenant()` — if null (landlord route), bypass maintenance check entirely.
+
+#### No new `require` dependencies
+
+| Component | Already in `require`? | How used |
+|---|---|---|
+| `symfony/cache` | YES (`^7.4\|\|^8.0`) | `CacheInterface` for flag storage |
+| `symfony/http-foundation` | YES | `JsonResponse`, `Request` |
+| `symfony/http-kernel` | YES | `RequestEvent` listener |
+| `symfony/event-dispatcher` | YES | Service tagging |
+
+New CLI commands: `tenancy:maintenance:enable <slug>` and `tenancy:maintenance:disable <slug>` — both use `symfony/console` (already in `require`).
+
+**Confidence:** HIGH — `lexik` abandonment verified on Packagist; `symfony/cache` CacheInterface usage is established bundle pattern.
 
 ---
 
-### 2. Demo App in `examples/` (DEMO-01)
+### OPS-02: Health Check / MonitorBundle Integration
 
-**Approach:** [`dunglas/symfony-docker`](https://github.com/dunglas/symfony-docker) skeleton (FrankenPHP + Caddy in a single container) + a `docker-compose.override.yml` adding MariaDB and host-alias entries.
+#### Decision: Optional LiipMonitorBundle integration via compiler pass
 
-**Why FrankenPHP/Caddy over alternatives:**
+**Primary integration target: `liip/monitor-bundle` ^2.25**
+
+| Attribute | Value |
+|---|---|
+| Latest stable | 2.25.0 (2026-03-23) |
+| PHP | `^8.1` (bundle is `^8.2`, compatible) |
+| Symfony | `^6.4\|\|^7.0\|\|^8.0` (covers 7.4, 8.0, 8.1) |
+| Core dep | `laminas/laminas-diagnostics ^1.27` |
+| Packagist installs | 9,028,051 (de-facto standard) |
+| License | MIT |
+
+The integration model: the bundle ships `TenantConnectivityCheck` and `BootstrapperHealthCheck` classes implementing `Laminas\Diagnostics\Check\CheckInterface`. A `HealthCheckIntegrationPass` compiler pass registers these as tagged services with `liip_monitor.check` **only if** `class_exists(\LiipMonitorBundle\LiipMonitorBundle::class)` (or the relevant CheckInterface). Zero overhead when LiipMonitorBundle is absent.
+
+Custom check skeleton:
+
+```php
+use Laminas\Diagnostics\Check\CheckInterface;
+use Laminas\Diagnostics\Result\Success;
+use Laminas\Diagnostics\Result\Failure;
+
+final class TenantConnectivityCheck implements CheckInterface
+{
+    public function check(): ResultInterface
+    {
+        // Probe each tenant's DB connection; return Failure on any unreachable
+        foreach ($this->tenantProvider->findAll() as $tenant) {
+            // attempt connection, catch \Throwable
+        }
+        return new Success('All tenant connections reachable');
+    }
+
+    public function getLabel(): string
+    {
+        return 'Tenancy: DB connectivity';
+    }
+}
+```
+
+**Why LiipMonitorBundle over alternatives:**
 
 | Option | Verdict | Reason |
 |---|---|---|
-| **Symfony Docker (FrankenPHP + Caddy)** | **CHOSEN** | One service, automatic Let's Encrypt/local-CA TLS, native wildcard subdomain support, file watcher built in, official maintained by Kévin Dunglas. `docker compose up` and a Symfony app is serving on `https://*.localhost`. |
-| PHP-FPM + nginx + custom certs | Rejected | Three services, manual cert plumbing, more files to maintain in `examples/`. |
-| `symfony serve` (Symfony CLI) | Rejected as primary | Excellent locally (supports `*.wip` proxy out of the box) but requires installing `symfony` binary first. Demo must work with `docker compose up` only — that's the friction we're removing. Document Symfony CLI as an *alternative* in `examples/README.md`. |
-| Apache + mod_php | Rejected | Outdated for 2026 SaaS demo. |
+| **`liip/monitor-bundle` ^2.25** | **CHOSEN** | 9M installs, actively maintained (2026-03-23 release), Symfony 7/8 compat, tag-based auto-registration, established `CheckInterface` from `laminas/laminas-diagnostics`. Integrates with Nagios, Kubernetes, and uptime monitors via `/monitor/health` JSON endpoint. The `laminas-diagnostics` dep is a diagnostics library, not a framework — adds ~50KB. |
+| `macpaw/symfony-health-check-bundle` v2.1.0 | Viable fallback | Actively maintained (2026-05-06, Symfony ^6.4\|\|^7.4\|\|^8.0). Lighter — no Laminas dep. But check API is weaker: returns a custom `Response` DTO, not a `CheckResult`. YAML-only service registration. 1.3M installs vs 9M. Better if consumer wants zero Laminas dep. |
+| `laminas/laminas-diagnostics` standalone (no bundle) | Rejected | Would require shipping a full HTTP endpoint in the bundle. Over-engineering. |
+| Self-contained health controller | Fallback (see below) | Zero deps, ~40 lines. Document as "no-monitor-bundle" path. |
+| PSR health check libs (`php-health-check`, etc.) | Rejected | Fragmented ecosystem, low adoption, no Symfony integration. |
 
-**Demo docker-compose stack:**
+**Self-contained health endpoint (no-monitor-bundle fallback)**
 
-| Service | Image | Purpose |
-|---|---|---|
-| `app` | `dunglas/frankenphp` (extends to install Symfony + bundle) | PHP runtime + Caddy web server with TLS, subdomain routing |
-| `database` | `mariadb:11` | Two tenant DBs (`tenant1_db`, `tenant2_db`) seeded in `init.sql`. MariaDB over Postgres because: (a) DBAL 4 first-class support, (b) more familiar to "let me try this" first-time users, (c) smaller image. |
+For consumers who do not use LiipMonitorBundle, the bundle should expose a simple controller and route:
 
-**Subdomain routing:** Caddy handles `tenant1.localhost`, `tenant2.localhost` natively — no `/etc/hosts` edits required on macOS/Linux (browsers resolve `*.localhost` to `127.0.0.1` per RFC 6761). For Windows, document a one-line `hosts` file edit.
+```
+GET /tenancy/health              → 200 {"status":"ok","tenants":{…}} or 503
+GET /tenancy/health/{slug}       → 200 {"status":"ok"} or 503 per-tenant
+```
 
-**Why MariaDB over Postgres for the demo:**
-- DBAL 4 supports both; demo neutrality matters less than friction
-- MariaDB image is ~120MB vs Postgres ~400MB
-- `docker compose up` cold start ~3s faster on MariaDB
-- Apps adopting the bundle skew toward MySQL/MariaDB (e.g., Symfony default `.env` examples)
+This is a plain Symfony controller (~40 lines), registered via `prependExtension` only when `tenancy.health.enabled: true` in bundle config. No new deps. The LiipMonitorBundle integration is additive on top of this.
 
 **What NOT to add:**
 
 | Avoid | Why |
 |---|---|
-| `bitnami/symfony` Docker image | Less idiomatic; not maintained by the Symfony community core. |
-| A Makefile orchestrating multiple `docker compose` calls | `docker compose up` should be the only required command. Hidden orchestration = hidden friction. |
-| Per-tenant containers | Would multiply the demo's footprint and obscure the tenancy-bundle mechanism (which is what the demo is supposed to showcase). |
-| Mercure / Redis / Elasticsearch | Out of scope for v0.3 demo. Adds services that confuse the value-prop. |
-| Symfony Flex in the demo | Demo deliberately shows the *no-Flex* path (`composer require` + `bin/console tenancy:install`). |
+| `macpaw/symfony-health-check-bundle` as required dep | Optional only; consumers may already use LiipMonitor |
+| `liip/monitor-bundle` in `require` (hard) | Must remain OPTIONAL — health check monitoring is not core bundle functionality |
+| PSR-7 / PSR-15 health-check libraries | Wrong abstraction for Symfony; HttpFoundation is the Symfony contract |
+| Kubernetes liveness vs. readiness distinction in bundle code | Out of scope; document the distinction, let consumers wire it |
 
-**Confidence:** HIGH on docker-compose stack and Caddy `*.localhost` behavior; MEDIUM on FrankenPHP vs symfony-cli — both work; FrankenPHP wins on "no host tooling required" which is the explicit demo goal.
+**No new `require` dependencies for OPS-02.** The LiipMonitorBundle integration is `require-dev` + `suggest`:
+
+```diff
+ "require-dev": {
++    "liip/monitor-bundle": "^2.25",
+ },
+ "suggest": {
++    "liip/monitor-bundle": "Enables LiipMonitorBundle health check integration — registers per-tenant connectivity and bootstrapper probe checks (^2.25)",
+ }
+```
+
+**Confidence:** HIGH on LiipMonitorBundle compat (Packagist verified); MEDIUM on self-contained endpoint (standard pattern, no external source needed).
 
 ---
 
-### 3. Symfony Profiler Tab (DX-02)
+### ISOL-07: Parallel `tenancy:migrate` via `symfony/process`
 
-**Approach:** Extend `Symfony\Component\HttpKernel\DataCollector\AbstractDataCollector` (available in Symfony 5.2+, stable through 7.x and 8.x). The class lives in `symfony/http-kernel` which is **already in `require`** — no new production dep.
+#### Decision: `symfony/process` is sufficient — no additional library
 
-**Class skeleton:**
+`symfony/process` is already in `require` (^7.4||^8.0, promoted in Phase 07 for `tenancy:run`). The Symfony Process component docs (current) confirm:
+
+- `$process->start()` — starts process asynchronously
+- `$process->isRunning()` — non-blocking poll
+- `$process->wait()` — blocking until completion
+
+There is **no native ProcessPool in Symfony** — confirmed by docs and a long-standing GitHub issue (#8454, open since 2013). All third-party pool wrappers (`spatie/async`, `graze/parallel-process`, `bluepsyduck/symfony-process-manager`, etc.) are thin wrappers that implement the same pattern: work queue + `start()`/`isRunning()` poll loop. Adding any of them as a dependency is not justified — the pattern is 20 lines.
+
+**Why NOT to add external pool libraries:**
+
+| Library | Verdict |
+|---|---|
+| `spatie/async` | Designed for PHP closures in child processes, not `bin/console` subprocesses. Adds serialization overhead. Wrong abstraction. |
+| `amphp/parallel` | Event-loop-based; requires amphp/event-loop runtime. Heavy. Wrong fit for a CLI command. |
+| `graze/parallel-process` | Thin wrapper. Adds a dep for ~20 lines of equivalent code. Last release 2021. |
+| `bluepsyduck/symfony-process-manager` | Low adoption, low maintenance. Same pattern, more dep surface. |
+| `react/child-process` | Event-loop-based. Same objection as amphp. |
+
+**Bounded-pool pattern (implement directly in command):**
 
 ```php
-final class TenancyDataCollector extends AbstractDataCollector
-{
-    public function __construct(private readonly TenantContext $context) {}
+// Pseudocode — actual implementation adds output buffering, exit-code tracking, etc.
+$queue   = $tenants;   // list<TenantInterface>
+$running = [];         // list<Process>
+$workers = min($input->getOption('workers'), count($tenants));
 
-    public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
-    {
-        $tenant = $this->context->getTenant();
-        $this->data = [
-            'active'         => null !== $tenant,
-            'slug'           => $tenant?->getSlug(),
-            'id'             => $tenant?->getId(),
-            'resolved_by'    => $request->attributes->get('_tenancy.resolver_class'),
-            'bootstrappers'  => $request->attributes->get('_tenancy.bootstrappers_run', []),
-            'connection'     => $request->attributes->get('_tenancy.connection_name'),
-        ];
+while ($queue || $running) {
+    // Fill pool
+    while (count($running) < $workers && $queue) {
+        $tenant  = array_shift($queue);
+        $process = new Process([PHP_BINARY, 'bin/console', 'tenancy:migrate',
+                                '--tenant=' . $tenant->getSlug()]);
+        $process->start();
+        $running[$tenant->getSlug()] = $process;
     }
-
-    public static function getTemplate(): ?string
-    {
-        return '@Tenancy/data_collector/tenancy.html.twig';
+    // Reap finished
+    foreach ($running as $slug => $process) {
+        if (!$process->isRunning()) {
+            // record success/failure, emit output
+            unset($running[$slug]);
+        }
     }
+    usleep(50_000); // 50ms poll interval — low CPU overhead
 }
 ```
 
-**Wiring:**
-1. Service registered in `config/services.php` with tag `data_collector` (auto-tagged via `autoconfigure: true` if user has it enabled, but the bundle should tag explicitly for safety).
-2. Twig template at `templates/data_collector/tenancy.html.twig` extending `@WebProfiler/Profiler/layout.html.twig`.
-3. Add `Twig\TenancyPath` namespace via `prependExtension()` so `@Tenancy/...` resolves without the user touching `twig.yaml`.
+Each worker calls the *existing* `tenancy:migrate --tenant=<slug>` subprocess, which already handles the full migration lifecycle (DBAL connection, DependencyFactory, etc.). This avoids duplicating migration logic.
 
-**Symfony 7.x-specific notes:**
-- `AbstractDataCollector::getName()` defaults to `static::class` since 5.2 — no need to override.
-- The `LateDataCollectorInterface` is NOT needed for tenant data (it's all available at `kernel.request` time).
-- **Critical:** `collect()` data is serialized for storage. Don't store the `Tenant` entity (Doctrine proxy) — copy scalars only. The skeleton above does this correctly.
-- Symfony 8.0 *may* tighten serialization; storing scalars guarantees forward-compat.
+#### DB connection constraint — the critical sizing factor
 
-**Telemetry capture for `resolved_by` / `bootstrappers_run`:**
-- Existing `TenantResolved` listener attaches `_tenancy.resolver_class` to the `Request` attributes
-- `BootstrapperChain` appends each bootstrapper's `::class` to `_tenancy.bootstrappers_run` during `boot()`
-- Zero new services; zero new events
+Each parallel worker opens a dedicated DBAL connection to the tenant database. For `database_per_tenant` mode:
+- Each worker = 1 connection
+- N workers = N simultaneous connections
+- MariaDB/MySQL default `max_connections` = 151
+- A single Symfony app process holding the landlord connection already consumes 1
 
-**What NOT to add:**
+**Default `--workers` recommendation: 4**
 
-| Avoid | Why |
-|---|---|
-| Custom JavaScript / WDT JS assets | Adds asset pipeline complexity. The WDT panel renders pure HTML/CSS via Twig. |
-| `DataCollectorInterface` directly (without `AbstractDataCollector`) | `AbstractDataCollector` is the modern, simpler base. Direct interface implementation is the 2017 pattern. |
-| A separate "tenancy.profiler" bundle | One bundle, one shipped feature — splitting would inflate the install surface we're trying to compress. |
-| Twig template in the user's `templates/` directory | Templates ship inside the bundle's `templates/` directory via the bundle's auto-registered namespace. |
+Rationale:
+- Covers 99% of self-hosted SaaS fleets (< 20 tenants)
+- Stays well below typical `max_connections` limits
+- 4× speedup over sequential for the median fleet
+- Users with 100+ tenants and a dedicated DB server can raise `--workers` explicitly
 
-**Symfony 6 → 7 gotcha:** None at the DataCollector API level. The change between 6.x and 7.x for profiler tabs is purely cosmetic (toolbar pill styling); template blocks `toolbar`, `head`, `menu`, `panel` are unchanged.
-
-**Confidence:** HIGH — `AbstractDataCollector` API is stable since 5.2, present and unchanged through 7.4 and 8.0.
-
----
-
-### 4. Mailer Bootstrapper (BOOT-04)
-
-**Approach: `MessageEvent` listener for envelope + From headers, plus optional runtime `Transport::fromDsn()` swap for per-tenant SMTP.** NOT decoration of `MailerInterface`. NOT a custom `TransportFactoryInterface`.
-
-**Why MessageEvent over the alternatives:**
-
-| Approach | Verdict | Reasoning |
-|---|---|---|
-| **`MessageEvent` listener** (chosen) | Right tool | `Symfony\Component\Mailer\Event\MessageEvent` fires before send; lets you mutate `Envelope` and `Email` (set `From`, override sender). Works with **both sync send and Messenger async** because the event is dispatched at message-creation time, before transport selection. Symfony 6.2+ allows mutating the message in the listener (relevant link: ["New in Symfony 6.2: More Extensible Mailer"](https://symfony.com/blog/new-in-symfony-6-2-more-extensible-mailer)). |
-| `MailerInterface` decorator | Rejected | Per [GH discussion #61506](https://github.com/symfony/symfony/discussions/61506): the inner transport is captured at construction; you'd need to fully replace `send()`. Brittle. |
-| Custom `TransportFactoryInterface` (`tenant://` DSN) | Rejected for v0.3 | Powerful but complex. Defers to `tenant://default` style DSN; rebuild transport on send. Reserve for v0.4 if users explicitly ask. v0.3 ships the 80% solution (From + Reply-To + Sender) via MessageEvent. |
-| Runtime `Transport::fromDsn($tenant->getSmtpDsn())` | Used **inside** the bootstrapper for per-tenant transports | When a tenant has its own SMTP DSN, the bootstrapper builds a fresh `Transport` and decorates the `MailerInterface` for the request lifetime. Lazily cached per tenant slug; cleared on `TenantContextCleared`. This is genuinely needed (different SaaS tenants → different ESPs); the MessageEvent route covers only headers. |
-
-**Recommended pattern: two-layer bootstrapper**
+**`--workers` flag** on the migrate command (or a new `--parallel` flag) with a sensible cap:
 
 ```
-MailerBootstrapper::boot(TenantInterface $tenant)
-  1. Register $tenant->getEmailDefaults() (from, replyTo) with the MessageEvent listener
-  2. If $tenant->getSmtpDsn() is set:
-     - Build Transport via Transport::fromDsn($dsn, $dispatcher)
-     - Swap the active transport on the SymfonyMailer service (via a TenantMailer decorator
-       that holds a transport map keyed by tenant slug)
-  3. Otherwise: leave the app's default MAILER_DSN in place; only headers change.
-
-MailerBootstrapper::clear()
-  - Pop the From/replyTo override
-  - Decorator returns to default transport
+--workers=N   Maximum parallel migrations (default: 4, max enforced: 32)
 ```
 
-**Compatibility surface:**
+Hard-cap at 32 in code to prevent accidental `--workers=500` + DB crash.
 
-| Environment | Behavior |
-|---|---|
-| Production (real SMTP) | Per-tenant DSN swap works; MessageEvent listener fires; envelope/from headers applied correctly. |
-| Dev (MailHog/MailCatcher via `MAILER_DSN=smtp://mailhog:1025`) | If tenant has no `smtp_dsn`, default DSN used → all mail visible in MailHog. Demo recommendation: leave `smtp_dsn` null for both demo tenants. |
-| Messenger async (`MAILER_DSN=…&messenger=true`) | Works correctly: `MessageEvent` fires at dispatch time before the message is queued. The `TenantStamp` already propagates context to the worker, so if a listener needs to re-fetch tenant SMTP creds on the worker side it has the context. |
-| CLI (`tenancy:run`) | Works via existing ConsoleResolver. |
+#### No new `require` dependencies for ISOL-07
 
-**Optional dependency wiring:** Guard with `class_exists(\Symfony\Component\Mailer\Mailer::class)` AND `class_exists(\Symfony\Component\Mailer\Event\MessageEvent::class)` in compiler pass. If absent, `MailerBootstrapper` service is not registered, no error.
+`symfony/process` is already in `require`. The only additive change is the `--workers` option on the migrate command.
 
-**What NOT to add:**
-
-| Avoid | Why |
-|---|---|
-| `swiftmailer/swiftmailer` or `symfony/swiftmailer-bundle` | Abandoned 2021. Not compatible with Symfony 6+. |
-| `symfony/google-mailer`, `symfony/mailgun-mailer`, etc. bridges as bundle deps | These are **transport bridges** — picked by the *user's app*, not the bundle. The bundle is transport-agnostic. |
-| A custom Envelope class | Symfony's `Envelope` is sufficient. Subclassing would break factory contracts. |
-| Caching per-tenant `Transport` instances forever | Memory leak over many tenants. Cache only within request lifetime (cleared on `TenantContextCleared`). |
-
-**Confidence:** HIGH — MessageEvent API verified; per-tenant DSN runtime construction is the documented pattern.
-
----
-
-### 5. `OriginHeaderResolver` (RESV-06)
-
-**Approach:** Tiny new resolver class implementing `TenantResolverInterface`. Reads `Origin` HTTP header from `Request`, parses host portion, delegates to existing `TenantProviderInterface::findByDomain()` (or `findBySlug()` — same logic as `HostResolver`).
-
-**No new dependencies.** This is `~30 lines of code` reusing existing surface.
-
-**Stack:**
-- `symfony/http-foundation` (already required) — `Request::headers->get('Origin')`
-- Existing `TenantProviderInterface` from v0.2
-- PHP native `parse_url()` for host extraction
-
-**Subtlety to document, not code:**
-- The `Origin` header per RFC 6454 is the **scheme + host + port** of the requester (e.g., `https://tenant1.app.example.com:443`). On same-origin GET it may be absent — that's why `OriginHeaderResolver` returns `null` (not throws) on missing header, letting the resolver chain fall through to the next resolver.
-- For cross-origin requests, the resolver matches the `Origin` value against the same tenant lookup as `HostResolver`. SPAs hosted at `https://app.example.com` calling an API at `https://api.example.com` won't match a per-tenant subdomain — that's expected; they should use `X-Tenant-ID` or query param instead.
-- **Do NOT** auto-CORS-respond from this resolver. CORS is the user's responsibility (`nelmio/cors-bundle` or Symfony 7.4's built-in CORS support). Document the interaction in `RESV-06`'s docs page.
-
-**Confidence:** HIGH — pure HTTP, pure PHP, leverages existing extension point.
-
----
-
-### 6. Docs & Demo CI
-
-**No new bundle deps.** Tooling additions live outside the bundle's `composer.json`:
-
-| Tool | Where | Why |
-|---|---|---|
-| MkDocs Material (existing, v0.2) | Docs build pipeline | Keep current setup; no upgrade needed for v0.3 |
-| GitHub Actions job for `examples/` | `.github/workflows/demo.yml` | Boot the demo, run `tenancy:install` non-interactively, hit two tenant URLs, assert correct DB used. ~3min on free tier. |
-| `asciinema` recordings | Optional, embedded in docs via `<script>` | Live terminal recordings for install + demo. Not in CI; one-off generation. |
-| `mkdocs-include-markdown-plugin` (already in v0.2 docs stack) | Docs only | Pull `examples/README.md` into docs site to avoid drift. |
-
-**What NOT to add:**
-
-| Avoid | Why |
-|---|---|
-| `phpstan/phpstan-deprecation-rules` | Symfony's deprecation contracts + phpunit-bridge already catch this. |
-| Vale / textlint for prose | Docs aren't large enough yet. v0.4 or later. |
-| Codecov upload from demo CI | Demo isn't covered by the bundle's coverage metric. Keep test coverage separate. |
+**Confidence:** HIGH — confirmed by Symfony Process docs and lack of native pool API.
 
 ---
 
 ## Updated `composer.json` Diff
 
-Recommended additive change (verbatim):
+Recommended additive changes (verbatim):
 
 ```diff
  "require-dev": {
@@ -302,34 +274,39 @@ Recommended additive change (verbatim):
      "doctrine/migrations": "^3.9",
      "doctrine/orm": "^3.3",
      "friendsofphp/php-cs-fixer": "^3.0",
+     "league/flysystem": "^3.34",
+     "league/flysystem-bundle": "^3.7",
+     "league/flysystem-memory": "^3.31",
++    "liip/monitor-bundle": "^2.25",
+     "phpstan/extension-installer": "^1.4",
      "phpstan/phpstan": "^2.1",
+     "phpstan/phpstan-doctrine": "^2.0",
      "phpunit/phpunit": "^11.0",
      "symfony/framework-bundle": "^7.4||^8.0",
-+    "symfony/mailer": "^7.4||^8.0",
+     "symfony/mailer": "^7.4||^8.0",
      "symfony/messenger": "^7.4||^8.0",
--    "symfony/phpunit-bridge": "^7.4||^8.0"
-+    "symfony/phpunit-bridge": "^7.4||^8.0",
-+    "symfony/twig-bundle": "^7.4||^8.0",
-+    "symfony/web-profiler-bundle": "^7.4||^8.0"
+     "symfony/mime": "^7.4||^8.0",
+     "symfony/phpunit-bridge": "^7.4||^8.0",
+     "symfony/twig-bundle": "^7.4||^8.0",
+     "symfony/web-profiler-bundle": "^7.4||^8.0"
  },
  "suggest": {
      "doctrine/dbal": "Required for database drivers (^4.4)",
      "doctrine/doctrine-bundle": "Required for Doctrine integration (^2.13||^3.0)",
      "doctrine/orm": "Required for Tenant entity (^3.3)",
      "doctrine/migrations": "Required for tenancy:migrate command (^3.9)",
--    "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)"
-+    "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)",
-+    "symfony/mailer": "Required for per-tenant SMTP transport and From-header bootstrapping (^7.4||^8.0)",
-+    "symfony/web-profiler-bundle": "Required for the Tenancy WDT panel (dev-only)"
+     "league/flysystem-bundle": "Required for per-tenant Filesystem bootstrapper (^3.7)",
+     "league/flysystem-memory": "In-memory Flysystem adapter for the memory:// DSN scheme (^3.31)",
++    "liip/monitor-bundle": "Enables LiipMonitorBundle health check integration — per-tenant connectivity + bootstrapper probes (^2.25)",
+     "phpstan/extension-installer": "For zero-config auto-loading of the tenancy PHPStan rules",
+     "phpstan/phpstan-doctrine": "For full Doctrine metadata support in PHPStan Rule 3",
+     "symfony/mailer": "Required for per-tenant mailer bootstrapper (^7.4||^8.0)",
+     "symfony/messenger": "Required for tenant context preservation across async processing (^7.4||^8.0)",
+     "symfony/web-profiler-bundle": "Adds a 'Tenancy' panel to the Symfony Profiler (dev-only)"
  }
 ```
 
-**Constraint compatibility check:**
-- `symfony/mailer` `^7.4||^8.0` — PHP 8.2+ on 7.4, PHP 8.4+ on 8.0. Aligns with existing matrix.
-- `symfony/twig-bundle` `^7.4||^8.0` — same matrix.
-- `symfony/web-profiler-bundle` `^7.4||^8.0` — same matrix.
-
-**No conflicts with existing `^7.4||^8.0` floor or PHP 8.2+.** Verified against [`symfony/mailer` on Packagist](https://packagist.org/packages/symfony/mailer) (7.4.x stable, 8.0 BETA available).
+**One-line summary:** `liip/monitor-bundle ^2.25` in `require-dev` + `suggest`. Nothing else changes.
 
 ---
 
@@ -337,62 +314,82 @@ Recommended additive change (verbatim):
 
 | Avoid | Why | Use Instead |
 |---|---|---|
-| `nikic/php-parser` | AST overkill for one config file with strict shape | String templating (Flex `BundlesConfigurator` pattern) |
-| `humbug/php-scoper` | Wrong tool — that's for namespace prefixing | N/A |
-| `symfony/var-exporter` (for `bundles.php`) | Can't emit `::class` constants | String template |
-| `symfony/maker-bundle` as a dep | Internal APIs not stable; pulls Twig/console deps you don't need | Plain `Command` class |
-| `symfony/recipes-contrib` submission | Explicit non-goal per PROJECT.md ("revisit when install volume justifies") | `tenancy:install` command |
-| `symfony/cors-bundle` or `nelmio/cors-bundle` for OriginResolver | CORS is the user's concern, not the bundle's | Document interaction in `RESV-06` docs |
-| `MailerInterface` decorator for per-tenant transport | Inner transport captured at construction; brittle | `MessageEvent` listener + optional runtime `Transport::fromDsn()` swap |
-| `swiftmailer/swiftmailer` | Abandoned 2021 | `symfony/mailer` |
-| `bitnami/symfony` Docker image for demo | Not community-maintained; less idiomatic | `dunglas/symfony-docker` (FrankenPHP) |
-| PHP-FPM + nginx in demo | Three services, manual TLS | FrankenPHP/Caddy (one service, auto TLS) |
-| Postgres in demo | Larger image, less common for entry-level Symfony users | MariaDB 11 |
-| Persistent per-tenant `Transport` cache (forever) | Memory leak with many tenants | Per-request cache, cleared on `TenantContextCleared` |
-| `LateDataCollectorInterface` for Profiler | Tenant data is available at `kernel.request` time | Plain `AbstractDataCollector` |
-| Custom JavaScript / WDT assets | Adds asset pipeline complexity | Pure HTML/CSS in Twig template |
-| `phpunit/phpunit:^13` | Requires PHP 8.4+; excludes 8.2/8.3 from matrix | Keep `^11.0` |
-| `doctrine/doctrine-bundle:^3.0` as `require` (not require-dev) | Bumps PHP minimum to 8.4 | Keep in `require-dev` with `^2.13||^3.0` constraint (current behavior) |
+| `lexik/maintenance-bundle` (any version) | Abandoned 2018; latest stable targets Symfony ^4.0 only | Build in-bundle with `CacheInterface` flag |
+| `toshy/maintenance-bundle` / `prolix/maintenance-bundle` | Community forks with no per-tenant semantics; adds dep for feature that is 3 classes | Build in-bundle |
+| `liip/monitor-bundle` in `require` (hard dep) | Health monitoring is optional infra, not core tenancy | `require-dev` + `suggest` with `class_exists` guard |
+| `macpaw/symfony-health-check-bundle` | Weaker check API, fewer installs; acceptable as user-land alternative but not what the bundle targets | Document as alternative in OPS-02 docs |
+| PSR health-check libs (`php-health-check`, oat-sa, etc.) | Fragmented, low Symfony 7/8 adoption | LiipMonitorBundle or self-contained endpoint |
+| `spatie/async` | Designed for PHP closures, not `bin/console` subcommands | Native `Process::start()` + poll loop |
+| `amphp/parallel` / `react/child-process` | Event-loop runtime required; wrong abstraction for CLI command | Native `Process::start()` + poll loop |
+| `graze/parallel-process` | Thin wrapper around the same pattern; last release 2021; adds dep for 20 lines of code | Implement bounded pool directly |
+| `bluepsyduck/symfony-process-manager` | Low adoption, low maintenance | Implement bounded pool directly |
+| `symfony/lock` for migration concurrency | Distributed lock is not needed — the pool is local to a single `tenancy:migrate` invocation; concurrent invocations of `tenancy:migrate` itself are a user-ops concern | Document in runbook: "run only one `tenancy:migrate` at a time" |
+| `doctrine/dbal` async drivers | DBAL RFC #5117 (async connection pool) is open but unimplemented; not available | Sequential per-worker DBAL connections |
 
 ---
 
-## Version Compatibility Matrix (v0.3 Additions Only)
+## New Classes by Feature (Architect's View)
 
-| Package | Constraint | PHP Floor | Symfony Floor | Verified |
+### OPS-01 Maintenance Mode
+
+| Class | Type | Notes |
+|---|---|---|
+| `MaintenanceDriverInterface` | Interface | `isUnderMaintenance(slug)`, `enable(slug)`, `disable(slug)` |
+| `CacheMaintenanceDriver` | Implementation | Uses `CacheInterface` (cache.app) |
+| `ArrayMaintenanceDriver` | Implementation | In-memory; used by tests |
+| `MaintenanceModeListener` | `kernel.request` listener at priority 19 | Returns 503 JsonResponse; bypasses null-tenant (landlord routes) |
+| `TenantMaintenanceEnableCommand` | `tenancy:maintenance:enable <slug>` | Uses `symfony/console` |
+| `TenantMaintenanceDisableCommand` | `tenancy:maintenance:disable <slug>` | Uses `symfony/console` |
+| `MaintenancePass` (compiler pass) | Registers driver service | Wires `CacheMaintenanceDriver` as default |
+
+### OPS-02 Health Checks
+
+| Class | Type | Notes |
+|---|---|---|
+| `TenantConnectivityCheck` | Implements `Laminas\Diagnostics\Check\CheckInterface` | Probes each tenant DBAL connection |
+| `BootstrapperHealthCheck` | Implements `Laminas\Diagnostics\Check\CheckInterface` | Dry-runs each bootstrapper's `check()` (new optional interface) |
+| `TenantHealthController` | Symfony controller | Self-contained `/tenancy/health` endpoint (no-monitor-bundle fallback) |
+| `HealthCheckIntegrationPass` | Compiler pass | Registers checks as `liip_monitor.check` services; guarded by `class_exists(\LiipMonitorBundle\LiipMonitorBundle::class)` |
+
+### ISOL-07 Parallel Migrations
+
+| Class | Type | Notes |
+|---|---|---|
+| `TenantMigrateCommand` (updated) | Existing command | Add `--workers=4` option; when > 1, delegate to pool runner |
+| `MigrationWorkerPool` | Internal helper | Work queue + `Process::start()` / `isRunning()` loop |
+
+---
+
+## Version Compatibility Matrix (v0.5 Additions Only)
+
+| Package | Constraint | PHP | Symfony | Verified |
 |---|---|---|---|---|
-| `symfony/mailer` | `^7.4\|\|^8.0` | 8.2 (on 7.4) / 8.4 (on 8.0) | n/a (component) | Packagist Apr 2026 |
-| `symfony/twig-bundle` | `^7.4\|\|^8.0` | 8.2 / 8.4 | self | Packagist |
-| `symfony/web-profiler-bundle` | `^7.4\|\|^8.0` | 8.2 / 8.4 | self | Packagist |
-| `dunglas/symfony-docker` (demo only) | latest | runtime: PHP 8.4 image | latest skeleton | [GH repo, May 2026](https://github.com/dunglas/symfony-docker) |
-| `mariadb` docker image | `11.x` | n/a | n/a | Docker Hub |
+| `liip/monitor-bundle` | `^2.25` | `^8.1` | `^6.4\|\|^7.0\|\|^8.0` | Packagist 2026-06-25 |
+| `laminas/laminas-diagnostics` | `^1.27` (transitive via liip) | `^8.1` | n/a (component) | Packagist 2026-06-25 |
 
-**All additions are compatible with the existing `^7.4||^8.0` Symfony constraint and `^8.2` PHP floor.** No matrix changes required in CI.
+**No PHP floor change.** The bundle requires PHP `^8.2`; liip requires `^8.1`. Compatible.
+**No Symfony constraint change.** liip requires `^6.4\|\|^7.0\|\|^8.0`; bundle requires `^7.4\|\|^8.0`. Intersection is `^7.4\|\|^8.0`. Compatible.
 
 ---
 
 ## Sources
 
 ### Authoritative (HIGH confidence)
-- [symfony/flex `BundlesConfigurator` source (2.x)](https://github.com/symfony/flex/blob/2.x/src/Configurator/BundlesConfigurator.php) — verified string-template approach, idempotency via read-merge-write
-- [Symfony Profiler docs (current)](https://symfony.com/doc/current/profiler.html) — `AbstractDataCollector`, `getTemplate()`, template registration
-- ["New in Symfony 5.2: Simpler DataCollectors"](https://symfony.com/blog/new-in-symfony-5-2-simpler-datacollectors) — `AbstractDataCollector` stable since 5.2
-- ["New in Symfony 6.2: More Extensible Mailer"](https://symfony.com/blog/new-in-symfony-6-2-more-extensible-mailer) — `MessageEvent` mutability
-- [Symfony Mailer docs (current)](https://symfony.com/doc/current/mailer.html) — `MessageEvent`, Transports, global From
-- [`symfony/mailer` on Packagist](https://packagist.org/packages/symfony/mailer) — 7.4.x stable, 8.0 BETA Apr 2026
-- [GH symfony/symfony Discussion #61506](https://github.com/symfony/symfony/discussions/61506) — runtime DSN switching: decorator approach + `tenant://` factory pattern
-- [GH symfony/symfony Issue #37588](https://github.com/symfony/symfony/issues/37588) — `MessageEvent` transport-setting discussion
-- [dunglas/symfony-docker](https://github.com/dunglas/symfony-docker) — FrankenPHP+Caddy skeleton, `*.localhost` wildcard, auto-TLS
+- [lexik/maintenance-bundle on Packagist](https://packagist.org/packages/lexik/maintenance-bundle) — confirmed abandoned, v2.1.5 Feb 2018, Symfony ^4.0 only
+- [liip/monitor-bundle on Packagist](https://packagist.org/packages/liip/monitor-bundle) — v2.25.0 (2026-03-23), Symfony ^6.4|^7.0|^8.0, PHP ^8.1
+- [LiipMonitorBundle README (2.x branch)](https://github.com/liip/LiipMonitorBundle/blob/2.x/README.md) — custom check interface, tag name `liip_monitor.check`, autoconfiguration
+- [macpaw/symfony-health-check-bundle on Packagist](https://packagist.org/packages/macpaw/symfony-health-check-bundle) — v2.1.0 (2026-05-06), Symfony ^6.4|^7.4|^8.0, PHP ^8.1
+- [Symfony Process Component docs (current)](https://symfony.com/doc/current/components/process.html) — `start()`, `isRunning()`, `wait()` APIs; confirmed no native pool
+- [symfony/symfony Issue #8454](https://github.com/symfony/symfony/issues/8454) — Process pool feature request, open since 2013, confirms no native implementation
+- [symfony/cache docs (current)](https://symfony.com/doc/current/cache.html) — `CacheInterface`, `withSubNamespace()`, distributed backends
+- Packagist for `toshy/maintenance-bundle` v3.1.0 — Symfony 6/7/8 fork; no per-tenant semantics
 
 ### Supporting (MEDIUM confidence)
-- ["Coding at the Speed of Thought: The New Era of Symfony Docker" (Mar 2026)](https://dunglas.dev/2026/03/coding-at-the-speed-of-thought-the-new-era-of-symfony-docker/) — 2026 FrankenPHP DX recommendation
-- [Caddy Community: wildcard `*.localhost`](https://caddy.community/t/docker-compose-caddy-localhost-wildcard-subdomain-localhost-reverse-proxy-to-https-localhost/14549) — subdomain routing pattern
-- [RFC 6761](https://datatracker.ietf.org/doc/html/rfc6761) — `*.localhost` reserved → resolves to loopback in browsers
-
-### Negative-finding sources (verified what NOT to use)
-- maker-bundle does NOT expose bundles.php registration as public API — verified by absence in docs at [SymfonyMakerBundle docs](https://symfony.com/bundles/SymfonyMakerBundle/current/index.html)
-- `symfony/var-exporter` cannot emit `::class` references — verified against component docs
+- [Concurrency with Symfony Process gist (mortenson)](https://gist.github.com/mortenson/f9e51e5d4028c2c9ad196f8592e8081a) — verified bounded pool pattern: queue + `isRunning()` filter loop; demonstrated 14 commands in 10s vs 22s
+- [Symfony Maintenance Mode — camillehdl.dev](https://camillehdl.dev/symfony-maintenance-mode/) — file-based approach and its distributed-system limitations (justifies cache-based approach)
+- [MySQL connection limits — infomaniak.com](https://www.infomaniak.com/en/support/faq/471/understanding-simultaneous-connection-limits-in-mysql-mariadb) — `max_connections` default 151; basis for `--workers=4` default recommendation
 
 ---
 
-*Stack research for: v0.3 Adoption Surface additions to `danplaton4/tenancy-bundle`*
-*Researched: 2026-05-15*
+*Stack research for: v0.5 Operations & Scale additions to `danplaton4/tenancy-bundle`*
+*Researched: 2026-06-25*
