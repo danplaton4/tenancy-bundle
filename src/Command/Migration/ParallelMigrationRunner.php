@@ -77,8 +77,22 @@ final class ParallelMigrationRunner
 
         // SIGTERM/SIGINT forwarding — guard with extension_loaded('pcntl') so this
         // is inert on Windows / containers without the pcntl extension (Pitfall 18).
+        //
+        // Signal state is snapshotted before installing handlers and fully restored in
+        // the finally block so that run() is safe to call more than once or inside a
+        // host process (e.g. a Messenger worker) that has its own SIGTERM/SIGINT handlers.
+        // The exit(1) inside the handler is deliberate (Pitfall 18: forward-stop-then-exit);
+        // restore-on-signal is therefore moot, but restore-on-normal-return is required.
+        /** @var callable|int|null $prevTerm */
+        $prevTerm = null;
+        /** @var callable|int|null $prevInt */
+        $prevInt = null;
+        $prevAsync = false;
+
         if (extension_loaded('pcntl')) {
-            pcntl_async_signals(true);
+            $prevAsync = pcntl_async_signals(true);
+            $prevTerm = pcntl_signal_get_handler(\SIGTERM);
+            $prevInt = pcntl_signal_get_handler(\SIGINT);
 
             /** @var \Closure(int): never $signalHandler */
             $signalHandler = function (int $signo) use (&$running): never {
@@ -92,92 +106,102 @@ final class ParallelMigrationRunner
             pcntl_signal(\SIGINT, $signalHandler);
         }
 
-        // Sliding-window pool (STACK.md lines 204-229, 50ms poll cadence).
-        while ([] !== $queue || [] !== $running) {
-            // Fill the pool up to $concurrency.
-            while (count($running) < $concurrency && [] !== $queue) {
-                $tenant = array_shift($queue);
-                $slug = $tenant->getSlug();
+        try {
+            // Sliding-window pool (STACK.md lines 204-229, 50ms poll cadence).
+            while ([] !== $queue || [] !== $running) {
+                // Fill the pool up to $concurrency.
+                while (count($running) < $concurrency && [] !== $queue) {
+                    $tenant = array_shift($queue);
+                    $slug = $tenant->getSlug();
 
-                $argv = array_merge(
-                    [\PHP_BINARY, $this->projectDir.'/bin/console', 'tenancy:migrate', '--tenant='.$slug],
-                    $dryRun ? ['--dry-run'] : [],
-                );
+                    $argv = array_merge(
+                        [\PHP_BINARY, $this->projectDir.'/bin/console', 'tenancy:migrate', '--tenant='.$slug],
+                        $dryRun ? ['--dry-run'] : [],
+                    );
 
-                $process = (null !== $this->processFactory)
-                    ? ($this->processFactory)($argv)
-                    : new Process($argv);
+                    $process = (null !== $this->processFactory)
+                        ? ($this->processFactory)($argv)
+                        : new Process($argv);
 
-                $process->setTimeout(null);
+                    $process->setTimeout(null);
 
-                // Initialise the buffer entry so the reference in the closure is valid.
-                $buffers[$slug] = '';
+                    // Initialise the buffer entry so the reference in the closure is valid.
+                    $buffers[$slug] = '';
 
-                // Accumulate streamed output in PHP memory via the start() callback (Pitfall 17).
-                // The closure captures &$buffers[$slug] — a reference into the $buffers array —
-                // so every chunk written by the child is appended to the same string that the
-                // reap phase reads via $buffers[$slug].  Using a separate $buffers map (rather
-                // than storing the buffer as a value inside $running) avoids the PHP string-copy
-                // pitfall where `$running[$slug]['buffer'] = $buffer` freezes the empty string
-                // at push-time and never sees subsequent callback writes.
-                $process->start(function (string $type, string $chunk) use ($slug, &$buffers): void {
-                    $buffers[$slug] .= $chunk;
-                });
+                    // Accumulate streamed output in PHP memory via the start() callback (Pitfall 17).
+                    // The closure captures &$buffers[$slug] — a reference into the $buffers array —
+                    // so every chunk written by the child is appended to the same string that the
+                    // reap phase reads via $buffers[$slug].  Using a separate $buffers map (rather
+                    // than storing the buffer as a value inside $running) avoids the PHP string-copy
+                    // pitfall where `$running[$slug]['buffer'] = $buffer` freezes the empty string
+                    // at push-time and never sees subsequent callback writes.
+                    $process->start(function (string $type, string $chunk) use ($slug, &$buffers): void {
+                        $buffers[$slug] .= $chunk;
+                    });
 
-                $running[$slug] = [
-                    'process' => $process,
-                    'start' => microtime(true),
-                ];
-            }
-
-            // Reap any finished children.
-            foreach ($running as $slug => $entry) {
-                $process = $entry['process'];
-
-                if ($process->isRunning()) {
-                    continue;
+                    $running[$slug] = [
+                        'process' => $process,
+                        'start' => microtime(true),
+                    ];
                 }
 
-                $buffer = $buffers[$slug] ?? '';
-                $durationMs = (int) round((microtime(true) - $entry['start']) * 1000);
+                // Reap any finished children.
+                foreach ($running as $slug => $entry) {
+                    $process = $entry['process'];
 
-                // Exit-code rule (CRITICAL — Pitfall 15 / D-07): null exit = FAILURE, never success.
-                // DO NOT write `?? 0` — that is the TenantRunCommand anti-pattern.
-                $exitCode = $process->getExitCode();
-                $failed = (null === $exitCode || 0 !== $exitCode);
-
-                $migrationsApplied = self::parseMigrationsApplied($buffer);
-                $errorMessage = $failed ? self::extractError($buffer, $exitCode) : null;
-                $status = $failed ? 'failed' : 'succeeded';
-
-                $results[] = [
-                    'slug' => $slug,
-                    'status' => $status,
-                    'migrationsApplied' => $migrationsApplied,
-                    'durationMs' => $durationMs,
-                    'error' => $errorMessage,
-                ];
-
-                // D-01: flush the atomic block — header line + full captured buffer.
-                // Because the entire block is written at once (only after child completion),
-                // no two tenants' output can interleave (Pitfall 14).
-                if ($emitBlocks) {
-                    if ($failed) {
-                        $output->writeln(sprintf(' <error>✗</error> %s', $slug));
-                    } else {
-                        $output->writeln(sprintf(' <info>✓</info> %s', $slug));
+                    if ($process->isRunning()) {
+                        continue;
                     }
-                    if ('' !== $buffer) {
-                        $output->write($buffer);
+
+                    $buffer = $buffers[$slug] ?? '';
+                    $durationMs = (int) round((microtime(true) - $entry['start']) * 1000);
+
+                    // Exit-code rule (CRITICAL — Pitfall 15 / D-07): null exit = FAILURE, never success.
+                    // DO NOT write `?? 0` — that is the TenantRunCommand anti-pattern.
+                    $exitCode = $process->getExitCode();
+                    $failed = (null === $exitCode || 0 !== $exitCode);
+
+                    $migrationsApplied = self::parseMigrationsApplied($buffer);
+                    $errorMessage = $failed ? self::extractError($buffer, $exitCode) : null;
+                    $status = $failed ? 'failed' : 'succeeded';
+
+                    $results[] = [
+                        'slug' => $slug,
+                        'status' => $status,
+                        'migrationsApplied' => $migrationsApplied,
+                        'durationMs' => $durationMs,
+                        'error' => $errorMessage,
+                    ];
+
+                    // D-01: flush the atomic block — header line + full captured buffer.
+                    // Because the entire block is written at once (only after child completion),
+                    // no two tenants' output can interleave (Pitfall 14).
+                    if ($emitBlocks) {
+                        if ($failed) {
+                            $output->writeln(sprintf(' <error>✗</error> %s', $slug));
+                        } else {
+                            $output->writeln(sprintf(' <info>✓</info> %s', $slug));
+                        }
+                        if ('' !== $buffer) {
+                            $output->write($buffer);
+                        }
                     }
+
+                    unset($running[$slug], $buffers[$slug]);
                 }
 
-                unset($running[$slug], $buffers[$slug]);
+                // Poll at 50ms to keep CPU usage low (STACK.md line 228).
+                if ([] !== $running) {
+                    usleep(50_000);
+                }
             }
-
-            // Poll at 50ms to keep CPU usage low (STACK.md line 228).
-            if ([] !== $running) {
-                usleep(50_000);
+        } finally {
+            // Restore signal state on normal return (exit(1) in the handler makes
+            // restore-on-signal moot, but restore-on-normal-return is required).
+            if (extension_loaded('pcntl')) {
+                pcntl_signal(\SIGTERM, $prevTerm ?? \SIG_DFL);
+                pcntl_signal(\SIGINT, $prevInt ?? \SIG_DFL);
+                pcntl_async_signals($prevAsync);
             }
         }
 
