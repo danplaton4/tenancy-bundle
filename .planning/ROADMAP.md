@@ -63,7 +63,10 @@ Full detail: `.planning/milestones/v0.4-ROADMAP.md` · `.planning/milestones/v0.
   3. Output is atomic per-tenant (no interleaving across tenants); a killed or null-exit subprocess is counted as failure, not success; the final summary table lists per-tenant pass/fail
   4. `tenancy:migrate --parallel` on a `shared_db` driver tenant set refuses to run (or falls back to sequential) with a clear message explaining why
   5. `tenancy:migrate --format=json` emits a machine-readable JSON object per tenant with migration status, and `--dry-run` reports what would migrate without applying
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 31-01-PLAN.md — ParallelMigrationRunner subprocess worker pool + unit test (ISOL-07/08/09/12)
+- [ ] 31-02-PLAN.md — tenancy:migrate --parallel/--concurrency/--dry-run/--format=json command surface + DI wiring + tests (ISOL-07..12)
 
 ### Phase 32: Maintenance Mode
 **Goal**: Operators can put individual tenants into maintenance mode via CLI, returning HTTP 503 with `Retry-After` and `Cache-Control: no-store` to those tenant's requests while other tenants and the landlord continue serving normally
