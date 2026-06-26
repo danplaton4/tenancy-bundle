@@ -16,7 +16,7 @@ findings:
   warning: 6
   info: 4
   total: 11
-status: issues_found
+status: partially_resolved
 ---
 
 # Phase 31: Code Review Report
@@ -292,6 +292,38 @@ largely redundant with the first.
 
 **Fix:** Drop one, or repurpose `testParallelRunnerServiceIsRegistered` to assert something
 distinct (e.g. that the runner received `kernel.project_dir` as its `projectDir` arg).
+
+---
+
+## Resolution
+
+**CR-01 — FIXED** (commit `72d0239`)
+- `TenantMigrateCommand.php`: replaced `(string) json_encode(...)` with
+  `JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR` flags so bad bytes in child output
+  are substituted rather than silently producing an empty document. The `(string)` cast is removed.
+- `ParallelMigrationRunner::extractError()`: extracted line is now scrubbed to valid UTF-8 via
+  `mb_convert_encoding($line, 'UTF-8', 'UTF-8')` (PHP 8.2-compatible; guarded by `extension_loaded('mbstring')`).
+- Regression test `testJsonFormatWithInvalidUtf8ChildOutputProducesValidDocument()` added to
+  `tests/Unit/Command/TenantMigrateCommandParallelTest.php` — drives `--parallel --format=json`
+  with a failing child whose output contains `\xFF\xFE` bytes; asserts a single decodable JSON
+  document is produced.
+
+**WR-01 — FIXED** (commit `a0fa83a`)
+- `ParallelMigrationRunner::run()`: pcntl async-signals state and previous SIGTERM/SIGINT handlers
+  are now snapshotted before installation (via `pcntl_signal_get_handler()`) and restored in a
+  `finally` block wrapping the pool loop. `exit(1)` inside the signal handler is retained
+  (Pitfall 18 design decision). Snapshot vars are typed `callable|int|null` for PHPStan L9.
+
+**Deferred findings (tracked tech-debt — no action in this pass):**
+- WR-02: `exit(1)` inside library / non-reusable runner
+- WR-03: busy-wait poll-loop refactor (collect-then-unset)
+- WR-04: `testSequentialPathByteIdenticalRegression` conditional assertion weakness
+- WR-05: `testDryRunReportsWithoutApplying` conditional assertion weakness
+- WR-06: ANSI/verbosity passthrough to child processes
+- IN-01: two classes in one file (`ParallelMigrationResult` split)
+- IN-02: `migrationsApplied` heuristic fragility
+- IN-03: `extractError` returns last line (least useful)
+- IN-04: near-duplicate integration test
 
 ---
 
