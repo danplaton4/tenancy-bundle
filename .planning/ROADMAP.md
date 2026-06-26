@@ -46,7 +46,7 @@ Full detail: `.planning/milestones/v0.4-ROADMAP.md` · `.planning/milestones/v0.
 
 **Milestone Goal:** Make the bundle operable at scale — per-tenant maintenance control, health visibility, faster migrations, and production-ops docs.
 
-- [ ] **Phase 31: Parallel Migrations** - Bounded subprocess worker pool for `tenancy:migrate --parallel`
+- [x] **Phase 31: Parallel Migrations** - Bounded subprocess worker pool for `tenancy:migrate --parallel` (completed 2026-06-26)
 - [ ] **Phase 32: Maintenance Mode** - Per-tenant HTTP 503 toggle with allow-list bypass
 - [ ] **Phase 33: Health Checks** - Liveness/readiness probes with optional LiipMonitorBundle integration
 - [ ] **Phase 34: Ops Docs & Carry-Forward** - Production ops docs, saas demo fix, Nyquist enforcement, UAT closures
@@ -136,7 +136,7 @@ Plans:
 | 28. PHPStan Extension | v0.4 | 7/7 | Complete | 2026-06-17 |
 | 29. Docs Refresh | v0.4 | 3/3 | Complete | 2026-06-18 |
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
-| 31. Parallel Migrations | v0.5 | 2/2 | Verifying | - |
+| 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 0/TBD | Not started | - |
 | 33. Health Checks | v0.5 | 0/TBD | Not started | - |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
