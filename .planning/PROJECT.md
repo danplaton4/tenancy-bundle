@@ -4,7 +4,7 @@
 
 **Shipped:** v0.4.1 (2026-06-23) — Packagist-published at `danplaton4/tenancy-bundle`. v0.4.1 is a release-integrity patch over v0.4.0: it folds the post-tag CI green-up into a tagged release, adds lean-dist `.gitattributes`, and backfills the CHANGELOG; `src/` is byte-identical to v0.4.0. The v0.4 milestone (phases 24–30, 770 PHPUnit tests / 3242 assertions, PHPStan L9, cs-fixer @Symfony) shipped a per-tenant Filesystem (Flysystem) bootstrapper, the `#[Shared]` landlord→tenant sync model (sync + async via Messenger) with `tenancy:shared:resync`, a consumer-facing PHPStan extension (3 rules), and a full docs refresh. Post-v0.4.1 hardening on `master`: a CI `composer audit` gate plus verified **Symfony 8.1** support (added `8.1.*` CI matrix leg).
 
-**In progress:** **v0.5 Operations & Scale** — production-readiness: tenant-level maintenance mode, health checks, parallel migrations, and ops docs. See [Current Milestone](#current-milestone-v05-operations--scale) below.
+**In progress:** **v0.5 Operations & Scale** — production-readiness: tenant-level maintenance mode, health checks, parallel migrations, and ops docs. **Phase 31 (parallel `tenancy:migrate`, ISOL-07..12) shipped — verified 2026-06-26.** See [Current Milestone](#current-milestone-v05-operations--scale) below.
 
 <details>
 <summary>Prior milestone — v0.4 Storage & Shared Entities (shipped 2026-06-19, tag v0.4.0)</summary>
@@ -153,10 +153,13 @@ When a tenant is resolved, every Symfony service automatically re-configures its
 
 - [ ] **OPS-01** Tenant-level maintenance mode — per-tenant toggle, isolated from other tenants
 - [ ] **OPS-02** Health check / MonitorBundle integration — per-tenant connectivity + bootstrapper probes
-- [ ] **ISOL-07** Parallel `tenancy:migrate` via `symfony/process` (sequential since Phase 07)
 - [ ] **DOC-21** Ops docs section — production deploy guide + runbook patterns
 
 Plus folded-in v0.4 carry-forward: fix `examples/saas` `Dockerfile`↔`composer.lock` PHP-version drift, decide + apply Nyquist `VALIDATION.md` enforcement, and close the 2 `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load). See [Current Milestone](#current-milestone-v05-operations--scale).
+
+### Validated — v0.5 Operations & Scale (in progress)
+
+- ✓ **ISOL-07..12** Parallel `tenancy:migrate` — bounded subprocess worker pool (`ParallelMigrationRunner`) spawns one out-of-process `tenancy:migrate --tenant=<slug>` child per tenant, at-most-N concurrency (`--concurrency`, default 4, hard cap 32) via non-blocking 50ms sliding-window poll; `--parallel`/`--dry-run`/`--format=json` command surface, atomic per-tenant output blocks (no interleaving), null-exit=failure rule, `shared_db` guard refusing before any spawn, single aggregate JSON document (UTF-8-hardened: `JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR`). Sequential no-flag path byte-identical to v0.4. Runner registered inside the `class_exists(DependencyFactory)` block, wired as the migrate command's 7th arg. — v0.5 (Phase 31, verified 2026-06-26)
 
 ### Validated — v0.4 Storage & Shared Entities (Shipped 2026-06-19, tag v0.4.0)
 
@@ -252,4 +255,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-25 — v0.5 Operations & Scale milestone started. Active scope: OPS-01 tenant maintenance mode, OPS-02 health checks/MonitorBundle, ISOL-07 parallel `tenancy:migrate`, DOC-21 ops docs, plus v0.4 carry-forward (saas PHP-version drift, Nyquist `VALIDATION.md` enforcement, 2 `human_needed` UAT items). Baseline: v0.4.1 (tag), green CI, Symfony 8.1 supported, `composer audit` gate. Phases continue from 31. Prior milestone: v0.4 Storage & Shared Entities (tags v0.4.0 / v0.4.1). Full history: `.planning/MILESTONES.md` + `.planning/milestones/v0.4-ROADMAP.md`.*
+*Last updated: 2026-06-26 — Phase 31 (parallel `tenancy:migrate`, ISOL-07..12) complete + verified. v0.5 Operations & Scale milestone started. Active scope: OPS-01 tenant maintenance mode, OPS-02 health checks/MonitorBundle, ISOL-07 parallel `tenancy:migrate`, DOC-21 ops docs, plus v0.4 carry-forward (saas PHP-version drift, Nyquist `VALIDATION.md` enforcement, 2 `human_needed` UAT items). Baseline: v0.4.1 (tag), green CI, Symfony 8.1 supported, `composer audit` gate. Phases continue from 31. Prior milestone: v0.4 Storage & Shared Entities (tags v0.4.0 / v0.4.1). Full history: `.planning/MILESTONES.md` + `.planning/milestones/v0.4-ROADMAP.md`.*
