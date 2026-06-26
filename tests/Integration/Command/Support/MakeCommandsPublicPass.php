@@ -17,6 +17,7 @@ final class MakeCommandsPublicPass implements CompilerPassInterface
     {
         $ids = [
             'tenancy.command.migrate',
+            'tenancy.command.migrate.parallel_runner',
             'tenancy.command.run',
             'tenancy.command.init',
             'tenancy.command.install',
