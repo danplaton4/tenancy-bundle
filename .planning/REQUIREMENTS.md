@@ -33,12 +33,12 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 
 ### Parallel Migrations  (epic ISOL-07)
 
-- [ ] **ISOL-07**: `tenancy:migrate --parallel` runs per-tenant migrations concurrently via a bounded `symfony/process` worker pool; sequential remains the default (no flag = unchanged behavior).
-- [ ] **ISOL-08**: Concurrency is bounded by `--concurrency=N` (default 4, hard cap 32) to avoid DB connection exhaustion.
-- [ ] **ISOL-09**: Parallel output is atomic per-tenant (no interleaving), exit codes are aggregated (a null/killed subprocess counts as failure), continue-on-failure is preserved, and a final summary table is printed.
+- [x] **ISOL-07**: `tenancy:migrate --parallel` runs per-tenant migrations concurrently via a bounded `symfony/process` worker pool; sequential remains the default (no flag = unchanged behavior).
+- [x] **ISOL-08**: Concurrency is bounded by `--concurrency=N` (default 4, hard cap 32) to avoid DB connection exhaustion.
+- [x] **ISOL-09**: Parallel output is atomic per-tenant (no interleaving), exit codes are aggregated (a null/killed subprocess counts as failure), continue-on-failure is preserved, and a final summary table is printed.
 - [ ] **ISOL-10**: `tenancy:migrate --parallel --dry-run` reports what each tenant would migrate without applying.
 - [ ] **ISOL-11**: Parallel mode is guarded on the `shared_db` driver (single physical DB — parallel would corrupt the migrations table); it refuses or falls back to sequential with a clear message.
-- [ ] **ISOL-12**: `tenancy:migrate --format=json` emits machine-readable per-tenant migration results.
+- [x] **ISOL-12**: `tenancy:migrate --format=json` emits machine-readable per-tenant migration results.
 
 ### Documentation  (epic DOC-21)
 
@@ -55,10 +55,12 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 Tracked, not in the v0.5 roadmap.
 
 ### Advanced Isolation (v0.6)
+
 - **ISOL-06**: PostgreSQL Row-Level Security driver
 - When-to-pick-which-driver matrix docs
 
 ### Operations (v0.6+ / by demand)
+
 - Global (all-tenants) maintenance mode — promote a maintenance posture across the whole fleet at once
 - Migration checkpoint / resume — resume a partially-applied parallel migration run
 
@@ -79,12 +81,12 @@ Explicitly excluded for v0.5, with reasoning.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ISOL-07 | Phase 31 | Pending |
-| ISOL-08 | Phase 31 | Pending |
-| ISOL-09 | Phase 31 | Pending |
+| ISOL-07 | Phase 31 | Complete |
+| ISOL-08 | Phase 31 | Complete |
+| ISOL-09 | Phase 31 | Complete |
 | ISOL-10 | Phase 31 | Pending |
 | ISOL-11 | Phase 31 | Pending |
-| ISOL-12 | Phase 31 | Pending |
+| ISOL-12 | Phase 31 | Complete |
 | MAINT-01 | Phase 32 | Pending |
 | MAINT-02 | Phase 32 | Pending |
 | MAINT-03 | Phase 32 | Pending |
@@ -107,6 +109,7 @@ Explicitly excluded for v0.5, with reasoning.
 | QA-01 | Phase 34 | Pending |
 
 **Coverage:**
+
 - v0.5 requirements: 26 total (MAINT 9, HEALTH 7, ISOL 6, DOC 1, DEMO 1, GOV 1, QA 1)
 - Mapped to phases: 26
 - Unmapped: 0 ✓

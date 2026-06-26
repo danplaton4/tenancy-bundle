@@ -70,7 +70,7 @@ Full detail: `.planning/milestones/v0.4-ROADMAP.md` · `.planning/milestones/v0.
 Plans:
 **Wave 1**
 
-- [ ] 31-01-PLAN.md — ParallelMigrationRunner subprocess worker pool + unit test (ISOL-07/08/09/12)
+- [x] 31-01-PLAN.md — ParallelMigrationRunner subprocess worker pool + unit test (ISOL-07/08/09/12)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -136,7 +136,7 @@ Plans:
 | 28. PHPStan Extension | v0.4 | 7/7 | Complete | 2026-06-17 |
 | 29. Docs Refresh | v0.4 | 3/3 | Complete | 2026-06-18 |
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
-| 31. Parallel Migrations | v0.5 | 0/TBD | Not started | - |
+| 31. Parallel Migrations | v0.5 | 1/2 | In Progress|  |
 | 32. Maintenance Mode | v0.5 | 0/TBD | Not started | - |
 | 33. Health Checks | v0.5 | 0/TBD | Not started | - |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
