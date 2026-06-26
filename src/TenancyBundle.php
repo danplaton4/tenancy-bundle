@@ -17,6 +17,7 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tenancy\Bundle\Bootstrapper\DatabaseSwitchBootstrapper;
 use Tenancy\Bundle\Bootstrapper\TenantBootstrapperInterface;
+use Tenancy\Bundle\Command\Migration\ParallelMigrationRunner;
 use Tenancy\Bundle\Command\SharedEntityResyncCommand;
 use Tenancy\Bundle\Command\TenantMigrateCommand;
 use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
@@ -261,6 +262,16 @@ class TenancyBundle extends AbstractBundle
                 ->setArgument(1, ['tenant']);
 
             if (class_exists(\Doctrine\Migrations\DependencyFactory::class)) {
+                // Register the parallel runner BEFORE the migrate command so the service id
+                // is resolvable when the migrate command's 7th arg is wired below.
+                // Structurally never registered under shared_db: this entire block is gated on
+                // database.enabled: true, and the config validator (above) forbids
+                // shared_db + database.enabled: true — Pitfall 16 / D-06 satisfied by wiring.
+                $services->set('tenancy.command.migrate.parallel_runner', ParallelMigrationRunner::class)
+                    ->args([
+                        param('kernel.project_dir'),
+                    ]);
+
                 $services->set('tenancy.command.migrate', TenantMigrateCommand::class)
                     ->args([
                         service('tenancy.provider'),
@@ -269,6 +280,7 @@ class TenancyBundle extends AbstractBundle
                         param('tenancy.driver'),
                         service('doctrine.dbal.tenant_connection'),
                         service('doctrine.migrations.configuration')->nullOnInvalid(),
+                        service('tenancy.command.migrate.parallel_runner'),
                     ])
                     ->tag('console.command');
             }
