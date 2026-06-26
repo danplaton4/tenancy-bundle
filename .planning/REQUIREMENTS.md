@@ -77,23 +77,40 @@ Explicitly excluded for v0.5, with reasoning.
 
 ## Traceability
 
-Populated during roadmap creation (phases continue from 31).
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MAINT-01..09 | TBD | Pending |
-| HEALTH-01..07 | TBD | Pending |
-| ISOL-07..12 | TBD | Pending |
-| DOC-21 | TBD | Pending |
-| DEMO-02 | TBD | Pending |
-| GOV-02 | TBD | Pending |
-| QA-01 | TBD | Pending |
+| ISOL-07 | Phase 31 | Pending |
+| ISOL-08 | Phase 31 | Pending |
+| ISOL-09 | Phase 31 | Pending |
+| ISOL-10 | Phase 31 | Pending |
+| ISOL-11 | Phase 31 | Pending |
+| ISOL-12 | Phase 31 | Pending |
+| MAINT-01 | Phase 32 | Pending |
+| MAINT-02 | Phase 32 | Pending |
+| MAINT-03 | Phase 32 | Pending |
+| MAINT-04 | Phase 32 | Pending |
+| MAINT-05 | Phase 32 | Pending |
+| MAINT-06 | Phase 32 | Pending |
+| MAINT-07 | Phase 32 | Pending |
+| MAINT-08 | Phase 32 | Pending |
+| MAINT-09 | Phase 32 | Pending |
+| HEALTH-01 | Phase 33 | Pending |
+| HEALTH-02 | Phase 33 | Pending |
+| HEALTH-03 | Phase 33 | Pending |
+| HEALTH-04 | Phase 33 | Pending |
+| HEALTH-05 | Phase 33 | Pending |
+| HEALTH-06 | Phase 33 | Pending |
+| HEALTH-07 | Phase 33 | Pending |
+| DOC-21 | Phase 34 | Pending |
+| DEMO-02 | Phase 34 | Pending |
+| GOV-02 | Phase 34 | Pending |
+| QA-01 | Phase 34 | Pending |
 
 **Coverage:**
 - v0.5 requirements: 26 total (MAINT 9, HEALTH 7, ISOL 6, DOC 1, DEMO 1, GOV 1, QA 1)
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 26 ⚠️ (resolved by `/gsd:new-milestone` roadmap step)
+- Mapped to phases: 26
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-26 for v0.5 Operations & Scale*
-*Last updated: 2026-06-26 after initial definition*
+*Last updated: 2026-06-26 — traceability table populated after roadmap creation*
