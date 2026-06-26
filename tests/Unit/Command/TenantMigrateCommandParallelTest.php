@@ -473,6 +473,73 @@ final class TenantMigrateCommandParallelTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // CR-01 regression — JSON mode must not emit an empty document on invalid-UTF-8
+    // -------------------------------------------------------------------------
+
+    /**
+     * When one child process fails and its captured output contains invalid UTF-8 bytes,
+     * --parallel --format=json must still emit a single non-empty line that decodes to a
+     * valid JSON object with 'tenants' and 'summary' keys.
+     *
+     * This test proves the CR-01 fix: the old `(string) json_encode(...)` (without
+     * JSON_INVALID_UTF8_SUBSTITUTE) returned false on invalid UTF-8 and the cast produced
+     * an empty line. After the fix the flags substitute bad bytes and JSON_THROW_ON_ERROR
+     * makes any residual failure explicit.
+     */
+    public function testJsonFormatWithInvalidUtf8ChildOutputProducesValidDocument(): void
+    {
+        $tenant1 = $this->makeTenant('acme');
+        $tenant2 = $this->makeTenant('beta');
+
+        $this->tenantProvider->method('findAll')->willReturn([$tenant1, $tenant2]);
+
+        // Tenant 'acme' succeeds; tenant 'beta' fails with output containing invalid UTF-8.
+        // \xFF\xFE is a byte sequence that is not valid UTF-8.
+        $invalidUtf8Output = "\xFF\xFEbad bytes error message";
+
+        $callIndex = 0;
+        $factory = function (array $argv) use (&$callIndex, $invalidUtf8Output): Process {
+            if (0 === $callIndex) {
+                // First call: success, clean output.
+                ++$callIndex;
+
+                return $this->makeProcessMock(0, '++ migrating 20240101000001');
+            }
+            // Second call: failure, invalid UTF-8 in output.
+            ++$callIndex;
+
+            return $this->makeProcessMock(1, $invalidUtf8Output);
+        };
+
+        $runner = new ParallelMigrationRunner('/app', $factory);
+        $command = $this->makeCommand(runner: $runner);
+        $tester = new CommandTester($command);
+
+        $exitCode = $tester->execute(['--parallel' => true, '--format' => 'json']);
+
+        // Exit must be FAILURE (one tenant failed).
+        $this->assertSame(Command::FAILURE, $exitCode, 'Exit must be FAILURE when a tenant failed.');
+
+        $stdout = trim($tester->getDisplay(true));
+
+        // Must NOT be empty — the old code emitted '' on invalid UTF-8 (CR-01 regression).
+        $this->assertNotEmpty($stdout, 'stdout must not be empty when child output contains invalid UTF-8 bytes (CR-01).');
+
+        // Must be a single line (the JSON document).
+        $lines = array_filter(explode("\n", $stdout), static fn (string $l): bool => '' !== trim($l));
+        $this->assertCount(1, $lines, 'stdout must contain exactly one non-empty line (the JSON document).');
+
+        // Must decode successfully.
+        $decoded = json_decode($stdout, true);
+        $this->assertNotNull($decoded, 'stdout must be a parseable JSON document even with invalid UTF-8 in child output; got: '.substr($stdout, 0, 200));
+        $this->assertIsArray($decoded);
+
+        // Must have the required top-level keys.
+        $this->assertArrayHasKey('tenants', $decoded, 'JSON document must have a "tenants" key.');
+        $this->assertArrayHasKey('summary', $decoded, 'JSON document must have a "summary" key.');
+    }
+
+    // -------------------------------------------------------------------------
     // BC — existing 6-arg construction still works (SC1 constructor compatibility)
     // -------------------------------------------------------------------------
 

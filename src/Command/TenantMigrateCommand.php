@@ -197,7 +197,11 @@ final class TenantMigrateCommand extends Command
                     ],
                 ];
 
-                $output->writeln((string) json_encode($aggregate, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE));
+                $json = json_encode(
+                    $aggregate,
+                    \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_THROW_ON_ERROR,
+                );
+                $output->writeln($json);
             } else {
                 // D-02: rich summary table (the runner already flushed atomic blocks live).
                 $rows = [];

@@ -213,7 +213,13 @@ final class ParallelMigrationRunner
                 static fn (string $line): bool => '' !== trim($line),
             );
             if ([] !== $lines) {
-                return trim(strip_tags((string) end($lines)));
+                $line = trim(strip_tags((string) end($lines)));
+                // Scrub to valid UTF-8 (PHP 8.2-compatible; mb_scrub() requires PHP 8.3+).
+                if (extension_loaded('mbstring')) {
+                    $line = mb_convert_encoding($line, 'UTF-8', 'UTF-8');
+                }
+
+                return $line;
             }
         }
 
