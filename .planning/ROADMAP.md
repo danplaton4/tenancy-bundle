@@ -98,7 +98,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 32-02-PLAN.md — TenantMaintenanceModeListener @ priority 16: 503 + Retry-After + Cache-Control: no-store, null-tenant/allow-list bypass, content-negotiated body, Twig-with-HTML-fallback (MAINT-03/04/06/07)
-- [ ] 32-03-PLAN.md — tenancy:maintenance:enable/disable/status commands: idempotent landlord-side writes, PSR cache invalidation, event-on-transition, --format=json (MAINT-01/02/08/09)
+- [x] 32-03-PLAN.md — tenancy:maintenance:enable/disable/status commands: idempotent landlord-side writes, PSR cache invalidation, event-on-transition, --format=json (MAINT-01/02/08/09)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -151,6 +151,6 @@ Plans:
 | 29. Docs Refresh | v0.4 | 3/3 | Complete | 2026-06-18 |
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
-| 32. Maintenance Mode | v0.5 | 2/4 | In Progress|  |
+| 32. Maintenance Mode | v0.5 | 3/4 | In Progress|  |
 | 33. Health Checks | v0.5 | 0/TBD | Not started | - |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
