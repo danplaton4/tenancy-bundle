@@ -552,7 +552,12 @@ One environment note: integration tests use `TestKernel` with `cache.adapter.arr
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three resolved during Phase 32 planning (see 32-01..32-04-PLAN.md):
+> **Q1 → RESOLVED:** feature flag `tenancy.maintenance.enabled: false` default (mirrors filesystem; ContractPass early-returns when disabled).
+> **Q2 → RESOLVED:** `maintenance` node lives in `TenancyBundle::configure()` alongside the `filesystem`/`shared` nodes, following the `origin.allow_list` array-node pattern.
+> **Q3 → RESOLVED:** listener injects `?Environment` via `nullOnInvalid()` (defense-in-depth over the non-nullable recommendation; Claude's Discretion per CONTEXT.md); the `try/catch` HTML fallback is unchanged.
 
 1. **`tenancy.maintenance.enabled` feature flag vs. always-on**
    - What we know: filesystem feature is behind `tenancy.filesystem.enabled: false` default. The listener is cheap (one in-memory bool read).
