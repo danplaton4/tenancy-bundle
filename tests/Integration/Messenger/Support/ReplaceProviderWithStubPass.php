@@ -37,5 +37,15 @@ final class ReplaceProviderWithStubPass implements CompilerPassInterface
         if ($container->hasDefinition(\Tenancy\Bundle\EventListener\EntityManagerResetListener::class)) {
             $container->removeDefinition(\Tenancy\Bundle\EventListener\EntityManagerResetListener::class);
         }
+
+        // Remove maintenance commands — they reference doctrine.orm.default_entity_manager
+        // which is not registered in no-Doctrine test kernels. Commands are guarded by
+        // interface_exists(EntityManagerInterface) in services.php, but the ORM interface
+        // IS present in the dev environment; only the EM service is absent here.
+        foreach (['tenancy.command.maintenance.enable', 'tenancy.command.maintenance.disable', 'tenancy.command.maintenance.status'] as $id) {
+            if ($container->hasDefinition($id)) {
+                $container->removeDefinition($id);
+            }
+        }
     }
 }

@@ -35,6 +35,9 @@ use Tenancy\Bundle\Messenger\TenantSendingMiddleware;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
 use Tenancy\Bundle\Provider\DoctrineTenantProvider;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
+use Tenancy\Bundle\Command\TenantMaintenanceDisableCommand;
+use Tenancy\Bundle\Command\TenantMaintenanceEnableCommand;
+use Tenancy\Bundle\Command\TenantMaintenanceStatusCommand;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
@@ -267,5 +270,39 @@ return function (ContainerConfigurator $container): void {
         $services->set('tenancy.filesystem.context_cleared_listener', FilesystemTenantContextClearedListener::class)
             ->args([service('tenancy.filesystem.lru_cache')])
             ->autoconfigure(true);
+    }
+
+    // Maintenance CLI commands — require Doctrine ORM (landlord EM for write operations).
+    // The status command uses TenantProviderInterface::findAll() (nullOnInvalid for no-Doctrine lane).
+    // The enable/disable commands default to doctrine.orm.default_entity_manager here;
+    // TenancyBundle::loadExtension() rewires arg 0 to doctrine.orm.landlord_entity_manager
+    // when database.enabled: true (T-32-15 mitigation, mirrors tenancy.provider rewire at line 251).
+    if (interface_exists(Doctrine\ORM\EntityManagerInterface::class)) {
+        // Status command uses TenantProviderInterface::findAll() — cache-bypassing operator path.
+        $services->set('tenancy.command.maintenance.status', TenantMaintenanceStatusCommand::class)
+            ->args([
+                service('tenancy.provider')->nullOnInvalid(),
+            ])
+            ->tag('console.command');
+
+        // Enable command: landlord-side write + PSR cache delete + event dispatch.
+        $services->set('tenancy.command.maintenance.enable', TenantMaintenanceEnableCommand::class)
+            ->args([
+                service('doctrine.orm.default_entity_manager'),
+                param('tenancy.tenant_entity_class'),
+                service('cache.app'),
+                service('event_dispatcher'),
+            ])
+            ->tag('console.command');
+
+        // Disable command: mirror of enable command.
+        $services->set('tenancy.command.maintenance.disable', TenantMaintenanceDisableCommand::class)
+            ->args([
+                service('doctrine.orm.default_entity_manager'),
+                param('tenancy.tenant_entity_class'),
+                service('cache.app'),
+                service('event_dispatcher'),
+            ])
+            ->tag('console.command');
     }
 };

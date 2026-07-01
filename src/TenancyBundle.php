@@ -25,6 +25,7 @@ use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\FilesystemContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MailerTransportContractPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\MaintenanceModeContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
 use Tenancy\Bundle\DependencyInjection\Compiler\OriginHeaderResolverConfigPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\ResolverChainPass;
@@ -32,6 +33,7 @@ use Tenancy\Bundle\DependencyInjection\Compiler\SharedAsyncContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\SharedEntityMutualExclusionPass;
 use Tenancy\Bundle\Driver\SharedDriver;
 use Tenancy\Bundle\EventListener\EntityManagerResetListener;
+use Tenancy\Bundle\EventListener\TenantMaintenanceModeListener;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
 use Tenancy\Bundle\Message\SharedEntityChangedMessage;
 use Tenancy\Bundle\MessageHandler\SharedEntityChangedMessageHandler;
@@ -131,6 +133,17 @@ class TenancyBundle extends AbstractBundle
             ->booleanNode('async')->defaultFalse()->end()
             ->end()
             ->end()
+            ->arrayNode('maintenance')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->booleanNode('enabled')->defaultFalse()->end()
+            ->scalarNode('template')->defaultNull()->end()
+            ->integerNode('retry_after')->defaultValue(3600)->min(1)->end()
+            ->arrayNode('allow_ips')->scalarPrototype()->end()->defaultValue([])->end()
+            ->arrayNode('allow_routes')->scalarPrototype()->end()->defaultValue([])->end()
+            ->arrayNode('allow_paths')->scalarPrototype()->end()->defaultValue([])->end()
+            ->end()
+            ->end()
             ->end()
             ->validate()
                 ->ifTrue(function (array $v): bool {
@@ -185,6 +198,16 @@ class TenancyBundle extends AbstractBundle
         $sharedConfig = $config['shared'] ?? [];
         $sharedAsync = is_scalar($sharedConfig['async'] ?? false) ? (bool) ($sharedConfig['async'] ?? false) : false;
 
+        /** @var array<string, mixed> $maintenanceConfig */
+        $maintenanceConfig = $config['maintenance'] ?? [];
+        $maintenanceEnabled = is_scalar($maintenanceConfig['enabled'] ?? false) ? (bool) ($maintenanceConfig['enabled'] ?? false) : false;
+        $maintenanceRetryAfter = is_int($maintenanceConfig['retry_after'] ?? 3600) ? (int) ($maintenanceConfig['retry_after'] ?? 3600) : 3600;
+        $maintenanceTemplateRaw = $maintenanceConfig['template'] ?? null;
+        $maintenanceTemplate = isset($maintenanceTemplateRaw) && is_scalar($maintenanceTemplateRaw) ? (string) $maintenanceTemplateRaw : null;
+        $maintenanceAllowIps = is_array($maintenanceConfig['allow_ips'] ?? []) ? ($maintenanceConfig['allow_ips'] ?? []) : [];
+        $maintenanceAllowRoutes = is_array($maintenanceConfig['allow_routes'] ?? []) ? ($maintenanceConfig['allow_routes'] ?? []) : [];
+        $maintenanceAllowPaths = is_array($maintenanceConfig['allow_paths'] ?? []) ? ($maintenanceConfig['allow_paths'] ?? []) : [];
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
@@ -199,7 +222,13 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.filesystem.allow_per_tenant_adapter', $filesystemAllowPerTenant)
             ->set('tenancy.filesystem.prefix_template', $filesystemPrefixTemplate)
             ->set('tenancy.filesystem.cache_size', $filesystemCacheSize)
-            ->set('tenancy.shared.async', $sharedAsync);
+            ->set('tenancy.shared.async', $sharedAsync)
+            ->set('tenancy.maintenance.enabled', $maintenanceEnabled)
+            ->set('tenancy.maintenance.retry_after', $maintenanceRetryAfter)
+            ->set('tenancy.maintenance.template', $maintenanceTemplate)
+            ->set('tenancy.maintenance.allow_ips', $maintenanceAllowIps)
+            ->set('tenancy.maintenance.allow_routes', $maintenanceAllowRoutes)
+            ->set('tenancy.maintenance.allow_paths', $maintenanceAllowPaths);
 
         /** @var list<string> $configuredResolvers */
         $configuredResolvers = $config['resolvers'];
@@ -227,6 +256,24 @@ class TenancyBundle extends AbstractBundle
             ->autoconfigure(true)
             ->args([service('doctrine')->nullOnInvalid()]);
 
+        // Maintenance mode listener — registered only when tenancy.maintenance.enabled: true.
+        // autoconfigure(true) converts the #[AsEventListener] attribute to a kernel.event_listener
+        // tag at priority 16, which MaintenanceModeContractPass then validates.
+        if ($maintenanceEnabled) {
+            $services = $container->services();
+            $services->set('tenancy.maintenance.listener', TenantMaintenanceModeListener::class)
+                ->autoconfigure(true)
+                ->args([
+                    service('tenancy.context'),
+                    param('tenancy.maintenance.retry_after'),
+                    param('tenancy.maintenance.template'),
+                    param('tenancy.maintenance.allow_ips'),
+                    param('tenancy.maintenance.allow_routes'),
+                    param('tenancy.maintenance.allow_paths'),
+                    service('twig')->nullOnInvalid(),
+                ]);
+        }
+
         if ($databaseConfig['enabled'] ?? false) {
             if (!interface_exists(\Doctrine\DBAL\Driver\Middleware::class)) {
                 throw new \LogicException('tenancy.database.enabled: true requires doctrine/dbal and doctrine/doctrine-bundle. Install them (composer require doctrine/doctrine-bundle) or switch to driver: shared_db.');
@@ -250,6 +297,20 @@ class TenancyBundle extends AbstractBundle
             // Rewire DoctrineTenantProvider to landlord EM (services.php is already imported above)
             $builder->getDefinition('tenancy.provider')
                 ->setArgument(0, new Reference('doctrine.orm.landlord_entity_manager'));
+
+            // Rewire maintenance enable/disable commands to use landlord EM (arg 0).
+            // services.php defaults to doctrine.orm.default_entity_manager; under database.enabled
+            // the landlord EM is the correct target for landlord-side writes (T-32-15).
+            if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+                if ($builder->hasDefinition('tenancy.command.maintenance.enable')) {
+                    $builder->getDefinition('tenancy.command.maintenance.enable')
+                        ->setArgument(0, new Reference('doctrine.orm.landlord_entity_manager'));
+                }
+                if ($builder->hasDefinition('tenancy.command.maintenance.disable')) {
+                    $builder->getDefinition('tenancy.command.maintenance.disable')
+                        ->setArgument(0, new Reference('doctrine.orm.landlord_entity_manager'));
+                }
+            }
 
             // Override DoctrineBootstrapper to target tenant EM (services.php targets default = landlord)
             if (interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
@@ -397,6 +458,9 @@ class TenancyBundle extends AbstractBundle
         $container->addCompilerPass(new ResolverChainPass());
         $container->addCompilerPass(new CacheDecoratorContractPass());
         $container->addCompilerPass(new OriginHeaderResolverConfigPass());
+        // MaintenanceModeContractPass: no optional library dep — always register.
+        // Validates that the maintenance listener (when registered) has priority < 20.
+        $container->addCompilerPass(new MaintenanceModeContractPass());
         if (interface_exists(MessageBusInterface::class)) {
             // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
             $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
