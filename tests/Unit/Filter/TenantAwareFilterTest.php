@@ -102,6 +102,11 @@ final class TenantAwareFilterTest extends TestCase
                 return null;
             }
 
+            public function isInMaintenance(): bool
+            {
+                return false;
+            }
+
             public function getMailerReplyTo(): ?string
             {
                 return null;

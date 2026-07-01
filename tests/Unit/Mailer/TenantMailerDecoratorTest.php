@@ -62,6 +62,11 @@ final class TenantMailerDecoratorTest extends TestCase
             {
                 return true;
             }
+
+            public function isInMaintenance(): bool
+            {
+                return false;
+            }
         };
         $tenant->setSlug($slug);
         $tenant->setMailerDsn($dsn);

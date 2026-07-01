@@ -58,6 +58,12 @@ abstract class AbstractTenant implements TenantInterface
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $filesystemConfig = null;
 
+    // Maintenance flag (Phase 32 / MAINT-05).
+    // Users with a custom Tenant entity can equivalently `use \Tenancy\Bundle\Maintenance\TenantMaintenanceConfigTrait;`
+    // instead of inlining this column. See UPGRADE.md §0.4→0.5.
+    #[ORM\Column(type: 'boolean')]
+    private bool $inMaintenance = false;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -162,6 +168,18 @@ abstract class AbstractTenant implements TenantInterface
     public function setFilesystemConfig(?array $filesystemConfig): self
     {
         $this->filesystemConfig = $filesystemConfig;
+
+        return $this;
+    }
+
+    public function isInMaintenance(): bool
+    {
+        return $this->inMaintenance;
+    }
+
+    public function setInMaintenance(bool $inMaintenance): self
+    {
+        $this->inMaintenance = $inMaintenance;
 
         return $this;
     }

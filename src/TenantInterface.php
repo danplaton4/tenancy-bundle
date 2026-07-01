@@ -17,6 +17,8 @@ interface TenantInterface
 
     public function isActive(): bool;
 
+    public function isInMaintenance(): bool;
+
     public function getMailerDsn(): ?string;
 
     public function getMailerFrom(): ?string;

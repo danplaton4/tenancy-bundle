@@ -43,4 +43,9 @@ final class StubTenant implements TenantInterface
     {
         return true;
     }
+
+    public function isInMaintenance(): bool
+    {
+        return false;
+    }
 }

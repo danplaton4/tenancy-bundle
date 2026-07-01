@@ -117,6 +117,11 @@ final class SharedDbFilterIntegrationTest extends TestCase
                 return true;
             }
 
+            public function isInMaintenance(): bool
+            {
+                return false;
+            }
+
             public function getMailerDsn(): ?string
             {
                 return null;
