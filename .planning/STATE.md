@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-25)
 ## Current Position
 
 Phase: 32 of 34 (Maintenance Mode)
-Plan: Not started
-Status: Phase 31 (Parallel Migrations) complete — verified passed (5/5 must-haves)
-Last activity: 2026-06-26 -- Phase 31 executed + verified
+Plan: Planned — 4 plans in 3 waves (ready to execute)
+Status: Phase 32 (Maintenance Mode) planned — 4 plans / 3 waves
+Last activity: 2026-07-01 -- Phase 32 planned (4 plans, 3 waves)
 
 Progress: [██░░░░░░░░] 25% (1 of 4 phases complete)
 
@@ -58,7 +58,7 @@ Plus 5 Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) noted in `v
 | Phase | Plans | Status |
 |-------|-------|--------|
 | 31. Parallel Migrations | 2/2 | Complete (2026-06-26) |
-| 32. Maintenance Mode | TBD | Not started |
+| 32. Maintenance Mode | 0/4 | Planned (4 plans, 3 waves) |
 | 33. Health Checks | TBD | Not started |
 | 34. Ops Docs & Carry-Forward | TBD | Not started |
 

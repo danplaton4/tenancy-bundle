@@ -89,7 +89,20 @@ Plans:
   4. An IP, route, or path on the configured allow-list bypasses maintenance and receives a normal response even when the tenant is in maintenance
   5. The application can supply a custom Twig template for the 503 page; `TenantMaintenanceEnabled` / `TenantMaintenanceDisabled` events are dispatched on toggle so application hooks can react
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 32-01-PLAN.md — Maintenance state foundation: TenantMaintenanceConfigTrait + TenantInterface::isInMaintenance() + AbstractTenant column, toggle events, MaintenanceModeContractPass (MAINT-05/08, Success Criterion 3)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 32-02-PLAN.md — TenantMaintenanceModeListener @ priority 16: 503 + Retry-After + Cache-Control: no-store, null-tenant/allow-list bypass, content-negotiated body, Twig-with-HTML-fallback (MAINT-03/04/06/07)
+- [ ] 32-03-PLAN.md — tenancy:maintenance:enable/disable/status commands: idempotent landlord-side writes, PSR cache invalidation, event-on-transition, --format=json (MAINT-01/02/08/09)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 32-04-PLAN.md — DI wiring: maintenance config node + parameters, conditional listener registration @16, command registration + landlord-EM rewire, unconditional contract-pass, priority-16 + no-Doctrine integration tests (MAINT-01/02/03/04/06/07/09)
 **UI hint**: yes
 
 ### Phase 33: Health Checks
