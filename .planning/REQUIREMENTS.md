@@ -13,11 +13,11 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 
 - [ ] **MAINT-01**: An operator can put a single tenant into maintenance via `tenancy:maintenance:enable <slug>`, leaving other tenants and the landlord unaffected.
 - [ ] **MAINT-02**: An operator can take a tenant out of maintenance via `tenancy:maintenance:disable <slug>`.
-- [ ] **MAINT-03**: A request to a tenant in maintenance returns HTTP 503 with a `Retry-After` header and `Cache-Control: no-store`.
-- [ ] **MAINT-04**: Landlord, public, and health-check routes are never blocked by a tenant's maintenance mode (null-tenant + allow-list bypass).
+- [x] **MAINT-03**: A request to a tenant in maintenance returns HTTP 503 with a `Retry-After` header and `Cache-Control: no-store`.
+- [x] **MAINT-04**: Landlord, public, and health-check routes are never blocked by a tenant's maintenance mode (null-tenant + allow-list bypass).
 - [x] **MAINT-05**: Maintenance state is stored on the tenant entity (DB column via `TenantMaintenanceConfigTrait`), persists across requests/processes, and never leaks across tenants.
-- [ ] **MAINT-06**: An operator can configure an IP / route / path allow-list that bypasses maintenance (so operators can reach a tenant that is under maintenance).
-- [ ] **MAINT-07**: An application can override the 503 maintenance response with a custom Twig template.
+- [x] **MAINT-06**: An operator can configure an IP / route / path allow-list that bypasses maintenance (so operators can reach a tenant that is under maintenance).
+- [x] **MAINT-07**: An application can override the 503 maintenance response with a custom Twig template.
 - [x] **MAINT-08**: The bundle dispatches `TenantMaintenanceEnabled` / `TenantMaintenanceDisabled` events on toggle, for application hooks.
 - [ ] **MAINT-09**: An operator can list all tenants currently in maintenance via `tenancy:maintenance:status`.
 
@@ -89,11 +89,11 @@ Explicitly excluded for v0.5, with reasoning.
 | ISOL-12 | Phase 31 | Complete |
 | MAINT-01 | Phase 32 | Pending |
 | MAINT-02 | Phase 32 | Pending |
-| MAINT-03 | Phase 32 | Pending |
-| MAINT-04 | Phase 32 | Pending |
+| MAINT-03 | Phase 32 | Complete |
+| MAINT-04 | Phase 32 | Complete |
 | MAINT-05 | Phase 32 | Complete |
-| MAINT-06 | Phase 32 | Pending |
-| MAINT-07 | Phase 32 | Pending |
+| MAINT-06 | Phase 32 | Complete |
+| MAINT-07 | Phase 32 | Complete |
 | MAINT-08 | Phase 32 | Complete |
 | MAINT-09 | Phase 32 | Pending |
 | HEALTH-01 | Phase 33 | Pending |
