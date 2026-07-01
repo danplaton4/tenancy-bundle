@@ -151,6 +151,6 @@ Plans:
 | 29. Docs Refresh | v0.4 | 3/3 | Complete | 2026-06-18 |
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
-| 32. Maintenance Mode | v0.5 | 4/4 | Complete   | 2026-07-01 |
+| 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
 | 33. Health Checks | v0.5 | 0/TBD | Not started | - |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
