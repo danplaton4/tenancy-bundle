@@ -93,7 +93,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 32-01-PLAN.md — Maintenance state foundation: TenantMaintenanceConfigTrait + TenantInterface::isInMaintenance() + AbstractTenant column, toggle events, MaintenanceModeContractPass (MAINT-05/08, Success Criterion 3)
+- [x] 32-01-PLAN.md — Maintenance state foundation: TenantMaintenanceConfigTrait + TenantInterface::isInMaintenance() + AbstractTenant column, toggle events, MaintenanceModeContractPass (MAINT-05/08, Success Criterion 3)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -103,6 +103,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [ ] 32-04-PLAN.md — DI wiring: maintenance config node + parameters, conditional listener registration @16, command registration + landlord-EM rewire, unconditional contract-pass, priority-16 + no-Doctrine integration tests (MAINT-01/02/03/04/06/07/09)
+
 **UI hint**: yes
 
 ### Phase 33: Health Checks
@@ -150,6 +151,6 @@ Plans:
 | 29. Docs Refresh | v0.4 | 3/3 | Complete | 2026-06-18 |
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
-| 32. Maintenance Mode | v0.5 | 0/TBD | Not started | - |
+| 32. Maintenance Mode | v0.5 | 1/4 | In Progress|  |
 | 33. Health Checks | v0.5 | 0/TBD | Not started | - |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
