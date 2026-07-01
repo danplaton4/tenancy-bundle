@@ -51,6 +51,15 @@ final class SeedStubProviderPass implements CompilerPassInterface
 
         $container->setDefinition('tenancy.provider', $def);
         $container->setAlias(TenantProviderInterface::class, 'tenancy.provider')->setPublic(true);
+
+        // Remove maintenance commands — they reference doctrine.orm.default_entity_manager
+        // which is not registered in this test kernel (Doctrine ORM interface present, but no
+        // Doctrine bundle configured to provide the EM service). Mirrors ReplaceTenancyProviderPass.
+        foreach (['tenancy.command.maintenance.enable', 'tenancy.command.maintenance.disable', 'tenancy.command.maintenance.status'] as $id) {
+            if ($container->hasDefinition($id)) {
+                $container->removeDefinition($id);
+            }
+        }
     }
 }
 
