@@ -77,16 +77,6 @@ final class TenantMaintenanceEnableCommand extends Command
         }
 
         // Real transition: flip the bool and persist.
-        if (!method_exists($tenant, 'setInMaintenance')) {
-            $io->error(sprintf(
-                'Tenant entity "%s" does not implement setInMaintenance(). '
-                .'Use TenantMaintenanceConfigTrait or extend AbstractTenant.',
-                $entityClass
-            ));
-
-            return Command::FAILURE;
-        }
-
         $tenant->setInMaintenance(true);
         $this->landlordEm->flush();
 

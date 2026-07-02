@@ -19,6 +19,8 @@ interface TenantInterface
 
     public function isInMaintenance(): bool;
 
+    public function setInMaintenance(bool $inMaintenance): static;
+
     public function getMailerDsn(): ?string;
 
     public function getMailerFrom(): ?string;

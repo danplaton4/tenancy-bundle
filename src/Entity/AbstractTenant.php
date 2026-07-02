@@ -177,7 +177,7 @@ abstract class AbstractTenant implements TenantInterface
         return $this->inMaintenance;
     }
 
-    public function setInMaintenance(bool $inMaintenance): self
+    public function setInMaintenance(bool $inMaintenance): static
     {
         $this->inMaintenance = $inMaintenance;
 

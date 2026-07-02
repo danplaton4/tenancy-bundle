@@ -76,6 +76,11 @@ final class TenantAwareTransportsDecoratorTest extends TestCase
             {
                 return false;
             }
+
+            public function setInMaintenance(bool $inMaintenance): static
+            {
+                return $this;
+            }
         };
         $tenant->setSlug($slug);
         $tenant->setMailerDsn($dsn);

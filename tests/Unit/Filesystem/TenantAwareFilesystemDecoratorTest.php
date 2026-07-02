@@ -89,6 +89,11 @@ final class TenantAwareFilesystemDecoratorTest extends TestCase
                     return false;
                 }
 
+                public function setInMaintenance(bool $inMaintenance): static
+                {
+                    return $this;
+                }
+
                 public function getMailerDsn(): ?string
                 {
                     return null;
@@ -149,6 +154,11 @@ final class TenantAwareFilesystemDecoratorTest extends TestCase
             public function isInMaintenance(): bool
             {
                 return false;
+            }
+
+            public function setInMaintenance(bool $inMaintenance): static
+            {
+                return $this;
             }
 
             public function getMailerDsn(): ?string

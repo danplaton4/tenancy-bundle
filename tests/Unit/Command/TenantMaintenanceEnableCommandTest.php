@@ -24,10 +24,9 @@ use Tenancy\Bundle\TenantInterface;
  *
  * No kernel boot — all dependencies are mocks. CommandTester drives execute().
  *
- * NOTE on setInMaintenance: this method is NOT on TenantInterface (it lives on
- * AbstractTenant and TenantMaintenanceConfigTrait). The command calls it on the concrete
- * entity returned by the EM repository. Tests use a concrete anonymous stub that has the
- * method, matching what the Doctrine repository returns at runtime.
+ * NOTE on setInMaintenance: this method is now on TenantInterface (added by WR-01 fix).
+ * Tests use a concrete anonymous stub that implements the full interface, matching what
+ * the Doctrine repository returns at runtime.
  */
 final class TenantMaintenanceEnableCommandTest extends TestCase
 {
@@ -59,8 +58,7 @@ final class TenantMaintenanceEnableCommandTest extends TestCase
     }
 
     /**
-     * Creates a concrete stub that has both isInMaintenance() and setInMaintenance().
-     * Concrete classes (not mock) are needed because setInMaintenance() is not on TenantInterface.
+     * Creates a concrete stub implementing TenantInterface (including setInMaintenance()).
      *
      * @param bool $inMaintenance initial maintenance state
      *
