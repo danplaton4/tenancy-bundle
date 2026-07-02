@@ -758,22 +758,21 @@ public function testRedactsMysqlDsn(): void
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Status enum shape for `BootstrapperHealthResult`**
+All three were low-stakes "Claude's Discretion" items (CONTEXT.md §Discretion); each was resolved during Phase-33 planning (`/gsd:plan-phase 33`) and locked into the plan task actions.
+
+1. **Status enum shape for `BootstrapperHealthResult`** — **RESOLVED: enum.**
    - What we know: D-05 locks `pass`/`warn`/`fail` as the aggregate states; the two probes ship this phase emit only `pass`/`fail`; `warn` is carried for future custom checks.
-   - What's unclear: Whether `BootstrapperHealthResult` uses a PHP 8.1 `enum HealthStatus { Pass; Warn; Fail; }` or a string constant. Both are valid; enum is more type-safe.
-   - Recommendation: Use an enum; it's PHP 8.2+ project, aligns with `strict_types` philosophy, and gives PHPStan L9 exhaustiveness checking.
+   - Resolution: `enum HealthStatus: string { case Pass = 'pass'; case Warn = 'warn'; case Fail = 'fail'; }` (backed string enum) — implemented in plan **33-01 T1**. Type-safe, `strict_types`-aligned, PHPStan L9 exhaustiveness.
 
-2. **Fleet endpoint — should slugs be returned or withheld?**
+2. **Fleet endpoint — should slugs be returned or withheld?** — **RESOLVED: include slugs (redacted output).**
    - What we know: CONTEXT.md doesn't lock this; REQUIREMENTS.md HEALTH-06 says "aggregate summary for dashboards."
-   - What's unclear: Whether the fleet response includes tenant slugs (useful for operators) or only counts (safer for public endpoints).
-   - Recommendation: D-02 says fleet has a separate route import. If the operator has imported the fleet route, they've opted in to its information disclosure. Include slugs with redacted output.
+   - Resolution: D-02 makes the fleet route a separate, deliberate operator import (opt-in to its information disclosure), so the fleet response includes tenant slugs; all output still passes through `HealthResponseSanitizer`. Implemented in plan **33-03 T2**.
 
-3. **`TenantHealthCommand --format=json` shape**
+3. **`TenantHealthCommand --format=json` shape** — **RESOLVED: mirror the migrate JSON shape.**
    - What we know: `TenantMigrateCommand --format=json` emits a single aggregate object with `tenants[]`, `summary{}`, per the existing pattern.
-   - What's unclear: Exact field names for health JSON (should it mirror `application/health+json` or the migrate JSON shape?).
-   - Recommendation: Mirror the migrate format for CLI consistency; the IETF shape is for HTTP responses only.
+   - Resolution: `tenancy:health --format=json` mirrors the migrate CLI aggregate shape (single object, `tenants[]` + `summary{}`) for CLI consistency; the IETF `application/health+json` shape is reserved for HTTP responses only. Implemented in plan **33-04 T2**.
 
 ---
 
