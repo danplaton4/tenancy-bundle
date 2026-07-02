@@ -60,16 +60,23 @@ final class MaintenanceModeContractPass implements CompilerPassInterface
         $def = $container->findDefinition(self::LISTENER_SERVICE_ID);
         $tags = $def->getTag('kernel.event_listener');
 
+        $foundRequestTag = false;
+
         foreach ($tags as $tag) {
             if (($tag['event'] ?? '') !== KernelEvents::REQUEST) {
                 continue;
             }
 
+            $foundRequestTag = true;
             $priority = (int) ($tag['priority'] ?? 0);
 
             if ($priority >= TenantContextOrchestrator::PRIORITY) {
                 throw new \LogicException(sprintf('tenancy: TenantMaintenanceModeListener must be registered at a kernel.request priority strictly lower than TenantContextOrchestrator::PRIORITY (%d) so the tenant is already resolved when maintenance is checked. Got priority %d. Set the listener priority to %d or lower (recommended: %d).', TenantContextOrchestrator::PRIORITY, $priority, TenantContextOrchestrator::PRIORITY - 1, 16/* TenantMaintenanceModeListener::PRIORITY — registered in plan 32-02 */));
             }
+        }
+
+        if (!$foundRequestTag) {
+            throw new \LogicException(sprintf('tenancy: maintenance.enabled is true but service "%s" has no kernel.event_listener tag for kernel.request. Ensure autoconfigure is enabled on the listener service.', self::LISTENER_SERVICE_ID));
         }
     }
 }
