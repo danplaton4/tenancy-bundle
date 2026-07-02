@@ -187,4 +187,23 @@ final class TenantMaintenanceStatusCommandTest extends TestCase
         $tester = new CommandTester($command);
         $tester->execute([]);
     }
+
+    // -----------------------------------------------------------------------
+    // --format validation: unknown values yield FAILURE (IN-01)
+    // -----------------------------------------------------------------------
+
+    public function testInvalidFormatReturnsFailure(): void
+    {
+        // findAll() must never be called — validation fires before it
+        $this->tenantProvider
+            ->expects($this->never())
+            ->method('findAll');
+
+        $command = $this->makeCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute(['--format' => 'csv']);
+
+        $this->assertSame(Command::FAILURE, $exitCode);
+        $this->assertStringContainsString('csv', $tester->getDisplay());
+    }
 }

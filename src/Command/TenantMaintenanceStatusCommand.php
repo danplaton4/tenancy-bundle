@@ -62,6 +62,12 @@ final class TenantMaintenanceStatusCommand extends Command
         $formatRaw = $input->getOption('format');
         $format = \is_string($formatRaw) ? $formatRaw : 'txt';
 
+        if (!\in_array($format, ['txt', 'json'], true)) {
+            $io->error(sprintf('Unknown format "%s". Use "txt" or "json".', $format));
+
+            return Command::FAILURE;
+        }
+
         // findAll() bypasses the PSR cache — safe for status (DoctrineTenantProvider:58-75).
         $allTenants = $this->tenantProvider->findAll();
 
