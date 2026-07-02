@@ -21,11 +21,21 @@ files_reviewed_list:
   - tests/Unit/Command/TenantMaintenanceDisableCommandTest.php
 findings:
   critical: 0
-  warning: 4
+  warning: 0
   info: 2
-  total: 6
+  total: 2
+warnings_resolved: 4
 status: issues_found
+resolution: "WR-01..04 fixed 2026-07-02 (commits 69d8c6b, e5c83ae, 386b560) — see 32-REVIEW-FIX.md. IN-01/IN-02 out of scope (info-only, no --all)."
 ---
+
+> **Resolution (2026-07-02):** All 4 warnings resolved via `/gsd:code-review 32 --fix`.
+> - **WR-01 + WR-04** — `setInMaintenance(): static` added to `TenantInterface`; `method_exists()` guard removed from both commands; return types normalized to `static` across all implementers (commit `69d8c6b`). WR-04 closed-by-removal.
+> - **WR-02** — `MaintenanceModeContractPass` now throws when no `kernel.request` tag is found (commit `e5c83ae`).
+> - **WR-03** — dead `$listeners` variable removed (commit `386b560`).
+>
+> Gates re-verified on a clean cache: PHPUnit 854/854, PHPStan L9 clean, cs-fixer clean. See `32-REVIEW-FIX.md`.
+> The two **Info** items below (IN-01, IN-02) were out of scope for this `--fix` run (no `--all`) and remain as advisory notes.
 
 # Phase 32: Code Review Report
 
