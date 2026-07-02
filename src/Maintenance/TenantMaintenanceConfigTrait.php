@@ -15,8 +15,10 @@ use Doctrine\ORM\Mapping as ORM;
  * {@see \Tenancy\Bundle\Entity\AbstractTenant} inlines the same column for the
  * out-of-the-box experience.
  *
- * The #[ORM\Column] attribute is only honored when doctrine/orm is installed;
- * with Doctrine absent the trait still works as plain PHP property storage.
+ * The #[ORM\Column] attribute is only resolved by Doctrine when it scans mappings via the
+ * Reflection API. PHP does not autoload the Doctrine\ORM\Mapping namespace at class-load
+ * time — the `use ... as ORM` alias is a compile-time rename with no runtime cost.
+ * With Doctrine absent the trait works as plain PHP property storage.
  *
  * Do NOT use with {@see \Tenancy\Bundle\Entity\AbstractTenant}, which
  * already inlines `$inMaintenance`. Using both in the same entity will cause
