@@ -64,8 +64,6 @@ final class ListenerPriorityTest extends TestCase
         /** @var \Symfony\Component\EventDispatcher\EventDispatcherInterface $dispatcher */
         $dispatcher = static::$kernel->getContainer()->get('event_dispatcher');
 
-        $listeners = $dispatcher->getListeners(KernelEvents::REQUEST);
-
         $found = false;
         $foundPriority = null;
 
