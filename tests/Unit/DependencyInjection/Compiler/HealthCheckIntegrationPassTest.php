@@ -7,6 +7,7 @@ namespace Tenancy\Bundle\Tests\Unit\DependencyInjection\Compiler;
 use Laminas\Diagnostics\Check\CheckInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Tenancy\Bundle\DependencyInjection\Compiler\HealthCheckIntegrationPass;
 use Tenancy\Bundle\Health\Liip\TenantConnectivityCheck;
 
@@ -22,15 +23,29 @@ use Tenancy\Bundle\Health\Liip\TenantConnectivityCheck;
  *    that already lacks the interface — documented as the no-liip lane direction; the
  *    HealthChecksNoLiipTest integration test covers the full container-compilation path).
  * 5. The pass does not throw when run on an empty container (robustness).
+ * 6. CR-03: liip present + `tenancy.provider` absent → pass is a no-op (the check is
+ *    meaningless without a provider, and referencing a missing service would break
+ *    container compilation in the no-Doctrine lane).
  *
  * IMPLEMENTATION NOTE: liip/monitor-bundle IS installed (added in plan 33-05 Task 1)
  * so the positive path (liip present → check registered) is always exercised in this test.
  * The no-liip lane (liip absent → pass is no-op, endpoints still work) is covered by the
- * HealthChecksNoLiipTest integration test.
+ * HealthChecksNoLiipTest integration test. Because the pass now also guards on
+ * `tenancy.provider` (CR-03), positive-path tests must register that service first.
  */
 final class HealthCheckIntegrationPassTest extends TestCase
 {
     private const LIIP_TAG = 'liip_monitor.check';
+
+    /**
+     * Registers a stub `tenancy.provider` definition so the CR-03 provider guard is
+     * satisfied. The pass only checks for the definition's existence during process()
+     * (it does not resolve the reference), so any class suffices.
+     */
+    private function registerProvider(ContainerBuilder $container): void
+    {
+        $container->setDefinition('tenancy.provider', new Definition(\stdClass::class));
+    }
 
     /**
      * When Laminas CheckInterface is present (liip installed), the pass registers
@@ -44,6 +59,7 @@ final class HealthCheckIntegrationPassTest extends TestCase
         }
 
         $container = new ContainerBuilder();
+        $this->registerProvider($container);
 
         $pass = new HealthCheckIntegrationPass();
         $pass->process($container);
@@ -66,6 +82,7 @@ final class HealthCheckIntegrationPassTest extends TestCase
         }
 
         $container = new ContainerBuilder();
+        $this->registerProvider($container);
 
         $pass = new HealthCheckIntegrationPass();
         $pass->process($container);
@@ -95,6 +112,7 @@ final class HealthCheckIntegrationPassTest extends TestCase
         }
 
         $container = new ContainerBuilder();
+        $this->registerProvider($container);
 
         $pass = new HealthCheckIntegrationPass();
         $pass->process($container);
@@ -124,13 +142,64 @@ final class HealthCheckIntegrationPassTest extends TestCase
 
         $pass = new HealthCheckIntegrationPass();
 
-        // Must not throw — the guard handles the liip-absent case.
+        // Must not throw — the guards handle both the liip-absent and provider-absent cases.
         $pass->process($container);
 
-        // When liip is installed: at least one service is registered.
-        // When liip is absent: container is unchanged (no-op).
+        // On an EMPTY container, `tenancy.provider` is absent, so the CR-03 guard makes
+        // the pass a no-op even when liip is installed — no service is registered.
+        // When liip is absent: container is unchanged (no-op) as well.
         // Either way, no exception means the pass is safe to register unconditionally.
-        $this->assertTrue(true, 'Pass must not throw on an empty container.');
+        $this->assertEmpty(
+            $container->findTaggedServiceIds(self::LIIP_TAG),
+            'With no tenancy.provider defined, the pass must register nothing (CR-03 guard).',
+        );
+    }
+
+    /**
+     * CR-03: when liip is present but `tenancy.provider` is NOT defined (the no-Doctrine
+     * lane), the pass must NOT register the check — referencing a missing service would
+     * throw ServiceNotFoundException at compile time, violating the optional-Doctrine
+     * invariant.
+     */
+    public function testDoesNotRegisterWhenProviderAbsent(): void
+    {
+        if (!interface_exists(CheckInterface::class)) {
+            $this->markTestSkipped('liip/monitor-bundle not installed — CR-03 guard only matters when liip is present.');
+        }
+
+        $container = new ContainerBuilder();
+        // Deliberately do NOT register tenancy.provider (simulates no-Doctrine app).
+
+        $pass = new HealthCheckIntegrationPass();
+        $pass->process($container);
+
+        $this->assertEmpty(
+            $container->findTaggedServiceIds(self::LIIP_TAG),
+            'liip-present + provider-absent must not register a check (CR-03).',
+        );
+    }
+
+    /**
+     * CR-03: an aliased `tenancy.provider` also satisfies the guard, so the check is
+     * registered when the provider is exposed as an alias rather than a definition.
+     */
+    public function testRegistersWhenProviderIsAlias(): void
+    {
+        if (!interface_exists(CheckInterface::class)) {
+            $this->markTestSkipped('liip/monitor-bundle not installed.');
+        }
+
+        $container = new ContainerBuilder();
+        $container->setDefinition('some.concrete.provider', new Definition(\stdClass::class));
+        $container->setAlias('tenancy.provider', 'some.concrete.provider');
+
+        $pass = new HealthCheckIntegrationPass();
+        $pass->process($container);
+
+        $this->assertNotEmpty(
+            $container->findTaggedServiceIds(self::LIIP_TAG),
+            'An aliased tenancy.provider must satisfy the CR-03 guard.',
+        );
     }
 
     /**

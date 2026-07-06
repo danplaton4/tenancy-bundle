@@ -23,7 +23,15 @@ use Tenancy\Bundle\Health\Liip\TenantConnectivityCheck;
  * The self-contained HTTP endpoints and CLI command continue to work without
  * any liip_monitor.check service present (HEALTH-07 absence direction).
  *
- * When the guard passes (liip present):
+ * A second guard (CR-01/CR-03) requires `tenancy.provider` to exist before
+ * registering the check. That service is registered only when Doctrine ORM is
+ * present (config/services.php, guarded by interface_exists(EntityManagerInterface)).
+ * Without this guard, the liip-present + Doctrine-absent matrix cell would compile
+ * a check referencing a non-existent service and throw ServiceNotFoundException at
+ * compile time — violating the project's optional-Doctrine invariant. A
+ * TenantConnectivityCheck is meaningless without a provider anyway.
+ *
+ * When both guards pass (liip present AND provider wired):
  *  - Registers {@see TenantConnectivityCheck} with its three service references
  *  - Tags the service with 'liip_monitor.check' for auto-discovery by the liip runner
  *
@@ -52,6 +60,14 @@ final class HealthCheckIntegrationPass implements CompilerPassInterface
         // Laminas\Diagnostics\Check\CheckInterface is always present iff liip is installed
         // (it is a hard transitive dependency). More robust than checking the bundle FQCN.
         if (!interface_exists(\Laminas\Diagnostics\Check\CheckInterface::class)) {
+            return;
+        }
+
+        // CR-03: the provider service exists only when Doctrine ORM is installed.
+        // Registering a check that references a missing service breaks container
+        // compilation in the liip-present + Doctrine-absent lane. Skip cleanly —
+        // the check has no meaning without a tenant provider.
+        if (!$container->hasDefinition('tenancy.provider') && !$container->hasAlias('tenancy.provider')) {
             return;
         }
 
