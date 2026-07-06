@@ -84,6 +84,10 @@ nav:
     - Testing: user-guide/testing.md
     - Strict Mode: user-guide/strict-mode.md
     - PHPStan Extension: user-guide/phpstan-extension.md
+  - Operations:
+    - Parallel Migrations: ops/parallel-migrations.md
+    - Maintenance Mode: ops/maintenance-mode.md
+    - Health Checks: ops/health-checks.md
   - Examples:
     - SaaS Subdomain: examples/saas-subdomain.md
     - API Header: examples/api-header.md
