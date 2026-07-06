@@ -19,8 +19,8 @@ tests/
         └── Support/
 ```
 
-The project maintains a **1.7:1 test-to-source file ratio** (68 test files to 40 source
-files). When adding a new source class, add proportional tests.
+The project maintains a **roughly 2:1 test-to-source file ratio** (233 test files to 115 source
+files as of v0.5). When adding a new source class, add proportional tests.
 
 **Unit tests** (`tests/Unit/`):
 

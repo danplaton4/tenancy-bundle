@@ -34,7 +34,7 @@ JSON output shape, and a runbook for safely running parallel migrations during a
 | Flag | Type | Default | Effect |
 |------|------|---------|--------|
 | `--parallel` | flag (no value) | off | Enables the bounded subprocess pool. Without this flag, migrations run sequentially (v0.4 behavior). |
-| `--concurrency` | `=N` | `4` | Maximum number of concurrent subprocesses. Clamped to the range `[1, 32]`; values above 32 are silently reduced to 32 with a console notice. |
+| `--concurrency` | `=N` | `4` | Maximum number of concurrent subprocesses. Values `< 1` (or non-numeric) fail with exit code `INVALID`. Values `> 32` are reduced to 32 and a console notice is printed. |
 | `--dry-run` | flag (no value) | off | Computes the migration plan without applying it. Works in both sequential and parallel mode. |
 | `--format` | `=txt\|json` | `txt` | Output format. `txt` prints human-readable per-tenant output. `json` suppresses all human output and writes only the JSON document to stdout — suitable for CI pipelines. |
 | `--tenant` | `=slug` | (all) | Run for a single tenant only. Combining `--parallel --tenant=<slug>` is valid but spawns no pool (one tenant = no parallelism). |
@@ -64,7 +64,7 @@ JSON output shape, and a runbook for safely running parallel migrations during a
 Running `tenancy:migrate --parallel` when the active driver is `shared_db` is rejected immediately:
 
 ```
-[ERROR] parallel migration is not supported under the shared_db driver
+tenancy:migrate is only available with the database_per_tenant driver. Parallel migration is not supported under the shared_db driver.
 ```
 
 The command returns `Command::FAILURE` before any subprocess is spawned. This guard exists because
@@ -125,8 +125,12 @@ subprocesses complete:
 }
 ```
 
-The `error` field is present only on failed tenants. DSN credentials appearing in error messages are
-redacted by `HealthResponseSanitizer` before the wire.
+The `error` field is present only on failed tenants. It contains the last non-empty output line
+from the migration subprocess, with HTML tags stripped and UTF-8 scrubbed — but **no credential
+redaction is performed**. The migrate path does not use `HealthResponseSanitizer`. If the
+subprocess fails with a database connection error, the raw DSN (including host and credentials)
+may appear in the `error` field. Treat migration JSON output as sensitive — scrub it before
+persisting to logs or dashboards.
 
 ---
 

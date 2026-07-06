@@ -45,7 +45,9 @@ The `isInMaintenance()` method is defined on `TenantInterface` and backed by a D
     # config/packages/tenancy.yaml
     tenancy:
         maintenance:
+            enabled: true           # REQUIRED — the listener is not registered unless this is true
             retry_after: 3600       # seconds; sent as Retry-After header (default: 3600)
+            template: null          # optional Twig template path for the 503 HTML response
             allow_ips: []           # IP addresses or CIDR ranges that bypass 503
             allow_routes: []        # exact Symfony _route names that bypass 503
             allow_paths: []         # URL path prefixes that bypass 503 (str_starts_with)
@@ -57,6 +59,7 @@ The `isInMaintenance()` method is defined on `TenantInterface` and backed by a D
     // config/packages/tenancy.php
     return static function (Tenancy\Bundle\TenancyBundle $tenancy): void {
         $tenancy->maintenance()
+            ->enabled(true)         // REQUIRED — the listener is not registered unless this is true
             ->retryAfter(3600)
             ->allowIps(['203.0.113.0/24'])
             ->allowRoutes(['tenancy_health_live', 'tenancy_health_ready'])
@@ -82,6 +85,7 @@ The allow-list performs three OR'd checks. If any one passes, the request is ser
     ```yaml
     tenancy:
         maintenance:
+            enabled: true           # REQUIRED — omitting this leaves the listener unwired
             allow_paths:
                 - '/_tenancy/health'
     ```

@@ -95,17 +95,44 @@ Completes in under 1ms.
 **Readiness (`/_tenancy/health/ready/{slug}`):**
 
 ```json
-{"status": "pass", "slug": "acme", "durationMs": 12}
+{
+  "status": "pass",
+  "checks": {
+    "tenancy:db:acme": [
+      {
+        "componentId": "Tenancy\\Bundle\\Health\\Check\\DbPingCheck",
+        "componentType": "datastore",
+        "status": "pass",
+        "time": "2026-07-06T12:00:00+00:00"
+      }
+    ]
+  }
+}
 ```
 
-On 503 (known-but-unhealthy or inactive):
+On 503 (known-but-unhealthy):
 
 ```json
-{"status": "fail", "slug": "acme", "error": "REDACTED"}
+{
+  "status": "fail",
+  "checks": {
+    "tenancy:db:acme": [
+      {
+        "componentId": "Tenancy\\Bundle\\Health\\Check\\DbPingCheck",
+        "componentType": "datastore",
+        "status": "fail",
+        "time": "2026-07-06T12:00:00+00:00",
+        "output": "REDACTED"
+      }
+    ]
+  },
+  "output": "REDACTED"
+}
 ```
 
-DSN credentials are always redacted by `HealthResponseSanitizer` before the wire — never show raw
-connection strings in expected output.
+The body follows the IETF `application/health+json` shape. There is no `slug`, `durationMs`, or
+`error` key at the top level — failures surface as `output` (redacted by `HealthResponseSanitizer`
+before the wire) in the per-check `checks` entry and optionally as a top-level `output` summary.
 
 ---
 
@@ -209,12 +236,16 @@ not a scheduled job.
 ```json
 {
   "tenants": [
-    {"slug": "acme", "status": "pass", "durationMs": 8},
-    {"slug": "broken-tenant", "status": "fail", "error": "REDACTED"}
+    {"slug": "acme", "status": "pass"},
+    {"slug": "broken-tenant", "status": "fail", "output": "REDACTED"}
   ],
-  "summary": {"pass": 1, "fail": 1, "total": 2}
+  "summary": {"pass": 1, "warn": 0, "fail": 1, "total": 2}
 }
 ```
+
+The per-tenant entry contains `slug` and `status` always. The `output` key is present only for
+non-pass tenants (warn or fail), and is always redacted by `HealthResponseSanitizer`. There is
+no `durationMs` key. The summary always includes `warn` alongside `pass`, `fail`, and `total`.
 
 ---
 
@@ -237,7 +268,7 @@ Default `limit` is 50; hard maximum is approximately 200. Response shape:
   "summary": {"pass": 48, "warn": 1, "fail": 1},
   "tenants": [
     {"slug": "acme", "status": "pass"},
-    {"slug": "demo", "status": "warn", "notes": "REDACTED"}
+    {"slug": "demo", "status": "warn", "output": "REDACTED"}
   ]
 }
 ```
