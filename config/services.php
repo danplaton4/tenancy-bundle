@@ -38,6 +38,8 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Command\TenantMaintenanceDisableCommand;
 use Tenancy\Bundle\Command\TenantMaintenanceEnableCommand;
 use Tenancy\Bundle\Command\TenantMaintenanceStatusCommand;
+use Tenancy\Bundle\Health\HealthResponseSanitizer;
+use Tenancy\Bundle\Health\TenantHealthChecker;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
@@ -271,6 +273,20 @@ return function (ContainerConfigurator $container): void {
             ->args([service('tenancy.filesystem.lru_cache')])
             ->autoconfigure(true);
     }
+
+    // Health check services — always registered (no optional-dependency guard).
+    // TenantHealthChecker is the core probe orchestrator: set→probe→clear-in-finally.
+    // HealthResponseSanitizer redacts DSN credentials before any health response (HEALTH-04).
+    // Neither class imports EntityManagerInterface directly — no-Doctrine lane stays green (Pitfall 4).
+    $services->set('tenancy.health.checker', TenantHealthChecker::class)
+        ->args([
+            service('tenancy.context'),
+            service('tenancy.bootstrapper_chain'),
+        ]);
+    $services->alias(TenantHealthChecker::class, 'tenancy.health.checker');
+
+    $services->set('tenancy.health.sanitizer', HealthResponseSanitizer::class);
+    $services->alias(HealthResponseSanitizer::class, 'tenancy.health.sanitizer');
 
     // Maintenance CLI commands — require Doctrine ORM (landlord EM for write operations).
     // The status command uses TenantProviderInterface::findAll() (nullOnInvalid for no-Doctrine lane).
