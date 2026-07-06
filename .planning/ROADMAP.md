@@ -156,7 +156,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 34-01-PLAN.md — Three docs/ops/*.md pages (parallel-migrations, maintenance-mode, health-checks incl. k8s probe YAML + CDN warning) + Operations mkdocs nav group (DOC-21)
+- [x] 34-01-PLAN.md — Three docs/ops/*.md pages (parallel-migrations, maintenance-mode, health-checks incl. k8s probe YAML + CDN warning) + Operations mkdocs nav group (DOC-21)
 - [ ] 34-03-PLAN.md — DEMO-02 examples/saas config.platform.php=8.2.99 pin + composer.lock regen (no >=8.4 deps); smoke.sh green on 8.2 via CI checkpoint (DEMO-02)
 - [ ] 34-04-PLAN.md — GOV-02 Nyquist advisory-only policy note in contributor-guide + Phase 31 VALIDATION.md backfill (GOV-02)
 - [ ] 34-05-PLAN.md — QA-01 regression tests: resync confirm-YES branch + PHPStan extension-installer auto-load contract (QA-01)
@@ -181,4 +181,4 @@ Plans:
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
 | 33. Health Checks | v0.5 | 5/5 | Complete    | 2026-07-06 |
-| 34. Ops Docs & Carry-Forward | v0.5 | 0/5 | Planned | - |
+| 34. Ops Docs & Carry-Forward | v0.5 | 1/5 | In Progress|  |

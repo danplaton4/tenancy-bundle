@@ -42,7 +42,7 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 
 ### Documentation  (epic DOC-21)
 
-- [ ] **DOC-21**: New `docs/ops/` section — maintenance-mode, health-checks, and parallel-migrations pages (incl. k8s liveness/readiness probe YAML, the CDN 5xx-caching warning, and re-run-on-failure guidance), an UPGRADE 0.4→0.5 section (covering the `TenantInterface::isInMaintenance()` BC break + trait mitigation), mkdocs nav entries, and a `docs-lint.sh` guard for the new terms.
+- [x] **DOC-21**: New `docs/ops/` section — maintenance-mode, health-checks, and parallel-migrations pages (incl. k8s liveness/readiness probe YAML, the CDN 5xx-caching warning, and re-run-on-failure guidance), an UPGRADE 0.4→0.5 section (covering the `TenantInterface::isInMaintenance()` BC break + trait mitigation), mkdocs nav entries, and a `docs-lint.sh` guard for the new terms.
 
 ### Carry-forward / Hardening  (v0.4 debt folded into v0.5)
 
@@ -103,7 +103,7 @@ Explicitly excluded for v0.5, with reasoning.
 | HEALTH-05 | Phase 33 | Complete |
 | HEALTH-06 | Phase 33 | Complete |
 | HEALTH-07 | Phase 33 | Complete |
-| DOC-21 | Phase 34 | Pending |
+| DOC-21 | Phase 34 | Complete |
 | DEMO-02 | Phase 34 | Pending |
 | GOV-02 | Phase 34 | Pending |
 | QA-01 | Phase 34 | Pending |
