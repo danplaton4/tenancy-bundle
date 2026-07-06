@@ -152,7 +152,18 @@ Plans:
   4. A written Nyquist `VALIDATION.md` enforcement policy for v0.5 phases is in place — either enforcing per-phase coverage as a gate or documenting the discovery-only stance explicitly
   5. Both v0.4 `human_needed` UAT items (Phase 26 `tenancy:shared:resync` TTY confirm, Phase 28 PHPStan extension-installer auto-load) are closed — each converted to a code-level testability seam or a documented manual-exercise protocol
 
-**Plans**: TBD
+**Plans**: 5 plans (2 waves)
+Plans:
+**Wave 1**
+
+- [ ] 34-01-PLAN.md — Three docs/ops/*.md pages (parallel-migrations, maintenance-mode, health-checks incl. k8s probe YAML + CDN warning) + Operations mkdocs nav group (DOC-21)
+- [ ] 34-03-PLAN.md — DEMO-02 examples/saas config.platform.php=8.2.99 pin + composer.lock regen (no >=8.4 deps); smoke.sh green on 8.2 via CI checkpoint (DEMO-02)
+- [ ] 34-04-PLAN.md — GOV-02 Nyquist advisory-only policy note in contributor-guide + Phase 31 VALIDATION.md backfill (GOV-02)
+- [ ] 34-05-PLAN.md — QA-01 regression tests: resync confirm-YES branch + PHPStan extension-installer auto-load contract (QA-01)
+
+**Wave 2** *(blocked on 34-01)*
+
+- [ ] 34-02-PLAN.md — DOC-21 docs-lint.sh ops-terms negative guard + UPGRADE.md 0.4→0.5 BC-break section (DOC-21)
 
 ## Progress
 
@@ -170,4 +181,4 @@ Plans:
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
 | 33. Health Checks | v0.5 | 5/5 | Complete    | 2026-07-06 |
-| 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
+| 34. Ops Docs & Carry-Forward | v0.5 | 0/5 | Planned | - |
