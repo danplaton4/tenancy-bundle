@@ -50,6 +50,7 @@ OPS_TARGETS=(docs/)
 check 'tenancy:maintenance:activated'   "Wrong command name (use tenancy:maintenance:enable)" "${OPS_TARGETS[@]}"
 check 'tenancy:maintenance:deactivated' "Wrong command name (use tenancy:maintenance:disable)" "${OPS_TARGETS[@]}"
 check 'health/liveness'                 "Wrong endpoint path segment (use /_tenancy/health/live, not health/liveness)" "${OPS_TARGETS[@]}"
+check 'health/readiness'                "Wrong endpoint path segment (use /_tenancy/health/ready/{slug}, not health/readiness)" "${OPS_TARGETS[@]}"
 check 'cache_control_no_store'          "Underscore form (use Cache-Control: no-store header name, not cache_control_no_store)" "${OPS_TARGETS[@]}"
 
 # D-15: fail on bundles.php install-path references in docs/
@@ -81,7 +82,7 @@ check 'cache_control_no_store'          "Underscore form (use Cache-Control: no-
 # are skipped before the grep stage. Heading lines themselves never reach the grep (the `next`
 # after the section detection ensures this).
 
-BUNDLES_VIOLATIONS=$(awk '
+BUNDLES_VIOLATIONS=$(find docs/ -name '*.md' -print0 | xargs -0 awk '
     FNR==1 { in_whitelist=0 }
     /^## / {
         section = $0
@@ -90,7 +91,7 @@ BUNDLES_VIOLATIONS=$(awk '
         next
     }
     !in_whitelist { print FILENAME ":" FNR ":" $0 }
-' $(find docs/ -name '*.md') | grep -E 'bundles\.php' || true)
+' | grep -E 'bundles\.php' || true)
 
 if [ -n "$BUNDLES_VIOLATIONS" ]; then
     echo ""
