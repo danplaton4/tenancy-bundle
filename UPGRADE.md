@@ -1,5 +1,83 @@
 # Upgrade Guide
 
+## 0.4 to 0.5
+
+Phase 32 introduces per-tenant maintenance mode. The contract change is a
+**BC break** on `TenantInterface`: one new required method is added.
+Two migration paths are documented below, or no action if you do not use
+maintenance mode.
+
+### TenantInterface — one new method (BC break)
+
+Any class previously implementing `TenantInterface` (a custom Tenant entity,
+a test stub, anything that holds tenant identity) must declare one new method
+or PHP will fail at autoload time with
+`must implement method isInMaintenance`:
+
+```php
+public function isInMaintenance(): bool;
+```
+
+The method controls whether the tenant is currently in maintenance mode. The
+bundle's own `Tenancy\Bundle\Entity\Tenant` ships with this method pre-configured
+via `TenantMaintenanceConfigTrait`. User-land tenants must opt in via one of the
+following migration paths.
+
+### Migration path A: use TenantMaintenanceConfigTrait (recommended)
+
+The bundle ships a drop-in trait that adds the `isInMaintenance()` method, a
+`bool $inMaintenance = false` property, and the `in_maintenance` Doctrine column
+at once:
+
+```php
+use Tenancy\Bundle\Maintenance\TenantMaintenanceConfigTrait;
+
+class Tenant implements TenantInterface
+{
+    use TenantMaintenanceConfigTrait; // satisfies isInMaintenance() + adds in_maintenance column
+
+    // ... your existing properties and methods ...
+}
+```
+
+The trait declares `#[ORM\Column(type: 'boolean', options: ['default' => false])]`
+on the `$inMaintenance` property and provides `isInMaintenance(): bool` returning
+its value (default `false`). Running `bin/console doctrine:migrations:diff` after
+adding the trait will generate a migration adding the `in_maintenance` column to
+your tenants table.
+
+> **Note (Doctrine optional):** The `#[ORM\Column]` mapping inside the trait only
+> takes effect when Doctrine ORM is present. If you do not use Doctrine, add the
+> trait and implement any necessary persistence logic yourself — the method contract
+> is all the bundle requires at runtime.
+
+### Migration path B: manual implementation
+
+If you want a different column name or storage strategy, implement the method by
+hand:
+
+```php
+public function isInMaintenance(): bool
+{
+    return false; // or: return $this->inMaintenance;
+}
+```
+
+A minimal `return false` implementation is all that is needed if you do not intend
+to use the maintenance mode feature at all.
+
+#### No action required if you do not use maintenance mode
+
+`TenantMaintenanceConfigTrait` returns `false` from `isInMaintenance()` by default.
+Any class that returns `false` from this method — whether via the trait or via a
+manual stub — is fully compatible with v0.5. There is no behaviour change for
+tenants that are not put into maintenance mode.
+
+For full configuration details, allow-list setup, and the maintenance commands
+(`tenancy:maintenance:enable`, `tenancy:maintenance:disable`,
+`tenancy:maintenance:status`), see
+[docs/ops/maintenance-mode.md](docs/ops/maintenance-mode.md).
+
 ## 0.4.0 to 0.4.1
 
 **No action required.** 0.4.1 is a release-integrity patch — it folds the
