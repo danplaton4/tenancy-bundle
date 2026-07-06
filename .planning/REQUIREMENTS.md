@@ -46,7 +46,7 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 
 ### Carry-forward / Hardening  (v0.4 debt folded into v0.5)
 
-- [ ] **DEMO-02**: Reconcile the `examples/saas` `Dockerfile` ↔ `composer.lock` PHP-version drift (open since v0.3) so `bin/smoke.sh` is green on a single coherent PHP version.
+- [x] **DEMO-02**: Reconcile the `examples/saas` `Dockerfile` ↔ `composer.lock` PHP-version drift (open since v0.3) so `bin/smoke.sh` is green on a single coherent PHP version.
 - [x] **GOV-02**: Decide and apply a Nyquist `VALIDATION.md` enforcement policy for v0.5 phases — either enforce per-phase coverage as a gate, or document the discovery-only stance explicitly.
 - [x] **QA-01**: Close the 2 `human_needed` UAT items (Phase 26 `tenancy:shared:resync` TTY confirm, Phase 28 PHPStan extension-installer auto-load) — convert each to a code-level testability seam or a documented manual-exercise protocol.
 
@@ -104,7 +104,7 @@ Explicitly excluded for v0.5, with reasoning.
 | HEALTH-06 | Phase 33 | Complete |
 | HEALTH-07 | Phase 33 | Complete |
 | DOC-21 | Phase 34 | Complete |
-| DEMO-02 | Phase 34 | Pending |
+| DEMO-02 | Phase 34 | Complete |
 | GOV-02 | Phase 34 | Complete |
 | QA-01 | Phase 34 | Complete |
 
