@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Operations & Scale
 status: executing
-stopped_at: Completed 34-04-PLAN.md
-last_updated: "2026-07-06T18:42:51.425Z"
+stopped_at: Completed 34-05-PLAN.md
+last_updated: "2026-07-06T18:48:04.944Z"
 last_activity: 2026-07-06
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 14
   percent: 75
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-25)
 ## Current Position
 
 Phase: 34 (ops-docs-carry-forward) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-06
 
@@ -63,6 +63,7 @@ Plus 5 Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) noted in `v
 | 34. Ops Docs & Carry-Forward | TBD | Not started |
 | Phase 32 P02 | 5 | 2 tasks | 2 files |
 | Phase 33 P01 | 5m | 3 tasks | 8 files |
+| Phase 34 P05 | 2 | - tasks | - files |
 
 ## Accumulated Context
 
@@ -83,8 +84,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T18:42:51.420Z
-Stopped at: Completed 34-04-PLAN.md
+Last session: 2026-07-06T18:48:04.940Z
+Stopped at: Completed 34-05-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -94,3 +95,5 @@ Resume file: None
 - [Phase ?]: HealthCheckBootstrapperInterface is a sibling NOT a subtype of TenantBootstrapperInterface — opt-in, zero BC break (plan 33-01 HEALTH-03)
 - [Phase ?]: HealthResponseSanitizer delegates to DsnSanitizer::REDACTION_REGEX — single source of truth, WR-07 tightening inherited (plan 33-01 HEALTH-04)
 - [Phase ?]: D-08/D-09/D-10 (Plan 34-04): Nyquist VALIDATION.md is advisory-only; live green PHPUnit suite is the real phase gate; policy documented in docs/contributor-guide/test-infrastructure.md; Phase 31 backfill added for v0.5 set uniformity
+- [Phase ?]: QA-01 Phase 26 closed: setInputs(['yes']) string token for TTY confirm-gate coverage in SharedEntityResyncCommandTest
+- [Phase ?]: QA-01 Phase 28 closed: Option A metadata contract (plain string-contains on neon file, no live PHPStan invocation) in ExtensionInstallerContractTest
