@@ -1,9 +1,10 @@
 ---
 phase: 34-ops-docs-carry-forward
 verified: 2026-07-06T00:00:00Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 overrides_applied: 0
+human_verification_resolved: "DEMO-02 smoke test executed live during phase execution (2026-07-06) — examples/saas built + ran on FrankenPHP PHP 8.2.32 with the regenerated lock; bin/smoke.sh exit 0 (all assertions green). Recorded in 34-HUMAN-UAT.md (status: resolved). User approved phase finalization."
 human_verification:
   - test: "Run the demo-smoke CI job (or local docker smoke) after the phase commit lands"
     expected: "The demo-smoke GitHub Actions job completes green on PHP 8.2 — the 'Install demo deps (composer)' step succeeds against the regenerated lock, FrankenPHP container boots, and bin/smoke.sh assertions pass and exit 0"

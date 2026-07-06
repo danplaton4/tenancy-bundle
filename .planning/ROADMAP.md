@@ -181,4 +181,4 @@ Plans:
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
 | 33. Health Checks | v0.5 | 5/5 | Complete    | 2026-07-06 |
-| 34. Ops Docs & Carry-Forward | v0.5 | 5/5 | Complete   | 2026-07-06 |
+| 34. Ops Docs & Carry-Forward | v0.5 | 5/5 | Complete    | 2026-07-06 |
