@@ -23,7 +23,7 @@ use Tenancy\Bundle\TenantInterface;
  * @see BootstrapperChain::healthCheck()   The probe dispatch method (never boot())
  * @see HealthCheckBootstrapperInterface   The opt-in probe interface
  */
-final class TenantHealthChecker
+final class TenantHealthChecker implements TenantHealthCheckerInterface
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
