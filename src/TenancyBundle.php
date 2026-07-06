@@ -24,6 +24,7 @@ use Tenancy\Bundle\DBAL\TenantDriverMiddleware;
 use Tenancy\Bundle\DependencyInjection\Compiler\BootstrapperChainPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\CacheDecoratorContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\FilesystemContractPass;
+use Tenancy\Bundle\DependencyInjection\Compiler\HealthCheckIntegrationPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MailerTransportContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MaintenanceModeContractPass;
 use Tenancy\Bundle\DependencyInjection\Compiler\MessengerMiddlewarePass;
@@ -475,6 +476,10 @@ class TenancyBundle extends AbstractBundle
         // MaintenanceModeContractPass: no optional library dep — always register.
         // Validates that the maintenance listener (when registered) has priority < 20.
         $container->addCompilerPass(new MaintenanceModeContractPass());
+        // HealthCheckIntegrationPass: self-guards via interface_exists(CheckInterface::class).
+        // When liip/monitor-bundle is installed, auto-registers TenantConnectivityCheck
+        // as a liip_monitor.check service (HEALTH-07). No-op when liip is absent.
+        $container->addCompilerPass(new HealthCheckIntegrationPass());
         if (interface_exists(MessageBusInterface::class)) {
             // Priority 1 ensures this runs BEFORE MessengerPass (priority 0) which consumes the parameter
             $container->addCompilerPass(new MessengerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1);
