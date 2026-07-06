@@ -54,6 +54,39 @@ final class HealthResponseSanitizerTest extends TestCase
         $this->assertStringContainsString('***', $output);
     }
 
+    // CR-01 regression: password-only DSN (no username), e.g. Redis AUTH.
+    public function testRedactsPasswordOnlyDsn(): void
+    {
+        $input = 'Connection failed: redis://:s3cr3tpw@cache.host:6379';
+        $output = $this->sanitizer->sanitize($input);
+
+        $this->assertStringNotContainsString('s3cr3tpw', $output);
+        $this->assertStringContainsString('***', $output);
+        $this->assertStringContainsString('@cache.host:6379', $output);
+    }
+
+    // CR-01 regression: password containing a slash (valid for MySQL/Postgres).
+    public function testRedactsPasswordContainingSlash(): void
+    {
+        $input = 'mysql://user:pa/ss@db.host/tenant';
+        $output = $this->sanitizer->sanitize($input);
+
+        $this->assertStringNotContainsString('pa/ss', $output);
+        $this->assertStringContainsString('***', $output);
+        $this->assertStringContainsString('@db.host/tenant', $output);
+    }
+
+    // Composite failover DSN must still redact both credentials after the widening.
+    public function testRedactsBothCredentialsInFailoverDsn(): void
+    {
+        $input = 'failover(smtp://u:p1@h1 smtp://u:p2@h2)';
+        $output = $this->sanitizer->sanitize($input);
+
+        $this->assertStringNotContainsString(':p1@', $output);
+        $this->assertStringNotContainsString(':p2@', $output);
+        $this->assertSame(2, substr_count($output, '***'));
+    }
+
     public function testPassthroughForNonDsnText(): void
     {
         $input = 'no dsn here just text';
