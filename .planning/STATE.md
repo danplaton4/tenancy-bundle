@@ -34,16 +34,23 @@ Progress: [██░░░░░░░░] 25% (1 of 4 phases complete)
 
 ## Deferred Items
 
-Items acknowledged and carried forward from v0.4 milestone close on 2026-06-19:
+**v0.4 carry-forward — ALL RESOLVED in Phase 34 (v0.5):**
+- ✓ Phase 26 TTY confirm (SHARE-02-c) + Phase 28 extension-installer auto-load → closed as QA-01 regression tests (26/28 HUMAN-UAT now `resolved`).
+- ✓ examples/saas Dockerfile↔composer PHP-version drift → closed as DEMO-02 (`config.platform.php=8.2.99`, smoke verified live on PHP 8.2.32).
+- ✓ Nyquist VALIDATION.md enforcement policy → decided as GOV-02 (advisory-only; live green suite is the real gate; documented + Phase 31 backfilled).
 
-| Category | Item | Status | Phase |
-|----------|------|--------|-------|
-| uat_gap | Phase 26 — TTY confirm prompt (SHARE-02-c) | partial (manual/CI-gated) | QA-01 → Phase 34 |
-| uat_gap | Phase 28 — extension-installer zero-config auto-load | partial (manual/CI-gated) | QA-01 → Phase 34 |
-| tech_debt | examples/saas Dockerfile vs composer.lock PHP-version drift | open | DEMO-02 → Phase 34 |
-| governance | Nyquist VALIDATION.md enforcement policy decision | open | GOV-02 → Phase 34 |
+**Acknowledged + deferred at v0.5 milestone close on 2026-07-06** (all pre-v0.5 residuals; v0.5's own phases 31–34 are clean; live suite green regardless):
 
-Plus 5 Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) noted in `v0.4-MILESTONE-AUDIT.md`; live suite green regardless.
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 18 — HUMAN-UAT | passed, 0 pending (not marked `resolved`) |
+| uat_gap | Phase 19 — HUMAN-UAT | partial, 3 pending manual scenarios (v0.3) |
+| uat_gap | Phase 22 — HUMAN-UAT | partial, 0 pending (v0.3 docs phase) |
+| verification_gap | Phase 22 — VERIFICATION | human_needed (v0.3) |
+| verification_gap | Phase 26 — VERIFICATION | human_needed — underlying UAT now closed by QA-01 tests |
+| verification_gap | Phase 28 — VERIFICATION | human_needed — underlying UAT now closed by QA-01 tests |
+
+Plus the Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) — now explicitly advisory-only per GOV-02 (Phase 34); live suite green regardless.
 
 ## Performance Metrics
 
