@@ -144,6 +144,13 @@ class TenancyBundle extends AbstractBundle
             ->arrayNode('allow_paths')->scalarPrototype()->end()->defaultValue([])->end()
             ->end()
             ->end()
+            ->arrayNode('health')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->integerNode('fleet_default_limit')->defaultValue(50)->min(1)->end()
+            ->integerNode('fleet_max_limit')->defaultValue(200)->min(1)->end()
+            ->end()
+            ->end()
             ->end()
             ->validate()
                 ->ifTrue(function (array $v): bool {
@@ -208,6 +215,11 @@ class TenancyBundle extends AbstractBundle
         $maintenanceAllowRoutes = is_array($maintenanceConfig['allow_routes'] ?? []) ? ($maintenanceConfig['allow_routes'] ?? []) : [];
         $maintenanceAllowPaths = is_array($maintenanceConfig['allow_paths'] ?? []) ? ($maintenanceConfig['allow_paths'] ?? []) : [];
 
+        /** @var array<string, mixed> $healthConfig */
+        $healthConfig = $config['health'] ?? [];
+        $healthFleetDefaultLimit = is_int($healthConfig['fleet_default_limit'] ?? 50) ? (int) ($healthConfig['fleet_default_limit'] ?? 50) : 50;
+        $healthFleetMaxLimit = is_int($healthConfig['fleet_max_limit'] ?? 200) ? (int) ($healthConfig['fleet_max_limit'] ?? 200) : 200;
+
         $container->parameters()
             ->set('tenancy.driver', $config['driver'])
             ->set('tenancy.strict_mode', $config['strict_mode'])
@@ -228,7 +240,9 @@ class TenancyBundle extends AbstractBundle
             ->set('tenancy.maintenance.template', $maintenanceTemplate)
             ->set('tenancy.maintenance.allow_ips', $maintenanceAllowIps)
             ->set('tenancy.maintenance.allow_routes', $maintenanceAllowRoutes)
-            ->set('tenancy.maintenance.allow_paths', $maintenanceAllowPaths);
+            ->set('tenancy.maintenance.allow_paths', $maintenanceAllowPaths)
+            ->set('tenancy.health.fleet_default_limit', $healthFleetDefaultLimit)
+            ->set('tenancy.health.fleet_max_limit', $healthFleetMaxLimit);
 
         /** @var list<string> $configuredResolvers */
         $configuredResolvers = $config['resolvers'];

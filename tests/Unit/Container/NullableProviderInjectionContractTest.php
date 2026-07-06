@@ -6,8 +6,10 @@ namespace Tenancy\Bundle\Tests\Unit\Container;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tenancy\Bundle\Command\TenantHealthCommand;
 use Tenancy\Bundle\Command\TenantMaintenanceStatusCommand;
 use Tenancy\Bundle\Command\TenantRunCommand;
+use Tenancy\Bundle\Controller\TenantHealthController;
 use Tenancy\Bundle\Mailer\TenantAwareTransportsDecorator;
 use Tenancy\Bundle\Messenger\TenantWorkerMiddleware;
 use Tenancy\Bundle\Provider\TenantProviderInterface;
@@ -52,6 +54,8 @@ final class NullableProviderInjectionContractTest extends TestCase
             'TenantWorkerMiddleware' => [TenantWorkerMiddleware::class, 2],
             'TenantAwareTransportsDecorator' => [TenantAwareTransportsDecorator::class, 1],
             'TenantMaintenanceStatusCommand' => [TenantMaintenanceStatusCommand::class, 0],
+            'TenantHealthController' => [TenantHealthController::class, 1],
+            'TenantHealthCommand' => [TenantHealthCommand::class, 0],
         ];
     }
 

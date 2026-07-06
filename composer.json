@@ -38,6 +38,7 @@
         "league/flysystem": "^3.34",
         "league/flysystem-bundle": "^3.7",
         "league/flysystem-memory": "^3.31",
+        "liip/monitor-bundle": "^2.25",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-doctrine": "^2.0",
@@ -61,6 +62,7 @@
         "phpstan/phpstan-doctrine": "For full Doctrine metadata support — enables XML/YAML-mapped entity analysis in Rule 3",
         "symfony/mailer": "Required for per-tenant mailer bootstrapper (Phase 20) (^7.4||^8.0)",
         "symfony/messenger": "Required for tenant context preservation across async message processing (^7.4||^8.0)",
+        "liip/monitor-bundle": "Optional liip/monitor-bundle integration: when installed, HealthCheckIntegrationPass auto-registers a TenantConnectivityCheck as a liip_monitor.check service (HEALTH-07). Endpoints and CLI command work without it. (^2.25)",
         "symfony/web-profiler-bundle": "Adds a 'Tenancy' panel to the Symfony Profiler / WDT in dev — shows tenant slug, label, driver, resolver, bootstrappers, error state. Auto-registered only when kernel.debug=true; never loaded in prod. Most Symfony skeleton apps already have this in require-dev."
     },
     "autoload": {

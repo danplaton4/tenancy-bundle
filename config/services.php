@@ -38,8 +38,11 @@ use Tenancy\Bundle\Provider\TenantProviderInterface;
 use Tenancy\Bundle\Command\TenantMaintenanceDisableCommand;
 use Tenancy\Bundle\Command\TenantMaintenanceEnableCommand;
 use Tenancy\Bundle\Command\TenantMaintenanceStatusCommand;
+use Tenancy\Bundle\Command\TenantHealthCommand;
+use Tenancy\Bundle\Controller\TenantHealthController;
 use Tenancy\Bundle\Health\HealthResponseSanitizer;
 use Tenancy\Bundle\Health\TenantHealthChecker;
+use Tenancy\Bundle\Health\TenantHealthCheckerInterface;
 use Tenancy\Bundle\Resolver\ConsoleResolver;
 use Tenancy\Bundle\Resolver\HeaderResolver;
 use Tenancy\Bundle\Resolver\HostResolver;
@@ -284,9 +287,34 @@ return function (ContainerConfigurator $container): void {
             service('tenancy.bootstrapper_chain'),
         ]);
     $services->alias(TenantHealthChecker::class, 'tenancy.health.checker');
+    $services->alias(TenantHealthCheckerInterface::class, 'tenancy.health.checker');
 
     $services->set('tenancy.health.sanitizer', HealthResponseSanitizer::class);
     $services->alias(HealthResponseSanitizer::class, 'tenancy.health.sanitizer');
+
+    // Health HTTP controller — PUBLIC so the router can resolve it (D-01, HEALTH-01/02/06).
+    // No AbstractController — plain PHP service returning JsonResponse directly.
+    // The two limit params come from the health config node in TenancyBundle::configure().
+    $services->set('tenancy.health.controller', TenantHealthController::class)
+        ->public()
+        ->args([
+            service('tenancy.health.checker'),
+            service('tenancy.provider')->nullOnInvalid(),
+            service('tenancy.health.sanitizer'),
+            param('tenancy.health.fleet_default_limit'),
+            param('tenancy.health.fleet_max_limit'),
+        ]);
+
+    // Health CLI command — tagged console.command so Symfony registers it (HEALTH-05).
+    // Command delegates the entire probe lifecycle to TenantHealthChecker::checkOne();
+    // it takes NO TenantContext dependency — the checker's finally owns the clear.
+    $services->set('tenancy.command.health', TenantHealthCommand::class)
+        ->args([
+            service('tenancy.provider')->nullOnInvalid(),
+            service('tenancy.health.checker'),
+            service('tenancy.health.sanitizer'),
+        ])
+        ->tag('console.command');
 
     // Maintenance CLI commands — require Doctrine ORM (landlord EM for write operations).
     // The status command uses TenantProviderInterface::findAll() (nullOnInvalid for no-Doctrine lane).
