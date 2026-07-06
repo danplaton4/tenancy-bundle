@@ -6,6 +6,8 @@ namespace Tenancy\Bundle\Bootstrapper;
 
 use Doctrine\DBAL\Connection;
 use Tenancy\Bundle\Driver\TenantDriverInterface;
+use Tenancy\Bundle\Health\BootstrapperHealthResult;
+use Tenancy\Bundle\Health\HealthCheckBootstrapperInterface;
 use Tenancy\Bundle\TenantInterface;
 
 /**
@@ -22,7 +24,7 @@ use Tenancy\Bundle\TenantInterface;
  * @see \Tenancy\Bundle\DBAL\TenantDriverMiddleware
  * @see \Tenancy\Bundle\DBAL\TenantAwareDriver
  */
-final class DatabaseSwitchBootstrapper implements TenantDriverInterface
+final class DatabaseSwitchBootstrapper implements TenantDriverInterface, HealthCheckBootstrapperInterface
 {
     public function __construct(private readonly Connection $connection)
     {
@@ -37,6 +39,26 @@ final class DatabaseSwitchBootstrapper implements TenantDriverInterface
     {
         if ($this->connection->isConnected()) {
             $this->connection->close();
+        }
+    }
+
+    /**
+     * Performs a read-only DB connectivity probe (D-03).
+     *
+     * Reuses the same close()+lazy-reconnect mechanism that boot() uses.
+     * After close(), TenantDriverMiddleware reads the current TenantContext on
+     * the next query and opens a fresh connection to the correct tenant DB.
+     * This class holds no tenant-specific state — the probe is stateless (T-33-STATE).
+     */
+    public function check(TenantInterface $tenant): BootstrapperHealthResult
+    {
+        try {
+            $this->connection->close();
+            $this->connection->executeQuery('SELECT 1');
+
+            return BootstrapperHealthResult::pass(static::class);
+        } catch (\Throwable $e) {
+            return BootstrapperHealthResult::fail(static::class, $e->getMessage(), $e);
         }
     }
 }

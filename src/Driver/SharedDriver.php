@@ -7,6 +7,8 @@ namespace Tenancy\Bundle\Driver;
 use Doctrine\ORM\EntityManagerInterface;
 use Tenancy\Bundle\Context\TenantContext;
 use Tenancy\Bundle\Filter\TenantAwareFilter;
+use Tenancy\Bundle\Health\BootstrapperHealthResult;
+use Tenancy\Bundle\Health\HealthCheckBootstrapperInterface;
 use Tenancy\Bundle\TenantInterface;
 
 /**
@@ -18,7 +20,7 @@ use Tenancy\Bundle\TenantInterface;
  * clear(): no-op — TenantContext::clear() is called by BootstrapperChain,
  *          and the filter reads hasTenant() live on each query.
  */
-final class SharedDriver implements TenantDriverInterface
+final class SharedDriver implements TenantDriverInterface, HealthCheckBootstrapperInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -39,5 +41,23 @@ final class SharedDriver implements TenantDriverInterface
         // No action needed. TenantContext::clear() is called by BootstrapperChain
         // before this method runs. The filter reads TenantContext::hasTenant()
         // live at query time, so it will correctly throw or return '' on next query.
+    }
+
+    /**
+     * Performs a read-only DB connectivity probe (D-03, D-04).
+     *
+     * TenantContext is already set by TenantHealthChecker before check() is called,
+     * so the TenantAwareFilter is live and will scope any query. SELECT 1 confirms
+     * connectivity + filter activation without side effects.
+     */
+    public function check(TenantInterface $tenant): BootstrapperHealthResult
+    {
+        try {
+            $this->em->getConnection()->executeQuery('SELECT 1');
+
+            return BootstrapperHealthResult::pass(static::class);
+        } catch (\Throwable $e) {
+            return BootstrapperHealthResult::fail(static::class, $e->getMessage(), $e);
+        }
     }
 }
