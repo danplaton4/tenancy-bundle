@@ -41,7 +41,14 @@ findings:
   warning: 5
   info: 4
   total: 12
-status: issues_found
+resolved:
+  - CR-01
+  - CR-02
+  - CR-03
+  - WR-01
+  - WR-02
+  - IN-02
+status: resolved
 ---
 
 # Phase 33: Code Review Report
@@ -49,7 +56,28 @@ status: issues_found
 **Reviewed:** 2026-07-06T08:10:35Z
 **Depth:** standard
 **Files Reviewed:** 32
-**Status:** issues_found
+**Status:** resolved (all 3 blockers + WR-01/WR-02/IN-02 fixed; remaining warnings/info advisory)
+
+## Resolution Log (2026-07-06)
+
+Applied during execute-phase, verified by the full suite (966 tests, PHPStan L9,
+cs-fixer all clean):
+
+- **CR-01** (`3223f77`) — DSN redaction regex widened for password-only and
+  slash-containing passwords; 3 regression tests added.
+- **CR-02 / WR-01 / WR-02** (`dc0bcef`) — `ready()` catches `TenantInactiveException`
+  (→ sanitized 503); `fleet()` guards `findAll()` for the always-200 contract; null
+  top-level `output` no longer emitted; IN-02 integration docstrings/assertions
+  corrected and strengthened.
+- **CR-03** (`5172e4c`) — `HealthCheckIntegrationPass` now also guards on
+  `tenancy.provider` existence; negative + alias tests added.
+
+**Remaining (advisory, not addressed — no success-criterion impact):** WR-03
+(worst-output extraction triplication — redaction is already centralized so the leak
+risk is closed; the remaining concern is selection-rule drift), WR-04 (unbounded liip
+`check()` — documentation/bounding follow-up), WR-05 (silent null-provider in
+`fleet()`), IN-01 (`DateTimeImmutable` per-result), IN-03 (FQCN vs import), IN-04
+(last-probed connection left open until next `boot()`).
 
 ## Summary
 
