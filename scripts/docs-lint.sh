@@ -41,6 +41,17 @@ check 'ReflectionProperty' "Found 'ReflectionProperty' (v0.1 hack — middleware
 check 'TenantConnection' "Found 'TenantConnection' (class deleted in v0.2 — reference the middleware)" "${TARGETS[@]}"
 check 'sqlite://' "Found 'sqlite://' URL form (use discrete driver:/path: params instead)" "${TARGETS[@]}"
 
+# D-04 (Phase 34): Ops-terms consistency guards.
+# Guard against wrong/stale forms of the new ops commands and endpoint paths.
+# These are NEGATIVE guards — check() sets EXIT=1 when the pattern IS found.
+# Only guard WRONG/stale forms, never the correct term.
+OPS_TARGETS=(docs/)
+
+check 'tenancy:maintenance:activated'   "Wrong command name (use tenancy:maintenance:enable)" "${OPS_TARGETS[@]}"
+check 'tenancy:maintenance:deactivated' "Wrong command name (use tenancy:maintenance:disable)" "${OPS_TARGETS[@]}"
+check 'health/liveness'                 "Wrong endpoint path segment (use /_tenancy/health/live, not health/liveness)" "${OPS_TARGETS[@]}"
+check 'cache_control_no_store'          "Underscore form (use Cache-Control: no-store header name, not cache_control_no_store)" "${OPS_TARGETS[@]}"
+
 # D-15: fail on bundles.php install-path references in docs/
 #
 # Phase 22 D-11 replaced the manual "register the bundle in config/bundles.php" install
