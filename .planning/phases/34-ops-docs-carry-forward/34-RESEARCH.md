@@ -818,7 +818,10 @@ production deps" constraint from REQUIREMENTS.md is trivially satisfied.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three questions carry an inline recommendation that was adopted during planning
+> (see Phase 34 PLAN.md files 34-01..34-05). Retained for provenance.
 
 1. **docs-lint.sh positive vs. negative check for ops terms**
    - What we know: `check()` is a NEGATIVE check (fires on wrong terms); ops terms need either negative-wrong-form guards or positive-presence checks
