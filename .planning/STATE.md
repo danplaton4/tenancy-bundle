@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Operations & Scale
 status: executing
-stopped_at: Phase 34 context gathered
-last_updated: "2026-07-06T18:37:45.980Z"
+stopped_at: Completed 34-04-PLAN.md
+last_updated: "2026-07-06T18:42:51.425Z"
 last_activity: 2026-07-06
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
   percent: 75
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-25)
 ## Current Position
 
 Phase: 34 (ops-docs-carry-forward) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-07-06
 
@@ -83,8 +83,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T18:37:45.973Z
-Stopped at: Phase 34 context gathered
+Last session: 2026-07-06T18:42:51.420Z
+Stopped at: Completed 34-04-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -93,3 +93,4 @@ Resume file: None
 - [Phase ?]: HealthStatus backed string enum for direct IETF health+json serialization (plan 33-01)
 - [Phase ?]: HealthCheckBootstrapperInterface is a sibling NOT a subtype of TenantBootstrapperInterface — opt-in, zero BC break (plan 33-01 HEALTH-03)
 - [Phase ?]: HealthResponseSanitizer delegates to DsnSanitizer::REDACTION_REGEX — single source of truth, WR-07 tightening inherited (plan 33-01 HEALTH-04)
+- [Phase ?]: D-08/D-09/D-10 (Plan 34-04): Nyquist VALIDATION.md is advisory-only; live green PHPUnit suite is the real phase gate; policy documented in docs/contributor-guide/test-infrastructure.md; Phase 31 backfill added for v0.5 set uniformity
