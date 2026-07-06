@@ -204,3 +204,21 @@ vendor/bin/phpunit tests/Integration/DBAL/DatabasePerTenantMiddlewareIntegration
 # Specific test method
 vendor/bin/phpunit --filter testSwitchToTenantA tests/Integration/DBAL/DatabasePerTenantMiddlewareIntegrationTest.php
 ```
+
+## Nyquist Validation Artifacts (`VALIDATION.md`)
+
+Each v0.5 phase directory may contain a `VALIDATION.md` — a lightweight coverage artifact that
+maps requirements to test signals. These files are **advisory only**: the live green PHPUnit suite
+is the real phase gate.
+
+`nyquist_validation: true` in `.planning/config.json` governs the Nyquist *discovery workflow*
+(surfacing gaps for a human to review), not a blocking gate. Phases that ship a green PHPUnit
+suite are considered complete regardless of whether a `VALIDATION.md` was authored. This is the
+de-facto policy from v0.4 — Phase 31 shipped and was verified without one — now made explicit
+for v0.5 (GOV-02, D-08).
+
+A phase with a green suite is complete. A missing `VALIDATION.md` is not a discovery-only
+workflow gap, not a phase failure.
+
+See `.planning/phases/32-maintenance-mode/32-VALIDATION.md` and
+`.planning/phases/33-health-checks/33-VALIDATION.md` for format examples.
