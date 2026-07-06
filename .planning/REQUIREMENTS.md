@@ -29,7 +29,7 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 - [x] **HEALTH-04**: Health responses never expose secrets — DSNs/credentials are redacted (`HealthResponseSanitizer`); the HTTP endpoints are opt-in (default disabled).
 - [x] **HEALTH-05**: A `tenancy:health [--tenant=<slug>|--all]` command reports per-tenant health from the CLI.
 - [x] **HEALTH-06**: An aggregate fleet-health endpoint summarizes all tenants for dashboards (bounded/sampled — explicitly NOT a k8s probe target).
-- [ ] **HEALTH-07**: When `liip/monitor-bundle` is installed, the bundle's tenant checks auto-register as `liip_monitor.check` services (`class_exists`-guarded); absent the bundle, the self-contained endpoints + command still work.
+- [x] **HEALTH-07**: When `liip/monitor-bundle` is installed, the bundle's tenant checks auto-register as `liip_monitor.check` services (`class_exists`-guarded); absent the bundle, the self-contained endpoints + command still work.
 
 ### Parallel Migrations  (epic ISOL-07)
 
@@ -102,7 +102,7 @@ Explicitly excluded for v0.5, with reasoning.
 | HEALTH-04 | Phase 33 | Complete |
 | HEALTH-05 | Phase 33 | Complete |
 | HEALTH-06 | Phase 33 | Complete |
-| HEALTH-07 | Phase 33 | Pending |
+| HEALTH-07 | Phase 33 | Complete |
 | DOC-21 | Phase 34 | Pending |
 | DEMO-02 | Phase 34 | Pending |
 | GOV-02 | Phase 34 | Pending |

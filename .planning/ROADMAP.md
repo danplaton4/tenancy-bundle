@@ -48,7 +48,7 @@ Full detail: `.planning/milestones/v0.4-ROADMAP.md` · `.planning/milestones/v0.
 
 - [x] **Phase 31: Parallel Migrations** - Bounded subprocess worker pool for `tenancy:migrate --parallel` (completed 2026-06-26)
 - [x] **Phase 32: Maintenance Mode** - Per-tenant HTTP 503 toggle with allow-list bypass (completed 2026-07-01)
-- [ ] **Phase 33: Health Checks** - Liveness/readiness probes with optional LiipMonitorBundle integration
+- [x] **Phase 33: Health Checks** - Liveness/readiness probes with optional LiipMonitorBundle integration (completed 2026-07-06)
 - [ ] **Phase 34: Ops Docs & Carry-Forward** - Production ops docs, saas demo fix, Nyquist enforcement, UAT closures
 
 ## Phase Details
@@ -137,7 +137,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 33-05-PLAN.md — Integration/wiring: health config node + tenancy.health.* params (no HTTP enabled flag), public controller + console.command wiring, HealthCheckIntegrationPass (class_exists-guarded liip auto-register) + TenantConnectivityCheck adapter, liip require-dev/suggest, no-liip + end-to-end HTTP integration tests (HEALTH-01/04/05/06/07)
+- [x] 33-05-PLAN.md — Integration/wiring: health config node + tenancy.health.* params (no HTTP enabled flag), public controller + console.command wiring, HealthCheckIntegrationPass (class_exists-guarded liip auto-register) + TenantConnectivityCheck adapter, liip require-dev/suggest, no-liip + end-to-end HTTP integration tests (HEALTH-01/04/05/06/07)
 
 ### Phase 34: Ops Docs & Carry-Forward
 
@@ -169,5 +169,5 @@ Plans:
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
-| 33. Health Checks | v0.5 | 4/5 | In Progress|  |
+| 33. Health Checks | v0.5 | 5/5 | Complete   | 2026-07-06 |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
