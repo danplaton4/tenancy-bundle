@@ -121,6 +121,47 @@ Living retrospective. One section per shipped milestone. Patterns, lessons, and 
 
 ---
 
+## Milestone: v0.5 — Operations & Scale
+
+**Shipped:** 2026-07-06 (tag v0.5)
+**Phases:** 4 (31–34) | **Plans:** 16 | **Tests:** 970 PHPUnit / 3830 assertions (up from 770)
+
+### What Was Built
+
+Production operability at scale: parallel `tenancy:migrate` via a bounded `symfony/process` worker pool (ISOL-07..12); per-tenant maintenance mode — priority-16 `kernel.request` listener returning HTTP 503 + `Retry-After` with IP/route/path allow-list bypass and three `tenancy:maintenance:*` commands (MAINT-01..09); tenant health checks — IETF `application/health+json` HTTP endpoints (live/ready/fleet) + `tenancy:health` CLI + optional LiipMonitorBundle auto-registration, DSN-redacted throughout (HEALTH-01..07); a production `docs/ops/` section with k8s probe YAML + runbooks (DOC-21); and the full v0.4 carry-forward closure (DEMO-02 saas PHP-version pin, GOV-02 Nyquist policy, QA-01 two regression tests). Zero new production dependencies.
+
+### What Worked
+
+- **The code-review gate caught real, criterion-breaking defects in two consecutive phases.** Phase 33 it found 3 blockers (DSN-regex leak, inactive-tenant bypass, liip+no-Doctrine compile break); Phase 34 it found 10 doc-vs-code contract-drift issues (2 blockers) that every executor's green suite missed. Fixing criterion-breaking blockers pre-verification — even in yolo mode — is now a proven, load-bearing practice.
+- **Sequential main-tree execution** (no worktrees) remained the correct call — worktrees lack the gitignored `vendor/` and the pre-commit hook runs the full suite. All four phases executed cleanly this way.
+- **Research-first paid off:** the v0.5 research (native maintenance via symfony/cache+DB column, separate read-only health interface, out-of-process parallel migrate) meant zero architectural surprises during execution.
+- **The DEMO-02 human-verify checkpoint was auto-satisfied live** — Docker (OrbStack) was present, so the orchestrator ran the demo smoke itself (FrankenPHP 8.2.32, exit 0) instead of deferring to CI.
+
+### What Was Inefficient
+
+- **The `milestone complete` CLI auto-extracted noisy accomplishments** (code-review finding lines like "[Rule 1 - Bug]…" pulled from SUMMARY.md headers) — required manual cleanup of the MILESTONES.md entry. Root cause: several SUMMARY.md files lead with a deviations/self-check list rather than a one-line accomplishment.
+- **Executor-false-phase-complete recurred** (ROADMAP `[x]` marked pre-verification) in both Phase 33 and 34 — harmless because verification passed, but still a normalize-after-the-fact step.
+
+### Patterns Established
+
+- **Doc-as-contract:** ops docs that quote command flags, HTTP bodies, and JSON keys must be verified verbatim against shipped source — treat doc-vs-code drift as a correctness defect, not cosmetic. The `docs-lint.sh` negative-guard pattern (assert wrong forms are absent) now backstops this.
+- **Human-verify checkpoints can be orchestrator-satisfied** when the required tooling (Docker) is locally available — check before deferring to CI.
+- **Carry-forward-as-phase:** folding prior-milestone debt (DEMO/GOV/QA) into the closure phase of the next milestone cleared 100% of v0.4's actioned carry-forward.
+
+### Key Lessons
+
+- The code-review gate is not a formality — budget for a fix cycle after it in every phase. Two-for-two on catching blockers green suites missed.
+- SUMMARY.md one-liners should lead with the accomplishment so `milestone complete` extraction stays clean.
+- A `human_needed` verifier verdict can be a subagent-capability artifact (can't run Docker), not a real gap — reconcile against what was actually verified in-session.
+
+### Cost Observations
+
+- **Model mix:** Opus orchestration + planning/verification; Sonnet executor + reviewer + verifier agents per plan/phase.
+- **Sessions:** ~13 calendar days (2026-06-23 → 2026-07-06), phases shipped roughly every 2–4 days.
+- **Notable:** Phase 34 (the closure phase) absorbed a full code-review fix cycle (10 findings) plus a live Docker smoke run — the most expensive single phase of v0.5, but it closed both the DOC-21 deliverable and all three carry-forward items in one pass.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Planning-vs-Execution Drift
@@ -129,6 +170,7 @@ Living retrospective. One section per shipped milestone. Patterns, lessons, and 
 |-----------|----------------|------------------------------|-------------------------------|
 | v0.2      | 48             | 44 (at close)                | 4                             |
 | v0.4      | 34             | 34                           | 0                             |
+| v0.5      | 16             | 16                           | 0                             |
 
 ### Human-Verification Resolution Latency
 
@@ -136,6 +178,7 @@ Living retrospective. One section per shipped milestone. Patterns, lessons, and 
 |-----------|--------------------------------|------------------------------------------|-------------|
 | v0.2      | 3 (phases 09, 10, 12)          | 3                                        | 7–42        |
 | v0.4      | 2 (phases 26, 28)              | 2                                        | 2–6         |
+| v0.5      | 1 (phase 34 DEMO-02 smoke)     | 0 (verified live in-session)             | 0           |
 
 ### Retrospective Action Items (carry forward)
 
@@ -144,6 +187,8 @@ Living retrospective. One section per shipped milestone. Patterns, lessons, and 
 3. ✓ Reconsider whether `.planning/` should remain gitignored for future milestones. **Resolved:** `.planning/` is now tracked (`commit_docs: true` locked); planning history committed alongside code.
 4. Root-cause the executor sandbox denial seen in plan 15-01. (Still open — not recurred in v0.4.)
 5. **(v0.4)** Keep all in-milestone phases in ROADMAP.md until close, OR have the archive step read from the phases directory rather than the rolled-forward live ROADMAP — which under-reported v0.4 scope to the `milestone complete` CLI.
-6. **(v0.4)** Convert the two carried `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load) to code-level testability seams instead of leaving them environment-gated.
-7. **(v0.4)** Decide whether v0.5 enforces Nyquist VALIDATION.md per phase or keeps it discovery-only — coverage drifted to 2/7 compliant in v0.4.
-8. **(v0.4, carried from v0.3)** Resolve `examples/saas/composer.lock` vs `Dockerfile` PHP-version drift early in v0.5.
+6. ✓ **(v0.4 → resolved v0.5/QA-01)** ~~Convert the two carried `human_needed` UAT items (Phase 26 TTY confirm, Phase 28 extension-installer auto-load) to code-level testability seams.~~ **Done:** both converted to permanent regression tests in Phase 34-05 (SHARE-02-c confirm-YES apply-branch assertion; extension-installer PHPStan metadata contract). 26/28 HUMAN-UAT now `resolved`.
+7. ✓ **(v0.4 → resolved v0.5/GOV-02)** ~~Decide whether v0.5 enforces Nyquist VALIDATION.md per phase or keeps it discovery-only.~~ **Decided:** advisory-only — the live green PHPUnit suite is the real phase gate; documented in `docs/contributor-guide/test-infrastructure.md` (Phase 34-04), Phase 31 VALIDATION.md backfilled.
+8. ✓ **(v0.4, carried from v0.3 → resolved v0.5/DEMO-02)** ~~Resolve `examples/saas/composer.lock` vs `Dockerfile` PHP-version drift.~~ **Done:** platform-pinned `config.platform.php=8.2.99` (Phase 34-03), smoke-verified live on FrankenPHP PHP 8.2.32 (`bin/smoke.sh` exit 0).
+9. **(v0.5)** SUMMARY.md files should lead with a one-line accomplishment (not a deviations/self-check list) so the `milestone complete` CLI's auto-extraction produces a clean MILESTONES.md entry — v0.5 required manual cleanup.
+10. **(v0.5)** Six pre-v0.5 residual UAT/verification items (phases 18/19/22 manual UAT + 22 verification) remain acknowledged-deferred — genuinely manual/human-only, carried since v0.3. Revisit only if a v0.6 phase touches those areas.
