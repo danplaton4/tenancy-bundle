@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Operations & Scale
-status: verifying
+status: Awaiting next milestone
 stopped_at: Completed 34-02-PLAN.md
-last_updated: "2026-07-06T19:40:38.070Z"
-last_activity: 2026-07-06
+last_updated: "2026-07-06T20:18:08.338Z"
+last_activity: 2026-07-06 — Milestone v0.5 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -18,23 +18,22 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-25)
+See: .planning/PROJECT.md (updated 2026-07-06)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** Phase 34 — ops-docs-carry-forward
+**Current focus:** v0.5 shipped (tag v0.5) — awaiting next milestone (v0.6 candidate: ISOL-06 PostgreSQL RLS)
 
 ## Current Position
 
-Phase: 34
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-07-06
-
-Progress: [██░░░░░░░░] 25% (1 of 4 phases complete)
+Phase: Milestone v0.5 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-06 — Milestone v0.5 completed and archived
 
 ## Deferred Items
 
 **v0.4 carry-forward — ALL RESOLVED in Phase 34 (v0.5):**
+
 - ✓ Phase 26 TTY confirm (SHARE-02-c) + Phase 28 extension-installer auto-load → closed as QA-01 regression tests (26/28 HUMAN-UAT now `resolved`).
 - ✓ examples/saas Dockerfile↔composer PHP-version drift → closed as DEMO-02 (`config.platform.php=8.2.99`, smoke verified live on PHP 8.2.32).
 - ✓ Nyquist VALIDATION.md enforcement policy → decided as GOV-02 (advisory-only; live green suite is the real gate; documented + Phase 31 backfilled).
@@ -60,19 +59,14 @@ Plus the Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) — now e
 - Average duration: ~5 min
 - Total execution time: ~0.5 hours
 
-**v0.5 phases:**
+**v0.5 phases (all complete — milestone shipped 2026-07-06, tag v0.5):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|
 | 31. Parallel Migrations | 2/2 | Complete (2026-06-26) |
-| 32. Maintenance Mode | 0/4 | Planned (4 plans, 3 waves) |
-| 33. Health Checks | TBD | Not started |
-| 34. Ops Docs & Carry-Forward | TBD | Not started |
-| Phase 32 P02 | 5 | 2 tasks | 2 files |
-| Phase 33 P01 | 5m | 3 tasks | 8 files |
-| Phase 34 P05 | 2 | - tasks | - files |
-| Phase 34 P03 | 15min | 2 tasks | 2 files |
-| Phase 34 P02 | 2min | 2 tasks | 2 files |
+| 32. Maintenance Mode | 4/4 | Complete (2026-07-01) |
+| 33. Health Checks | 5/5 | Complete (2026-07-06) |
+| 34. Ops Docs & Carry-Forward | 5/5 | Complete (2026-07-06) |
 
 ## Accumulated Context
 
@@ -85,7 +79,7 @@ Plus the Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) — now e
 
 ### Blockers/Concerns
 
-- [Phase 33]: Two MEDIUM-confidence items need resolution before coding: (1) verify `/_tenancy/health` route prefix does not conflict with existing v0.4.1 routes; (2) validate DatabaseSwitchBootstrapper::check() probe safety (close() + SELECT 1 under manual TenantContext must not mutate global service state)
+None — all v0.5 blockers resolved (Phase 33 route-prefix + probe-safety concerns were validated during execution). v0.5 shipped clean.
 
 ### Pending Todos
 
@@ -107,3 +101,7 @@ Resume file: None
 - [Phase ?]: QA-01 Phase 26 closed: setInputs(['yes']) string token for TTY confirm-gate coverage in SharedEntityResyncCommandTest
 - [Phase ?]: QA-01 Phase 28 closed: Option A metadata contract (plain string-contains on neon file, no live PHPStan invocation) in ExtensionInstallerContractTest
 - [Phase ?]: D-04 ops-terms guard uses OPS_TARGETS=(docs/) scoped to docs/ only (34-02)
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd:new-milestone

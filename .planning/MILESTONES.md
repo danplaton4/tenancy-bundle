@@ -1,5 +1,24 @@
 # Milestones
 
+## v0.5 Operations & Scale (Shipped: 2026-07-06)
+
+**Phases completed:** 4 phases (31–34), 16 plans, 13 tasks
+**Git range:** v0.4.1 → v0.5 (117 commits, ~13 days across 2026-06-23 to 2026-07-06); src+tests +8,596 / −22 across 73 files
+**Test suite:** 970 PHPUnit tests / 3830 assertions (2 skipped; up from 770 in v0.4); PHPStan level 9 clean; php-cs-fixer @Symfony clean; docs-lint clean; examples/saas `bin/smoke.sh` green on PHP 8.2.
+**Known deferred items at close:** 6 (see STATE.md Deferred Items) — all pre-v0.5 residuals (v0.3/v0.4 manual-UAT + human_needed verifications re-surfaced by the global audit-open query); v0.5's own phases 31–34 are clean. No milestone audit was run (v0.5 verified per-phase). No blockers.
+
+**Key accomplishments:**
+
+- **Parallel migrations (ISOL-07..12, Phase 31):** Bounded `symfony/process` worker pool (`ParallelMigrationRunner`) spawns one out-of-process `tenancy:migrate --tenant=<slug>` child per tenant with at-most-N concurrency (`--concurrency`, default 4, hard cap 32) via non-blocking 50 ms sliding-window poll. New `--parallel`/`--dry-run`/`--format=json` surface, atomic per-tenant output blocks, null-exit=failure rule, `shared_db` guard refusing before any spawn, single UTF-8-hardened aggregate JSON. Sequential no-flag path byte-identical to v0.4.
+- **Per-tenant maintenance mode (MAINT-01..09, Phase 32):** DB-authoritative state (`AbstractTenant::$inMaintenance` + `TenantInterface::isInMaintenance()` + `TenantMaintenanceConfigTrait`); `kernel.request` priority-16 listener returns HTTP 503 + `Retry-After` + `Cache-Control: no-store` for an already-resolved in-maintenance tenant, never calling `boot()`; hardcoded-HTML default with opt-in Twig override, allow-list bypass by IP/CIDR/route/path. Three `tenancy:maintenance:enable|disable|status` commands with PSR cache-key invalidation and transition-only events; `MaintenanceModeContractPass` enforces priority < 20 at compile time.
+- **Tenant health checks (HEALTH-01..07, Phase 33):** Dependency-free contract layer (`HealthStatus` enum, sibling `HealthCheckBootstrapperInterface` — no BC break, VOs, `HealthResponseSanitizer`); `TenantHealthChecker` enforces set→probe→clear-in-`finally` (never `boot()`, no events). HTTP surface (`live` zero-I/O 200, `ready/{slug}` IETF `application/health+json` 200/503, always-200 bounded fleet) + `tenancy:health` CLI; optional `liip/monitor-bundle` auto-registration (double-guarded, Doctrine-optional safe); every output path DSN-redacted.
+- **Production ops docs (DOC-21, Phases 34-01/34-02):** New `docs/ops/` section — `parallel-migrations.md`, `maintenance-mode.md`, `health-checks.md` — with Kubernetes liveness/readiness probe YAML (distinct `periodSeconds`/`failureThreshold`), CDN 5xx-caching warnings, and incident runbooks; `mkdocs.yml` Operations nav group; `docs-lint.sh` D-04 ops-terms guard; `UPGRADE.md` 0.4→0.5 (`isInMaintenance()` BC break). All documented contracts verified verbatim against shipped source (code-review found 10 doc-vs-code drift issues, 2 blocker — all fixed pre-verification).
+- **v0.4 carry-forward closure (DEMO-02/GOV-02/QA-01, Phases 34-03/34-04/34-05):** examples/saas platform-pinned `config.platform.php=8.2.99` — smoke-verified live on FrankenPHP PHP 8.2.32 (`bin/smoke.sh` exit 0); Nyquist `VALIDATION.md` policy made explicit (advisory-only; live green suite is the real gate) + Phase 31 backfilled; the two open v0.4 `human_needed` UAT items closed as permanent regression tests (SHARE-02-c confirm-YES apply-branch assertion + extension-installer PHPStan metadata contract).
+
+**v0.5 Architectural Decisions Ratified:** DB column as authoritative maintenance state (cache = per-request memoization only); maintenance listener priority 16 (after orchestrator at 20); health probes use a separate read-only interface that never calls `boot()`; parallel migrations spawn out-of-process only; zero new production dependencies (liip/monitor-bundle is require-dev + suggest); Nyquist VALIDATION.md is advisory-only, not a blocking gate (GOV-02).
+
+---
+
 ## v0.4 Storage & Shared Entities (Shipped: 2026-06-19, Tag: v0.4.0)
 
 **Phases completed:** 7 phases (24–29 feature phases + audit-driven Phase 30 pre-tag closure), 34 plans, ~70 tasks
