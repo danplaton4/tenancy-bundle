@@ -128,7 +128,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 33-02-PLAN.md — Probe engine: TenantHealthChecker (set→probe→clear-in-finally, never boot()), additive BootstrapperChain::healthCheck(), DatabaseSwitchBootstrapper + SharedDriver check() probes, checker/sanitizer DI wiring, two-tenant SQLite probe-safety integration test (HEALTH-02/03)
+- [x] 33-02-PLAN.md — Probe engine: TenantHealthChecker (set→probe→clear-in-finally, never boot()), additive BootstrapperChain::healthCheck(), DatabaseSwitchBootstrapper + SharedDriver check() probes, checker/sanitizer DI wiring, two-tenant SQLite probe-safety integration test (HEALTH-02/03)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -169,5 +169,5 @@ Plans:
 | 30. v0.4 pre-tag closure | v0.4 | 2/2 | Complete | 2026-06-19 |
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
-| 33. Health Checks | v0.5 | 1/5 | In Progress|  |
+| 33. Health Checks | v0.5 | 2/5 | In Progress|  |
 | 34. Ops Docs & Carry-Forward | v0.5 | 0/TBD | Not started | - |
