@@ -49,7 +49,7 @@ Full detail: `.planning/milestones/v0.4-ROADMAP.md` · `.planning/milestones/v0.
 - [x] **Phase 31: Parallel Migrations** - Bounded subprocess worker pool for `tenancy:migrate --parallel` (completed 2026-06-26)
 - [x] **Phase 32: Maintenance Mode** - Per-tenant HTTP 503 toggle with allow-list bypass (completed 2026-07-01)
 - [x] **Phase 33: Health Checks** - Liveness/readiness probes with optional LiipMonitorBundle integration (completed 2026-07-06)
-- [ ] **Phase 34: Ops Docs & Carry-Forward** - Production ops docs, saas demo fix, Nyquist enforcement, UAT closures
+- [x] **Phase 34: Ops Docs & Carry-Forward** - Production ops docs, saas demo fix, Nyquist enforcement, UAT closures (completed 2026-07-06)
 
 ## Phase Details
 
@@ -163,7 +163,7 @@ Plans:
 
 **Wave 2** *(blocked on 34-01)*
 
-- [ ] 34-02-PLAN.md — DOC-21 docs-lint.sh ops-terms negative guard + UPGRADE.md 0.4→0.5 BC-break section (DOC-21)
+- [x] 34-02-PLAN.md — DOC-21 docs-lint.sh ops-terms negative guard + UPGRADE.md 0.4→0.5 BC-break section (DOC-21)
 
 ## Progress
 
@@ -181,4 +181,4 @@ Plans:
 | 31. Parallel Migrations | v0.5 | 2/2 | Complete    | 2026-06-26 |
 | 32. Maintenance Mode | v0.5 | 4/4 | Complete    | 2026-07-01 |
 | 33. Health Checks | v0.5 | 5/5 | Complete    | 2026-07-06 |
-| 34. Ops Docs & Carry-Forward | v0.5 | 4/5 | In Progress|  |
+| 34. Ops Docs & Carry-Forward | v0.5 | 5/5 | Complete   | 2026-07-06 |
