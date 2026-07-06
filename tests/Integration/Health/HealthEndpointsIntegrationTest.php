@@ -265,10 +265,13 @@ final class HealthEndpointsIntegrationTest extends TestCase
     /**
      * GET /_tenancy/health/ready/{slug} route resolves (HEALTH-02 route-import proof).
      *
-     * NullTenantProvider exists (not null) but throws on findBySlug — the controller's
-     * TenantNotFoundException catch does NOT match RuntimeException. The response may
-     * be 500 (exception propagated). The key assertion: the ROUTE resolved (not HTTP 404
-     * from the router).
+     * NullTenantProvider exists (not null) but throws a *generic* \RuntimeException on
+     * findBySlug. The controller's typed catches (TenantNotFoundException → 404,
+     * TenantInactiveException → 503; CR-02) intentionally do NOT match a generic
+     * RuntimeException, so the exception propagates and the response is 500. That is
+     * expected here — this test only proves the ROUTE resolved (not HTTP 404 from the
+     * router). The 404/503/200 readiness contract itself is covered by the controller
+     * unit tests (TenantHealthControllerTest), which drive the typed exceptions.
      */
     public function testReadinessRouteResolves(): void
     {
@@ -312,22 +315,32 @@ final class HealthEndpointsIntegrationTest extends TestCase
      * This test proves the second route file was imported correctly.
      *
      * The fleet endpoint always returns HTTP 200 (D-08 — never a probe target).
-     * With NullTenantProvider::findAll() throwing, the controller returns 200 with
-     * an empty fleet (provider null-guard fires: null !== provider but throws RuntimeException).
+     * NullTenantProvider::findAll() throws \RuntimeException; the WR-01 try/catch in
+     * fleet() degrades that to a sanitized, empty aggregate at HTTP 200 (rather than a
+     * propagated 500), so this test asserts the exact 200 contract, not merely "not 404".
      */
     public function testFleetEndpointRouteResolvesFromSeparateRouteFile(): void
     {
         self::assertNotNull(self::$kernel);
 
-        $request = Request::create('/_tenancy/health', 'GET');
+        // The fleet route is '/' under the /_tenancy/health prefix, so the canonical
+        // path carries a trailing slash. Requesting it directly invokes the controller
+        // (a slash-less '/_tenancy/health' only yields a 301 redirect, not the action).
+        $request = Request::create('/_tenancy/health/', 'GET');
         $response = self::$kernel->handle($request);
 
-        // Route resolved — we get a controller response (not routing 404).
-        // Fleet always returns HTTP 200 when the route resolves (D-08).
-        $this->assertNotSame(
-            Response::HTTP_NOT_FOUND,
+        // Route resolved AND fleet honored its always-200 contract even though the
+        // roster fetch threw (WR-01). This proves health_fleet.php imported (D-02) and
+        // the always-200 dashboard contract (D-08) end-to-end.
+        $this->assertSame(
+            Response::HTTP_OK,
             $response->getStatusCode(),
-            'GET /_tenancy/health (fleet) route must resolve — proves health_fleet.php imported correctly (D-02).',
+            'GET /_tenancy/health (fleet) must return 200 even when findAll() throws (D-08 always-200; WR-01).',
         );
+
+        $body = json_decode((string) $response->getContent(), true);
+        $this->assertIsArray($body);
+        $this->assertSame(0, $body['total'], 'Roster-fetch failure degrades to an empty aggregate.');
+        $this->assertSame([], $body['tenants']);
     }
 }

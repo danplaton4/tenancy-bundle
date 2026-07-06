@@ -8,6 +8,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Tenancy\Bundle\Controller\TenantHealthController;
+use Tenancy\Bundle\Exception\TenantInactiveException;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Health\BootstrapperHealthResult;
 use Tenancy\Bundle\Health\HealthResponseSanitizer;
@@ -199,6 +200,35 @@ final class TenantHealthControllerTest extends TestCase
     }
 
     /**
+     * CR-02: ready() returns a sanitized health+json 503 (NOT a stock 403 error page)
+     * when the slug is a known-but-inactive tenant. DoctrineTenantProvider::findBySlug()
+     * throws TenantInactiveException for inactive tenants; the controller must map it to
+     * the readiness contract, consistent with the CLI command.
+     */
+    public function testReadinessReturnsHttp503ForInactiveSlug(): void
+    {
+        $this->provider
+            ->method('findBySlug')
+            ->with('dormant')
+            ->willThrowException(new TenantInactiveException('dormant'));
+        $this->checker->expects($this->never())->method('checkOne');
+
+        $response = $this->controller->ready('dormant');
+
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertStringContainsString(
+            self::HEALTH_JSON,
+            (string) $response->headers->get('Content-Type'),
+        );
+
+        $body = json_decode((string) $response->getContent(), true);
+        $this->assertIsArray($body);
+        $this->assertSame('fail', $body['status']);
+        $this->assertStringContainsString('dormant', (string) $body['output']);
+        $this->assertStringContainsString('inactive', strtolower((string) $body['output']));
+    }
+
+    /**
      * ready() response body must not expose raw DSN credentials — HEALTH-04 / T-33-04.
      * The sanitizer must redact scheme://user:password@host patterns.
      */
@@ -262,6 +292,33 @@ final class TenantHealthControllerTest extends TestCase
         $response = $this->controller->fleet($request);
 
         $this->assertSame(200, $response->getStatusCode());
+    }
+
+    /**
+     * WR-01: fleet() MUST still return HTTP 200 when the roster fetch (findAll) throws
+     * (e.g. landlord DB down). The always-200 dashboard contract (D-08) requires the
+     * error to degrade to a sanitized, empty aggregate rather than propagate as a 500.
+     */
+    public function testFleetReturnsHttp200WhenFindAllThrows(): void
+    {
+        $this->provider
+            ->method('findAll')
+            ->willThrowException(new \RuntimeException('landlord DB unreachable at mysql://root:hunter2@landlord.host/main'));
+        $this->checker->expects($this->never())->method('checkOne');
+
+        $request = new Request();
+        $response = $this->controller->fleet($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $content = (string) $response->getContent();
+        $this->assertStringNotContainsString('hunter2', $content, 'Roster-failure output must be sanitized');
+
+        $body = json_decode($content, true);
+        $this->assertIsArray($body);
+        $this->assertSame(0, $body['total']);
+        $this->assertSame([], $body['tenants']);
+        $this->assertArrayHasKey('output', $body);
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Tenancy\Bundle\Controller;
 
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Tenancy\Bundle\Exception\TenantInactiveException;
 use Tenancy\Bundle\Exception\TenantNotFoundException;
 use Tenancy\Bundle\Health\HealthResponseSanitizer;
 use Tenancy\Bundle\Health\HealthStatus;
@@ -80,6 +81,9 @@ final class TenantHealthController
      *  - pass/warn → 200
      *  - fail      → 503
      *  - unknown slug (TenantNotFoundException) → 404 (D-06)
+     *  - inactive slug (TenantInactiveException) → 503 (CR-02: an inactive
+     *    tenant is a known-but-not-ready tenant, mapped to a sanitized health+json
+     *    body rather than a stock 403 error page)
      *
      * All bodies are sanitized before serialization (T-33-04).
      * The controller delegates entirely to TenantHealthCheckerInterface::checkOne()
@@ -106,6 +110,13 @@ final class TenantHealthController
             ]);
 
             return new JsonResponse($body, 404, ['Content-Type' => self::CONTENT_TYPE]);
+        } catch (TenantInactiveException) {
+            $body = $this->sanitizer->sanitizeArray([
+                'status' => HealthStatus::Fail->value,
+                'output' => sprintf("Tenant '%s' is inactive", $slug),
+            ]);
+
+            return new JsonResponse($body, 503, ['Content-Type' => self::CONTENT_TYPE]);
         }
 
         $report = $this->checker->checkOne($tenant);
@@ -136,7 +147,23 @@ final class TenantHealthController
         $rawOffset = (int) $request->query->get('offset', '0');
         $offset = max(0, $rawOffset);
 
-        $allTenants = null !== $this->provider ? $this->provider->findAll() : [];
+        try {
+            $allTenants = null !== $this->provider ? $this->provider->findAll() : [];
+        } catch (\Throwable $e) {
+            // WR-01: the fleet dashboard MUST always return HTTP 200 (D-08). A roster
+            // fetch failure (e.g. landlord DB down) degrades to a sanitized, empty
+            // aggregate rather than propagating as an unhandled, unsanitized 500.
+            $body = $this->sanitizer->sanitizeArray([
+                'total' => 0,
+                'offset' => $offset,
+                'limit' => $limit,
+                'summary' => ['pass' => 0, 'warn' => 0, 'fail' => 0],
+                'tenants' => [],
+                'output' => 'Tenant roster unavailable: '.$e->getMessage(),
+            ]);
+
+            return new JsonResponse($body, 200, ['Content-Type' => self::CONTENT_TYPE]);
+        }
         $total = \count($allTenants);
 
         $page = \array_slice($allTenants, $offset, $limit);
@@ -213,8 +240,13 @@ final class TenantHealthController
         ];
 
         // Include a top-level output when the aggregate is failing (informational summary).
+        // WR-02: only emit the key when a message exists — a null `output` is not a
+        // valid IETF health+json field.
         if (HealthStatus::Fail === $report->status) {
-            $body['output'] = $this->extractWorstOutput($report);
+            $worstOutput = $this->extractWorstOutput($report);
+            if (null !== $worstOutput) {
+                $body['output'] = $worstOutput;
+            }
         }
 
         return $body;
