@@ -152,6 +152,33 @@ final class SharedEntityResyncCommandTest extends TestCase
     }
 
     /**
+     * SHARE-02-c: Live run with TTY confirm 'yes' proceeds to apply (QA-01 close).
+     * CommandTester::setInputs(['yes']) feeds the answer to $io->confirm().
+     */
+    public function testLiveRunConfirmYesProceedsToApply(): void
+    {
+        $tenant = $this->makeTenant('acme');
+        $this->tenantProvider->method('findAll')->willReturn([$tenant]);
+
+        $entity = new \stdClass();
+        $this->wireSharedClasses(['App\Entity\Config'], [$entity]);
+        $this->copier->method('classifyRow')->willReturn('insert');
+
+        // Key assertion: applyRow IS called when user confirms 'yes'
+        $this->copier->expects($this->atLeastOnce())->method('applyRow');
+
+        $tenantEm = $this->createMock(EntityManagerInterface::class);
+        $this->registry->method('getManager')->with('tenant')->willReturn($tenantEm);
+
+        $command = $this->makeCommand();
+        $tester = new CommandTester($command);
+        $tester->setInputs(['yes']);   // feeds $io->confirm('Proceed with live resync?', false)
+        $exitCode = $tester->execute([], ['interactive' => true]);
+
+        $this->assertSame(Command::SUCCESS, $exitCode);
+    }
+
+    /**
      * SHARE-02-d: --force skips confirmation and proceeds immediately (D-04).
      */
     public function testForceSkipsConfirmation(): void
