@@ -23,12 +23,12 @@ Research: `.planning/research/SUMMARY.md`. Net-zero new production deps.
 
 ### Health Checks  (epic OPS-02)
 
-- [ ] **HEALTH-01**: A liveness endpoint (`/_tenancy/health/live`) reports process health WITHOUT iterating tenants — fast enough for per-second load-balancer / k8s liveness probes.
+- [x] **HEALTH-01**: A liveness endpoint (`/_tenancy/health/live`) reports process health WITHOUT iterating tenants — fast enough for per-second load-balancer / k8s liveness probes.
 - [x] **HEALTH-02**: A per-tenant readiness endpoint (`/_tenancy/health/ready/{slug}`) probes that tenant's connectivity + bootstrapper health and returns IETF `application/health+json` with HTTP 200 (pass/warn) or 503 (fail).
 - [x] **HEALTH-03**: Bootstrappers expose a read-only probe via a new sibling `HealthCheckBootstrapperInterface` (no BC break); `TenantHealthChecker` runs probes without calling `boot()` and clears `TenantContext` in a `finally` block.
 - [x] **HEALTH-04**: Health responses never expose secrets — DSNs/credentials are redacted (`HealthResponseSanitizer`); the HTTP endpoints are opt-in (default disabled).
 - [ ] **HEALTH-05**: A `tenancy:health [--tenant=<slug>|--all]` command reports per-tenant health from the CLI.
-- [ ] **HEALTH-06**: An aggregate fleet-health endpoint summarizes all tenants for dashboards (bounded/sampled — explicitly NOT a k8s probe target).
+- [x] **HEALTH-06**: An aggregate fleet-health endpoint summarizes all tenants for dashboards (bounded/sampled — explicitly NOT a k8s probe target).
 - [ ] **HEALTH-07**: When `liip/monitor-bundle` is installed, the bundle's tenant checks auto-register as `liip_monitor.check` services (`class_exists`-guarded); absent the bundle, the self-contained endpoints + command still work.
 
 ### Parallel Migrations  (epic ISOL-07)
@@ -96,12 +96,12 @@ Explicitly excluded for v0.5, with reasoning.
 | MAINT-07 | Phase 32 | Complete |
 | MAINT-08 | Phase 32 | Complete |
 | MAINT-09 | Phase 32 | Complete |
-| HEALTH-01 | Phase 33 | Pending |
+| HEALTH-01 | Phase 33 | Complete |
 | HEALTH-02 | Phase 33 | Complete |
 | HEALTH-03 | Phase 33 | Complete |
 | HEALTH-04 | Phase 33 | Complete |
 | HEALTH-05 | Phase 33 | Pending |
-| HEALTH-06 | Phase 33 | Pending |
+| HEALTH-06 | Phase 33 | Complete |
 | HEALTH-07 | Phase 33 | Pending |
 | DOC-21 | Phase 34 | Pending |
 | DEMO-02 | Phase 34 | Pending |
