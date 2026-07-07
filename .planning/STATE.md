@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-06)
 
 **Core value:** When a tenant is resolved, every Symfony service automatically re-configures itself for that tenant — zero boilerplate, zero leaks, zero guessing.
-**Current focus:** v0.5 shipped (tag v0.5) — awaiting next milestone (v0.6 candidate: ISOL-06 PostgreSQL RLS)
+**Current focus:** v0.5 shipped (tag v0.5.0) — awaiting next milestone (v0.6 candidate: ISOL-06 PostgreSQL RLS)
 
 ## Current Position
 
@@ -59,7 +59,7 @@ Plus the Nyquist VALIDATION.md discovery flags (phases 24/26/28/29/30) — now e
 - Average duration: ~5 min
 - Total execution time: ~0.5 hours
 
-**v0.5 phases (all complete — milestone shipped 2026-07-06, tag v0.5):**
+**v0.5 phases (all complete — milestone shipped 2026-07-06, tag v0.5.0):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|

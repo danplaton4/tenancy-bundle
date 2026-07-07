@@ -5,7 +5,7 @@
 - ✅ **v0.2 — Architectural Fixes** — Phases 1–15 (shipped 2026-04-20, tag v0.2.1)
 - ✅ **v0.3 — Adoption Surface** — Phases 17–23 (shipped 2026-05-29, tag v0.3.3)
 - ✅ **v0.4 — Storage & Shared Entities** — Phases 24–30 (shipped 2026-06-19, tag v0.4.0)
-- ✅ **v0.5 — Operations & Scale** — Phases 31–34 (shipped 2026-07-06, tag v0.5)
+- ✅ **v0.5 — Operations & Scale** — Phases 31–34 (shipped 2026-07-06, tag v0.5.0)
 
 ## Phases
 
@@ -43,7 +43,7 @@ Full detail: `.planning/milestones/v0.4-ROADMAP.md` · `.planning/milestones/v0.
 </details>
 
 <details>
-<summary>✅ v0.5 Operations & Scale (Phases 31–34) — SHIPPED 2026-07-06 (tag v0.5)</summary>
+<summary>✅ v0.5 Operations & Scale (Phases 31–34) — SHIPPED 2026-07-06 (tag v0.5.0)</summary>
 
 Per-tenant operability at scale: parallel `tenancy:migrate` (bounded subprocess worker pool), per-tenant maintenance mode (HTTP 503 + `Retry-After` + allow-list bypass), tenant health checks (IETF `application/health+json` endpoints + `tenancy:health` CLI + optional LiipMonitorBundle), a production `docs/ops/` section, plus the v0.4 carry-forward closure (examples/saas PHP-version drift, Nyquist enforcement policy, and the two `human_needed` UAT items converted to regression tests).
 

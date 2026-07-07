@@ -123,7 +123,7 @@ Living retrospective. One section per shipped milestone. Patterns, lessons, and 
 
 ## Milestone: v0.5 — Operations & Scale
 
-**Shipped:** 2026-07-06 (tag v0.5)
+**Shipped:** 2026-07-06 (tag v0.5.0)
 **Phases:** 4 (31–34) | **Plans:** 16 | **Tests:** 970 PHPUnit / 3830 assertions (up from 770)
 
 ### What Was Built
