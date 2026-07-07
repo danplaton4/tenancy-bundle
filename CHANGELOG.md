@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-06
+
+v0.5 **Operations & Scale** — production operability at scale. Adds parallel
+migrations, per-tenant maintenance mode, tenant health checks, and a production
+Operations documentation section. **Zero new production dependencies.**
+
+### Added
+
+- **Parallel migrations (ISOL-07..12)** — `tenancy:migrate --parallel` runs
+  per-tenant migrations concurrently via a bounded `symfony/process` worker pool
+  (`ParallelMigrationRunner`), spawning one out-of-process
+  `tenancy:migrate --tenant=<slug>` child per tenant. `--concurrency=N` (default
+  4, hard cap 32), `--dry-run`, and `--format=json` (single aggregate document);
+  atomic per-tenant output, null-exit-as-failure, and a `shared_db` guard that
+  refuses before any spawn. The no-flag sequential path is byte-identical to v0.4.
+- **Per-tenant maintenance mode (MAINT-01..09)** — DB-authoritative state
+  (`AbstractTenant::$inMaintenance` + `TenantInterface::isInMaintenance()` +
+  `TenantMaintenanceConfigTrait`). A `kernel.request` priority-16
+  `TenantMaintenanceModeListener` returns HTTP 503 with `Retry-After` and
+  `Cache-Control: no-store` for an in-maintenance tenant, never calling `boot()`.
+  Hardcoded-HTML default with an opt-in Twig override, and allow-list bypass by
+  IP/CIDR, route, and path prefix. Commands
+  `tenancy:maintenance:enable|disable|status` (idempotent landlord-side writes,
+  PSR cache-key invalidation, `TenantMaintenanceEnabled`/`Disabled` events only
+  on real transition). `MaintenanceModeContractPass` enforces listener priority
+  < 20 at compile time. See `docs/ops/maintenance-mode.md`.
+- **Tenant health checks (HEALTH-01..07)** — dependency-free contract layer
+  (`HealthStatus` enum, sibling `HealthCheckBootstrapperInterface`,
+  `HealthResponseSanitizer`). `TenantHealthChecker` sets tenant context → probes →
+  clears it in a `finally` block (never `boot()`, dispatches no events).
+  `GET /_tenancy/health/live` (zero-I/O 200), `/ready/{slug}` (IETF
+  `application/health+json`, 200/503, 404 unknown / 503 inactive), and a bounded
+  always-200 fleet dashboard; `tenancy:health [--tenant=<slug>|--all]
+  [--format=json]` CLI with exit-code aggregation. Optional `liip/monitor-bundle`
+  auto-registration (`require-dev` + suggest only, double-guarded — Doctrine-
+  optional safe). Every output path is DSN-redacted. See `docs/ops/health-checks.md`.
+
+### Changed
+
+- **BC (0.x):** `TenantInterface` gains `isInMaintenance(): bool`. Implementations
+  that don't extend `AbstractTenant` must add the method — use
+  `TenantMaintenanceConfigTrait` for a zero-effort default. See the
+  "0.4 to 0.5" section of `UPGRADE.md`.
+
+### Fixed
+
+- **`examples/saas` PHP-version drift (DEMO-02)** — pinned
+  `config.platform.php` to `8.2.99` so the demo's Composer resolution matches the
+  `dunglas/frankenphp:1-php8.2` runtime image; `bin/smoke.sh` verified green on
+  PHP 8.2.
+
+### Documentation
+
+- New **Operations** section (DOC-21): `docs/ops/parallel-migrations.md`,
+  `docs/ops/maintenance-mode.md`, and `docs/ops/health-checks.md` — with
+  Kubernetes liveness/readiness probe YAML, CDN 5xx-caching warnings, and incident
+  runbooks; registered in `mkdocs.yml`. `UPGRADE.md` "0.4 to 0.5" section covering
+  the `isInMaintenance()` BC break; `scripts/docs-lint.sh` extended with an
+  ops-terms consistency guard.
+
+### Internal
+
+- Nyquist `VALIDATION.md` enforcement is documented as advisory-only — the green
+  PHPUnit suite is the real phase gate (GOV-02). The two previously manual
+  `human_needed` UAT items are closed as permanent regression tests: the
+  `tenancy:shared:resync` confirm-YES apply branch, and the PHPStan
+  extension-installer auto-load metadata contract (QA-01).
+
 ## [0.4.1] — 2026-06-23
 
 Release-integrity patch. The `v0.4.0` tag was cut before four CI lanes
@@ -484,7 +552,8 @@ Initial public release. Multi-tenancy for Symfony with zero boilerplate and zero
   - CI jobs for no-Doctrine, no-Messenger, and prefer-lowest dependency validation
   - Codecov coverage reporting
 
-[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.2...v0.3.3

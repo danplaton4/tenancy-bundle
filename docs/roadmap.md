@@ -11,20 +11,23 @@
   replication (landlord-side master → tenant-side read-only copy via Doctrine events + Messenger
   async fan-out); PHPStan extension with three static rules (`tenancy.mutualExclusion`,
   `tenancy.sharedEntityLeak`, `tenancy.tenantIdDrift`). See [CHANGELOG](https://github.com/danplaton4/tenancy-bundle/blob/master/CHANGELOG.md).
+- ✅ **v0.5 Operations & Scale** (2026-07-06) — parallel `tenancy:migrate` (bounded subprocess
+  worker pool); per-tenant maintenance mode (HTTP 503 + `Retry-After` + allow-list bypass, three
+  `tenancy:maintenance:*` commands); tenant health checks (liveness/readiness endpoints +
+  `tenancy:health` CLI + optional LiipMonitorBundle, DSN-redacted); and a production
+  [**Operations** docs section](ops/maintenance-mode.md). Latest tag: **v0.5.0**. See [CHANGELOG](https://github.com/danplaton4/tenancy-bundle/blob/master/CHANGELOG.md).
 
-Bundle is functionally complete for a v1 surface: two isolation drivers (database-per-tenant + shared-DB), 5 resolvers, Messenger context propagation, cache + mailer per-tenant bootstrappers, CLI commands, and the `InteractsWithTenancy` PHPUnit trait. The `v1.0` tag will go on once external adoption validates the surface.
+Bundle is functionally complete for a v1 surface: two isolation drivers (database-per-tenant + shared-DB), 5 resolvers, Messenger context propagation, cache + mailer per-tenant bootstrappers, per-tenant maintenance mode + health checks, CLI commands (incl. parallel migrations), and the `InteractsWithTenancy` PHPUnit trait. The `v1.0` tag will go on once external adoption validates the surface.
 
-## Next — v0.5 Operations & scale
+## Next — v0.6 Advanced isolation *(demand-gated)*
 
-- Tenant-level maintenance mode
-- Health check / MonitorBundle integration
-- Parallel `tenancy:migrate` for 100+ tenants
+- PostgreSQL Row-Level Security driver
+- Advanced isolation guide + a when-to-pick-which-driver matrix
+- Candidate for the **v1.0** tag if external adoption signals the line is validated
 
 ## Planned
 
-| Milestone | Theme | Highlights |
-|---|---|---|
-| **v0.6** | Advanced isolation *(demand-gated)* | PostgreSQL Row-Level Security driver; advanced isolation guide. Candidate for **v1.0** if external adoption signals the line is validated |
+Beyond v0.6, scope is demand-driven — see **Future — by demand** below. The **v1.0** tag will go on once external adoption validates the surface.
 
 Scope is intentionally subject to change as users tell us what they need first. The split exists to keep each milestone small enough to ship in weeks, not months.
 
