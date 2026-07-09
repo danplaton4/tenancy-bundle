@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-08
+
+**First stable release.** `1.0.0` declares the public API surface — resolvers,
+bootstrappers, attributes (`#[TenantAware]`, `#[Shared]`), `AbstractTenant` /
+`TenantInterface`, the CLI commands, and the config tree — **stable and covered
+by semantic versioning**. Breaking changes now require a major bump.
+
+This is a graduation tag: **no `src/` change from `0.5.0`** — the bundle behaves
+identically. It records that the surface accumulated across v0.1–v0.5 is complete
+enough to commit to. The full feature set at 1.0:
+
+- **Two isolation drivers** — database-per-tenant (DBAL driver-middleware) and
+  shared-DB (Doctrine SQL filter + `#[TenantAware]`, strict-mode by default).
+- **Per-tenant subsystems** — cache namespacing, Mailer transport, Flysystem
+  filesystem, and Messenger context propagation, all via the event-driven
+  bootstrapper model.
+- **Shared entities** — `#[Shared]` landlord→tenant read-only replication (sync +
+  async), `tenancy:shared:resync`.
+- **Operations** — per-tenant maintenance mode, health-check endpoints +
+  `tenancy:health`, and parallel `tenancy:migrate --parallel`.
+- **DX** — 5 resolvers, `tenancy:install`/`tenancy:init`/`tenancy:run`, Symfony
+  Profiler panel, a PHPStan extension (3 rules), and the `InteractsWithTenancy`
+  PHPUnit trait.
+
+Quality bar: 970 tests / 3,830 assertions, PHPStan level 9, php-cs-fixer
+`@Symfony`, and a live-stack `demo-smoke` gate, across PHP 8.2–8.4 × Symfony
+7.4 / 8.0 / 8.1.
+
+Upgrading from `0.5.0` requires no changes. See `UPGRADE.md` for the `0.4 → 0.5`
+notes (the `TenantInterface::isInMaintenance()` addition) if coming from 0.4.
+
 ## [0.5.0] — 2026-07-06
 
 v0.5 **Operations & Scale** — production operability at scale. Adds parallel
@@ -552,7 +583,8 @@ Initial public release. Multi-tenancy for Symfony with zero boilerplate and zero
   - CI jobs for no-Doctrine, no-Messenger, and prefer-lowest dependency validation
   - Codecov coverage reporting
 
-[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/danplaton4/tenancy-bundle/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/danplaton4/tenancy-bundle/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/danplaton4/tenancy-bundle/compare/v0.3.3...v0.4.0

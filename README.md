@@ -18,6 +18,7 @@ Resolve a tenant once at the edge of the request — every Symfony subsystem rec
 - The DBAL connection switches to the tenant's database (or the Doctrine SQL filter scopes every query)
 - Cache pools namespace by tenant
 - The Mailer transport swaps to the tenant's SMTP/DSN
+- The Flysystem filesystem scopes each tenant's uploads
 - Messenger envelopes stamp the active tenant and re-boot it on the consumer side
 - Your code stays tenant-unaware:
 
@@ -40,8 +41,8 @@ Laravel has [`stancl/tenancy`](https://github.com/stancl/tenancy). Symfony users
 ## Quality signals
 
 - **PHPStan level 9** clean — no `@phpstan-ignore`, no `mixed` shortcuts
-- **559 tests / 2,068 assertions** across the unit + integration suites
-- **CI matrix:** PHP 8.2 / 8.3 / 8.4 × Symfony 7.4 / 8.0, plus `prefer-lowest`, "No Doctrine", and "No Messenger" guard builds
+- **970 tests / 3,830 assertions** across the unit + integration suites
+- **CI matrix:** PHP 8.2 / 8.3 / 8.4 × Symfony 7.4 / 8.0 / 8.1, plus `prefer-lowest`, "No Doctrine", "No Messenger", and a `composer audit` supply-chain gate
 - **`demo-smoke` live-stack gate:** every push to `master` rebuilds the three-tenant FrankenPHP + Caddy + MariaDB demo and exercises tenant isolation end-to-end via `bin/smoke.sh` (~90s)
 - **ASVS-L1 threat model** per phase, security gate before phase verification
 - **Strict mode on by default** — a missing tenant on a `#[TenantAware]` entity is an exception, not silent data leakage
@@ -99,14 +100,34 @@ See [`examples/saas/README.md`](examples/saas/README.md) for the full walkthroug
 
 ## Features
 
+**Isolation**
+
 - **Database-per-tenant** — DBAL connection switches at runtime per tenant via `TenantDriverMiddleware`, no `wrapper_class` config required
-- **Shared-database** — Doctrine SQL filter with `#[TenantAware]` attribute; zero manual query scoping; strict-mode by default
-- **5 built-in resolvers** — Host (subdomain), Origin header (SPA-friendly, priority 25, allow-listed), `X-Tenant-ID` header, query param, CLI `--tenant` flag. Chain in any order via config; add your own.
+- **Shared-database** — Doctrine SQL filter with the `#[TenantAware]` attribute; zero manual query scoping; strict-mode by default
+
+**Per-tenant subsystems (bootstrappers)**
+
 - **Cache namespace isolation** — per-tenant cache pool prefixing, no cross-tenant bleed
-- **Mailer bootstrapper** — per-tenant SMTP DSN + `From` + `Reply-To` headers, sync + async safe via `X-Transport` strategy
-- **Messenger context propagation** — `TenantStamp` attached to every envelope, re-booted on consume; works under sync and async transports
+- **Mailer** — per-tenant SMTP DSN + `From` + `Reply-To` headers, sync + async safe via the `X-Transport` strategy
+- **Filesystem (Flysystem)** — per-tenant storage in `prefix` mode (default) or a per-tenant adapter for S3-style separation
+- **Messenger context propagation** — `TenantStamp` on every envelope, re-booted on consume; works under sync and async transports
+
+**Data sharing**
+
+- **Shared entities (`#[Shared]`)** — landlord-side master records replicate to a tenant-side read-only copy via Doctrine events, with opt-in async fan-out over Messenger and a compile-time `#[Shared]` ⊕ `#[TenantAware]` mutual-exclusion guard. `tenancy:shared:resync` for bulk/initial sync.
+
+**Operations & scale**
+
+- **Maintenance mode** — per-tenant HTTP 503 + `Retry-After`, IP/route/path allow-list bypass, optional Twig template; `tenancy:maintenance:enable|disable|status`. Other tenants and the landlord keep serving.
+- **Health checks** — `GET /_tenancy/health/live` + `/_tenancy/health/ready/{slug}` in IETF `application/health+json`, a bounded fleet dashboard, and a `tenancy:health` CLI. Optional `liip/monitor-bundle` auto-registration. Every response is DSN-redacted.
+- **Parallel migrations** — `tenancy:migrate --parallel` runs per-tenant migrations concurrently through a bounded subprocess pool (`--concurrency`, `--dry-run`, `--format=json`); the no-flag path stays sequential.
+
+**Resolution & DX**
+
+- **5 built-in resolvers** — Host (subdomain), Origin header (SPA-friendly, allow-listed), `X-Tenant-ID` header, query param, CLI `--tenant` flag. Chain in any order via config; add your own.
+- **CLI commands** — `tenancy:install` (one-shot setup), `tenancy:init` (scaffold config), `tenancy:migrate` (per-tenant, `--parallel`), `tenancy:run` (wrap any command in tenant context), plus the maintenance, health, and `shared:resync` commands above
 - **Symfony Profiler tab** — "Tenancy" panel in the WDT showing slug, label, driver, resolver, bootstrappers, error state. Auto-registered when `kernel.debug=true`, compile-stripped in prod
-- **CLI commands** — `tenancy:install` (one-shot setup), `tenancy:init` (scaffold config), `tenancy:migrate` (run migrations per tenant), `tenancy:run` (wrap any command with tenant context)
+- **PHPStan extension** — three consumer-facing static rules (`tenancy.mutualExclusion`, `tenancy.sharedEntityLeak`, `tenancy.tenantIdDrift`) auto-loaded via `phpstan/extension-installer`
 - **PHPUnit testing trait** — `InteractsWithTenancy` sets up a clean tenant DB/schema per test method, real SQLite, no mocks
 - **Custom entity support** — extend `AbstractTenant` (MappedSuperclass) to add columns like `brandColor`, `plan`, `billingId` without breaking Doctrine inheritance
 
@@ -126,7 +147,8 @@ Request → Router → TenantContextOrchestrator (priority 20)
                     ├─ DatabaseSwitchBootstrapper
                     ├─ DoctrineBootstrapper
                     ├─ CacheBootstrapper
-                    └─ MailerBootstrapper
+                    ├─ MailerBootstrapper
+                    └─ FilesystemBootstrapper
                          │
                    TenantBootstrapped event
                          │
@@ -148,13 +170,18 @@ Bootstrappers are Symfony services tagged with `tenancy.bootstrapper` — add yo
 | `#[TenantAware]` attribute | ✅ | ❌ (traits) | ❌ | ❌ |
 | Cache isolation | ✅ | ✅ | ❌ | ❌ |
 | Mailer per-tenant | ✅ | ✅ | ❌ | ❌ |
+| Filesystem per-tenant (Flysystem) | ✅ | ✅ | ❌ | ❌ |
+| Shared-entity replication (`#[Shared]`) | ✅ | ✅ | ❌ | DIY |
 | Messenger context propagation | ✅ | ✅ | ❌ | ❌ |
 | 5 resolvers incl. Origin header | ✅ | ✅ | Host only | DIY |
 | CLI tenant context (`tenancy:run`) | ✅ | ✅ | ❌ | ❌ |
+| Parallel migrations | ✅ | ⚠️ | ❌ | DIY |
+| Per-tenant maintenance mode | ✅ | ❌ | ❌ | DIY |
+| Health-check endpoints | ✅ | ❌ | ❌ | DIY |
 | Strict mode (default ON) | ✅ | ❌ | ❌ | ❌ |
 | One-command setup (`tenancy:install`) | ✅ | N/A | ❌ | ❌ |
 | PHPUnit testing trait | ✅ | ✅ | ❌ | ❌ |
-| PHPStan level 9 | ✅ | ❌ | ❌ | ❌ |
+| PHPStan level 9 + extension | ✅ | ❌ | ❌ | ❌ |
 | Symfony Profiler / WDT panel | ✅ | N/A | ❌ | ❌ |
 | Runnable demo + CI smoke gate | ✅ | ✅ | ❌ | ❌ |
 
@@ -167,8 +194,8 @@ The bundle is a kernel extension, not just a database switcher: every Symfony su
 ## Requirements
 
 - PHP `^8.2`
-- Symfony `^7.4` or `^8.0`
-- Optional: `doctrine/orm ^3`, `doctrine/dbal ^4`, `doctrine/migrations`, `symfony/messenger`, `symfony/mailer`
+- Symfony `^7.4`, `^8.0`, or `^8.1`
+- Optional: `doctrine/orm ^3`, `doctrine/dbal ^4`, `doctrine/migrations`, `symfony/messenger`, `symfony/mailer`, `league/flysystem-bundle`, `liip/monitor-bundle`
 
 ## Documentation
 
@@ -183,6 +210,7 @@ Highlights:
 - [Origin-header resolver (SPA)](https://danplaton4.github.io/tenancy-bundle/user-guide/origin-header-resolver/)
 - [Profiler tab](https://danplaton4.github.io/tenancy-bundle/user-guide/profiler-tab/)
 - [Testing with `InteractsWithTenancy`](https://danplaton4.github.io/tenancy-bundle/user-guide/testing/)
+- **Operations:** [maintenance mode](https://danplaton4.github.io/tenancy-bundle/ops/maintenance-mode/) · [health checks](https://danplaton4.github.io/tenancy-bundle/ops/health-checks/) · [parallel migrations](https://danplaton4.github.io/tenancy-bundle/ops/parallel-migrations/)
 - [Architecture (contributor guide)](https://danplaton4.github.io/tenancy-bundle/contributor-guide/architecture/)
 
 ## Roadmap
